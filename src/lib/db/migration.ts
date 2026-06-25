@@ -9,10 +9,22 @@ export function migrateDatabase(databaseFile?: string) {
   mkdirSync(dirname(path), { recursive: true });
   const database = new DatabaseSync(path);
   database.exec("PRAGMA foreign_keys = ON");
-  const migration = readFileSync(
-    resolve(process.cwd(), "drizzle/0000_initial.sql"),
-    "utf8",
-  );
+  const migrations = [
+    {
+      name: "0000_initial",
+      sql: readFileSync(
+        resolve(process.cwd(), "drizzle/0000_initial.sql"),
+        "utf8",
+      ),
+    },
+    {
+      name: "0001_customer_contract_status",
+      sql: readFileSync(
+        resolve(process.cwd(), "drizzle/0001_customer_contract_status.sql"),
+        "utf8",
+      ),
+    },
+  ];
 
   database.exec(`
     CREATE TABLE IF NOT EXISTS __migrations (
@@ -20,17 +32,19 @@ export function migrateDatabase(databaseFile?: string) {
       applied_at INTEGER NOT NULL
     )
   `);
-  const applied = database
-    .prepare("SELECT name FROM __migrations WHERE name = ?")
-    .get("0000_initial");
 
-  if (!applied) {
+  for (const migration of migrations) {
+    const applied = database
+      .prepare("SELECT name FROM __migrations WHERE name = ?")
+      .get(migration.name);
+    if (applied) continue;
+
     database.exec("BEGIN IMMEDIATE");
     try {
-      database.exec(migration);
+      database.exec(migration.sql);
       database
         .prepare("INSERT INTO __migrations (name, applied_at) VALUES (?, ?)")
-        .run("0000_initial", Date.now());
+        .run(migration.name, Date.now());
       database.exec("COMMIT");
     } catch (error) {
       database.exec("ROLLBACK");

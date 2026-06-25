@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { Badge, PageHeading } from "@/components/ui";
 import { listSchools } from "@/lib/queries";
@@ -40,7 +40,7 @@ export default async function SchoolsPage({
             {rows.map((school) => (
               <tr key={school.id}>
                 <td>
-                  <strong>{school.nameZh}</strong>
+                  <Link href={`/schools/${school.id}`}><strong>{school.nameZh}</strong></Link>
                 </td>
                 <td>{[school.province, school.city].filter(Boolean).join(" · ") || "—"}</td>
                 <td>{school.qsRanking || "—"}</td>

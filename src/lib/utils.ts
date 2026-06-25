@@ -26,8 +26,9 @@ export function parseDateInput(value: FormDataEntryValue | null) {
 }
 
 export function formatDate(value: Date | number | null | undefined) {
-  if (!value) return "—";
+  if (value == null) return "—";
   const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "数据库未有相关信息";
   return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "2-digit",
@@ -36,7 +37,7 @@ export function formatDate(value: Date | number | null | undefined) {
 }
 
 export function formatMoney(value: number | null | undefined) {
-  if (value == null) return "数据库未有相关信息";
+  if (value == null || !Number.isFinite(value)) return "数据库未有相关信息";
   return new Intl.NumberFormat("zh-CN", {
     style: "currency",
     currency: "CNY",

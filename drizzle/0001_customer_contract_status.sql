@@ -1,0 +1,2 @@
+ALTER TABLE customers
+ADD COLUMN contract_status TEXT NOT NULL DEFAULT 'UNKNOWN';
