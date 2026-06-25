@@ -1,4 +1,4 @@
-﻿import {
+import {
   and,
   asc,
   count,
@@ -199,10 +199,16 @@ export async function getProgramsForScreening() {
   return db
     .select({
       id: programs.id,
+      schoolId: schools.id,
       schoolName: schools.nameZh,
+      programName: programs.name,
       programType: programs.programType,
       teachingLanguage: programs.teachingLanguage,
       majorText: programs.majorText,
+      requirementsText: programs.requirementsText,
+      semesterText: programs.semesterText,
+      applicationTimeText: programs.applicationTimeText,
+      accommodationText: programs.accommodationText,
       firstYearCostMax: programs.firstYearCostMax,
       costIncomplete: programs.costIncomplete,
       cscaStatus: programs.cscaStatus,
@@ -213,6 +219,8 @@ export async function getProgramsForScreening() {
       ieltsMin: programs.ieltsMin,
       toeflMin: programs.toeflMin,
       duolingoMin: programs.duolingoMin,
+      minAge: programs.minAge,
+      maxAge: programs.maxAge,
       deadlineDate: programs.deadlineDate,
       deadlineStatus: programs.deadlineStatus,
       scholarshipCategory: programs.scholarshipCategory,
@@ -227,6 +235,39 @@ export async function getProgramsForScreening() {
     .where(eq(programs.archived, false));
 }
 
+export async function getSchoolDetails(id: string) {
+  const [school] = await db
+    .select()
+    .from(schools)
+    .where(and(eq(schools.id, id), eq(schools.archived, false)))
+    .limit(1);
+  if (!school) return null;
+
+  const schoolPrograms = await db
+    .select({
+      id: programs.id,
+      name: programs.name,
+      programType: programs.programType,
+      teachingLanguage: programs.teachingLanguage,
+      majorText: programs.majorText,
+      requirementsText: programs.requirementsText,
+      tuitionText: programs.tuitionText,
+      firstYearCostMax: programs.firstYearCostMax,
+      costIncomplete: programs.costIncomplete,
+      deadlineDate: programs.deadlineDate,
+      deadlineStatus: programs.deadlineStatus,
+      scholarshipCategory: programs.scholarshipCategory,
+      scholarshipContent: programs.scholarshipContent,
+      accommodationText: programs.accommodationText,
+      applicationTimeText: programs.applicationTimeText,
+      reviewStatus: programs.reviewStatus,
+    })
+    .from(programs)
+    .where(and(eq(programs.schoolId, id), eq(programs.archived, false)))
+    .orderBy(asc(programs.programType), asc(programs.teachingLanguage));
+
+  return { school, programs: schoolPrograms };
+}
 export async function listCustomers(query = "") {
   return db
     .select({
