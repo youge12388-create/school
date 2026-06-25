@@ -1,0 +1,23 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+/build/
+
+# tests and logs
+/coverage/
+*.log
+*.tsbuildinfo
+
+# local secrets and business data
+.env*
+!.env.example
+/data/
+/backups/
+*.pem
+
+# editor and OS
+.DS_Store
+.vercel
