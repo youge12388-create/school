@@ -268,6 +268,11 @@ export const customers = sqliteTable(
     accommodationRequired: integer("accommodation_required", { mode: "boolean" }),
     dateOfBirth: integer("date_of_birth", { mode: "timestamp_ms" }),
     ownerId: text("owner_id").references(() => users.id),
+    contractStatus: text("contract_status", {
+      enum: ["UNKNOWN", "NOT_SIGNED", "SIGNED"],
+    })
+      .notNull()
+      .default("UNKNOWN"),
     notes: text("notes"),
     nextFollowUpAt: integer("next_follow_up_at", { mode: "timestamp_ms" }),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),

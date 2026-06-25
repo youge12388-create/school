@@ -202,4 +202,19 @@ describe("screening matcher", () => {
     );
     expect(results.map((item) => item.program.id)).toEqual(["expired"]);
   });
+
+  it("无效截止日期归入信息未知且不会抛错", () => {
+    const program = makeProgram({
+      deadlineDate: new Date("invalid"),
+      deadlineStatus: "OPEN",
+    });
+    expect(getEffectiveDeadlineStatus(program, now)).toBe("UNKNOWN");
+    const result = evaluateProgram(program, {}, now);
+    expect(result.fitLevel).toBe("UNKNOWN");
+    expect(result.evidence).toContainEqual({
+      label: "申请截止",
+      level: "UNKNOWN",
+      detail: "数据库未有相关信息",
+    });
+  });
 });

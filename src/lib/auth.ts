@@ -1,13 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import type { UserRole } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { db } from "@/lib/db";
-import { sessions, users } from "@/lib/db/schema";
+import { db, sqlite } from "@/lib/db";
+import { sessions } from "@/lib/db/schema";
 import { newId } from "@/lib/utils";
 
 const COOKIE_NAME = "school_syt_session";
@@ -58,29 +58,32 @@ export async function getCurrentUser() {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
 
-  const rows = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      displayName: users.displayName,
-      role: users.role,
-      active: users.active,
-      sessionId: sessions.id,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(users.id, sessions.userId))
-    .where(
-      and(
-        eq(sessions.tokenHash, hashToken(token)),
-        gt(sessions.expiresAt, new Date()),
-        eq(users.active, true),
-      ),
-    )
-    .limit(1);
+  const row = sqlite.prepare(`SELECT
+      u.id AS id,
+      u.username AS username,
+      u.display_name AS displayName,
+      u.role AS role,
+      u.active AS active,
+      s.id AS sessionId
+    FROM sessions s
+    INNER JOIN users u ON u.id = s.user_id
+    WHERE s.token_hash = ?
+      AND s.expires_at > ?
+      AND u.active = 1
+    LIMIT 1`)
+    .get(hashToken(token), Date.now()) as
+      | {
+          id: string;
+          username: string;
+          displayName: string;
+          role: UserRole;
+          active: number;
+          sessionId: string;
+        }
+      | undefined;
 
-  return rows[0] ?? null;
+  return row ? { ...row, active: Boolean(row.active) } : null;
 }
-
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

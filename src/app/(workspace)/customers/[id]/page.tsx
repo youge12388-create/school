@@ -4,15 +4,18 @@ import {
   addFollowUpAction,
   archiveCustomerAction,
   createApplicationAction,
+  updateCustomerManagementAction,
 } from "@/app/actions";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import {
   APPLICATION_STATUS_LABELS,
+  CONTRACT_STATUS_LABELS,
+  CONTRACT_STATUSES,
   LANGUAGE_LABELS,
   PROGRAM_TYPE_LABELS,
   type ApplicationStatus,
 } from "@/lib/constants";
-import { getCustomer, listPrograms } from "@/lib/queries";
+import { getCustomer, listCustomerOwners, listPrograms } from "@/lib/queries";
 import { formatDate, formatMoney } from "@/lib/utils";
 
 export default async function CustomerDetailPage({
@@ -23,7 +26,10 @@ export default async function CustomerDetailPage({
   const { id } = await params;
   const data = await getCustomer(id);
   if (!data) notFound();
-  const programOptions = await listPrograms({});
+  const [programOptions, owners] = await Promise.all([
+    listPrograms({}),
+    Promise.resolve(listCustomerOwners()),
+  ]);
   const customer = data.customer;
   return (
     <>
@@ -37,6 +43,33 @@ export default async function CustomerDetailPage({
           </form>
         }
       />
+      <section className="card customer-management-card">
+        <div className="card-header"><h3>客户管理状态</h3></div>
+        <div className="card-body">
+          <form action={updateCustomerManagementAction}>
+            <input type="hidden" name="customerId" value={id} />
+            <div className="customer-management-fields">
+              <label>
+                负责老师
+                <select name="ownerId" defaultValue={customer.ownerId || ""} required>
+                  {owners.map((owner) => (
+                    <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                签约状态
+                <select name="contractStatus" defaultValue={customer.contractStatus}>
+                  {CONTRACT_STATUSES.map((status) => (
+                    <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="primary" type="submit">更新管理状态</button>
+            </div>
+          </form>
+        </div>
+      </section>
       <section className="grid cols-3">
         <div className="card">
           <div className="card-header"><h3>联系信息</h3></div>
@@ -44,7 +77,7 @@ export default async function CustomerDetailPage({
             <p>电话：{customer.phone || "—"}</p>
             <p>邮箱：{customer.email || "—"}</p>
             <p>微信：{customer.wechat || "—"}</p>
-            <p>负责人：{customer.ownerId || "—"}</p>
+            <p>负责老师：{customer.ownerName || "未分配"}</p>
           </div>
         </div>
         <div className="card">
@@ -69,7 +102,7 @@ export default async function CustomerDetailPage({
 
       <section className="grid cols-2" style={{ marginTop: 16 }}>
         <div className="card">
-          <div className="card-header"><h3>沟通记录</h3></div>
+          <div className="card-header"><h3>后续跟进情况</h3></div>
           <div className="card-body">
             <form action={addFollowUpAction}>
               <input type="hidden" name="customerId" value={id} />
@@ -85,7 +118,7 @@ export default async function CustomerDetailPage({
                     <option>其他</option>
                   </select>
                 </label>
-                <label>下次跟进<input name="nextFollowUpAt" type="date" /></label>
+                <label>计划跟进日期<input name="nextFollowUpAt" type="date" /></label>
                 <label className="wide">沟通内容<textarea name="content" required /></label>
               </div>
               <div className="form-actions"><button type="submit">添加记录</button></div>
@@ -96,7 +129,7 @@ export default async function CustomerDetailPage({
                   <strong>{item.channel} · {item.authorName}</strong>
                   <div className="small muted">{formatDate(item.createdAt)}</div>
                   <p>{item.content}</p>
-                  {item.nextFollowUpAt ? <p className="small">下次跟进：{formatDate(item.nextFollowUpAt)}</p> : null}
+                  {item.nextFollowUpAt ? <p className="small">计划跟进：{formatDate(item.nextFollowUpAt)}</p> : null}
                 </div>
               ))}
             </div>

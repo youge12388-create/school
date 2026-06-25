@@ -135,6 +135,7 @@ export function majorMatches(
 
 export function getEffectiveDeadlineStatus(program: MatchProgram, now = new Date()) {
   if (program.deadlineDate) {
+    if (!Number.isFinite(program.deadlineDate.getTime())) return "UNKNOWN" as const;
     return program.deadlineDate.getTime() >= now.getTime()
       ? ("OPEN" as const)
       : ("EXPIRED" as const);
@@ -161,7 +162,11 @@ function deadlineEvidence(
   criteria: ScreeningCriteria,
   status: "OPEN" | "EXPIRED" | "UNKNOWN",
 ) {
-  if (status === "UNKNOWN" || !program.deadlineDate) {
+  if (
+    status === "UNKNOWN" ||
+    !program.deadlineDate ||
+    !Number.isFinite(program.deadlineDate.getTime())
+  ) {
     return { label: "申请截止", level: "UNKNOWN" as const, detail: "数据库未有相关信息" };
   }
   const dateText = program.deadlineDate.toLocaleDateString("zh-CN");

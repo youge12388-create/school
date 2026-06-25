@@ -1,13 +1,14 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 import {
   APPLICATION_STATUSES,
+  CONTRACT_STATUSES,
   type ApplicationStatus,
+  type ContractStatus,
   USER_ROLES,
 } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
@@ -24,7 +25,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/password";
-import { asNumber, asText, newId, parseDateInput } from "@/lib/utils";
+import { asText, newId, parseDateInput } from "@/lib/utils";
 
 export async function logoutAction() {
   const user = await requireUser();
@@ -36,66 +37,6 @@ export async function logoutAction() {
   });
   await destroySession();
   redirect("/login");
-}
-
-const customerSchema = z.object({
-  name: z.string().min(1),
-  nationality: z.string().optional(),
-});
-
-export async function createCustomerAction(formData: FormData) {
-  const user = await requireUser();
-  const input = customerSchema.parse({
-    name: asText(formData.get("name")),
-    nationality: asText(formData.get("nationality")),
-  });
-  const id = newId();
-  const customerNo = `C${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${id.slice(0, 6).toUpperCase()}`;
-  await db.insert(customers).values({
-    id,
-    customerNo,
-    name: input.name,
-    nationality: input.nationality || null,
-    phone: asText(formData.get("phone")) || null,
-    email: asText(formData.get("email")) || null,
-    wechat: asText(formData.get("wechat")) || null,
-    currentEducation: asText(formData.get("currentEducation")) || null,
-    schoolBackground: asText(formData.get("schoolBackground")) || null,
-    gpa: asNumber(formData.get("gpa")),
-    gpaScale: asNumber(formData.get("gpaScale")),
-    hskLevel: asNumber(formData.get("hskLevel")),
-    hskScore: asNumber(formData.get("hskScore")),
-    ielts: asNumber(formData.get("ielts")),
-    toefl: asNumber(formData.get("toefl")),
-    duolingo: asNumber(formData.get("duolingo")),
-    hasCsca:
-      formData.get("hasCsca") === "yes"
-        ? true
-        : formData.get("hasCsca") === "no"
-          ? false
-          : null,
-    targetDegree: asText(formData.get("targetDegree")) || null,
-    targetMajor: asText(formData.get("targetMajor")) || null,
-    teachingLanguage: asText(formData.get("teachingLanguage")) || null,
-    intakeYear: asNumber(formData.get("intakeYear")),
-    firstYearBudget: asNumber(formData.get("firstYearBudget")),
-    preferredProvince: asText(formData.get("preferredProvince")) || null,
-    preferredCity: asText(formData.get("preferredCity")) || null,
-    scholarshipRequired: formData.get("scholarshipRequired") === "on",
-    accommodationRequired: formData.get("accommodationRequired") === "on",
-    dateOfBirth: parseDateInput(formData.get("dateOfBirth")),
-    ownerId: user.id,
-    notes: asText(formData.get("notes")) || null,
-    nextFollowUpAt: parseDateInput(formData.get("nextFollowUpAt")),
-  });
-  await writeAudit({
-    userId: user.id,
-    action: "CUSTOMER_CREATED",
-    entityType: "CUSTOMER",
-    entityId: id,
-    details: { customerNo, name: input.name },
-  });
-  redirect(`/customers/${id}`);
 }
 
 export async function addFollowUpAction(formData: FormData) {
@@ -128,6 +69,36 @@ export async function addFollowUpAction(formData: FormData) {
   revalidatePath(`/customers/${customerId}`);
 }
 
+export async function updateCustomerManagementAction(formData: FormData) {
+  const user = await requireUser();
+  const customerId = asText(formData.get("customerId"));
+  const ownerId = asText(formData.get("ownerId"));
+  const contractStatus = asText(formData.get("contractStatus")) as ContractStatus;
+  if (!customerId || !ownerId || !CONTRACT_STATUSES.includes(contractStatus)) {
+    throw new Error("负责老师和签约状态不能为空");
+  }
+
+  const [owner] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.id, ownerId), eq(users.active, true)))
+    .limit(1);
+  if (!owner) throw new Error("负责老师账号不存在");
+
+  await db
+    .update(customers)
+    .set({ ownerId, contractStatus, updatedAt: new Date() })
+    .where(eq(customers.id, customerId));
+  await writeAudit({
+    userId: user.id,
+    action: "CUSTOMER_MANAGEMENT_UPDATED",
+    entityType: "CUSTOMER",
+    entityId: customerId,
+    details: { ownerId, contractStatus },
+  });
+  revalidatePath(`/customers/${customerId}`);
+  revalidatePath("/customers");
+}
 export async function archiveCustomerAction(formData: FormData) {
   const user = await requireUser();
   const customerId = asText(formData.get("customerId"));
@@ -184,7 +155,7 @@ export async function updateApplicationStatusAction(formData: FormData) {
     throw new Error("状态和调整原因不能为空");
   }
   const [current] = await db
-    .select({ status: applications.status })
+    .select({ status: applications.status, customerId: applications.customerId })
     .from(applications)
     .where(eq(applications.id, applicationId))
     .limit(1);
@@ -218,6 +189,8 @@ export async function updateApplicationStatusAction(formData: FormData) {
   });
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath("/applications");
+  revalidatePath("/customers");
+  revalidatePath(`/customers/${current.customerId}`);
 }
 
 export async function createUserAction(formData: FormData) {

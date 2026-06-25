@@ -36,6 +36,31 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   CLOSED: "关闭",
 };
 
+export const CONTRACT_STATUSES = ["UNKNOWN", "NOT_SIGNED", "SIGNED"] as const;
+export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
+
+export const CONTRACT_STATUS_LABELS: Record<ContractStatus, string> = {
+  UNKNOWN: "未确认",
+  NOT_SIGNED: "未签约",
+  SIGNED: "已签约",
+};
+
+export const ADMISSION_STATUSES = [
+  "NO_APPLICATION",
+  "IN_PROGRESS",
+  "ADMITTED",
+  "REJECTED",
+  "CLOSED",
+] as const;
+export type AdmissionStatus = (typeof ADMISSION_STATUSES)[number];
+
+export const ADMISSION_STATUS_LABELS: Record<AdmissionStatus, string> = {
+  NO_APPLICATION: "暂无申请",
+  IN_PROGRESS: "申请进行中",
+  ADMITTED: "已录取 / 已入学",
+  REJECTED: "未录取",
+  CLOSED: "申请已关闭",
+};
 export const PROGRAM_TYPE_LABELS: Record<string, string> = {
   UG: "本科",
   MASTER: "硕士",

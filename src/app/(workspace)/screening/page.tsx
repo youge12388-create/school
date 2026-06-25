@@ -78,6 +78,32 @@ function hasSearchCriteria(params: Record<string, string | undefined>) {
   );
 }
 
+
+function hasAnyParam(
+  params: Record<string, string | undefined>,
+  keys: readonly string[],
+) {
+  return keys.some((key) => Boolean(params[key]));
+}
+
+const academicFilterKeys = [
+  "csca",
+  "gpa",
+  "gpaScale",
+  "hskLevel",
+  "hskScore",
+  "ielts",
+  "toefl",
+  "duolingo",
+] as const;
+
+const preferenceFilterKeys = [
+  "budget",
+  "province",
+  "city",
+  "scholarship",
+  "accommodation",
+] as const;
 const fitSection: Record<
   Exclude<FitLevel, "NOT_MATCHED">,
   { title: string; description: string }
@@ -135,6 +161,8 @@ export default async function ScreeningPage({
   const params = await searchParams;
   const criteria = toCriteria(params);
   const hasSearch = hasSearchCriteria(params);
+  const showAcademicFilters = hasAnyParam(params, academicFilterKeys);
+  const showPreferenceFilters = hasAnyParam(params, preferenceFilterKeys);
   const [programs, customers] = await Promise.all([
     getProgramsForScreening(),
     listCustomerOptions(),
@@ -201,8 +229,31 @@ export default async function ScreeningPage({
           </section>
 
           <section className="screening-filter-section">
-            <h4>学术与语言条件</h4>
+            <h4>申请时间</h4>
             <div className="form-grid">
+              <label>
+                申请截止状态
+                <select name="deadlineMode" defaultValue={params.deadlineMode || "all"}>
+                  <option value="all">全部状态</option>
+                  <option value="open">只看开放中</option>
+                  <option value="unknown">只看日期未知</option>
+                  <option value="expired">只看已截止</option>
+                </select>
+              </label>
+              <label>截止日期从<input name="deadlineFrom" type="date" defaultValue={params.deadlineFrom} /></label>
+              <label>截止日期到<input name="deadlineTo" type="date" defaultValue={params.deadlineTo} /></label>
+            </div>
+          </section>
+
+          <details className="screening-filter-section screening-filter-advanced" open={showAcademicFilters}>
+            <summary>
+              <span>
+                <strong>学术与语言条件</strong>
+                <small>CSCA、GPA、HSK、雅思、托福、多邻国</small>
+              </span>
+              <span className="screening-advanced-toggle">展开</span>
+            </summary>
+            <div className="form-grid screening-advanced-body">
               <label>
                 CSCA 当前状态
                 <select name="csca" defaultValue={params.csca}>
@@ -219,11 +270,17 @@ export default async function ScreeningPage({
               <label>托福<input name="toefl" type="number" defaultValue={params.toefl} /></label>
               <label>多邻国<input name="duolingo" type="number" defaultValue={params.duolingo} /></label>
             </div>
-          </section>
+          </details>
 
-          <section className="screening-filter-section">
-            <h4>预算与偏好</h4>
-            <div className="form-grid">
+          <details className="screening-filter-section screening-filter-advanced" open={showPreferenceFilters}>
+            <summary>
+              <span>
+                <strong>预算与偏好</strong>
+                <small>预算、省市、奖学金、住宿</small>
+              </span>
+              <span className="screening-advanced-toggle">展开</span>
+            </summary>
+            <div className="form-grid screening-advanced-body">
               <label>首年总预算（元）<input name="budget" type="number" min="0" defaultValue={params.budget} /></label>
               <label>意向省份<input name="province" defaultValue={params.province} placeholder="例如：广东" /></label>
               <label>意向城市<input name="city" defaultValue={params.city} placeholder="例如：深圳" /></label>
@@ -242,25 +299,7 @@ export default async function ScreeningPage({
                 </select>
               </label>
             </div>
-          </section>
-
-          <section className="screening-filter-section">
-            <h4>申请时间</h4>
-            <div className="form-grid">
-              <label>
-                申请截止状态
-                <select name="deadlineMode" defaultValue={params.deadlineMode || "all"}>
-                  <option value="all">全部状态</option>
-                  <option value="open">只看开放中</option>
-                  <option value="unknown">只看日期未知</option>
-                  <option value="expired">只看已截止</option>
-                </select>
-              </label>
-              <label>截止日期从<input name="deadlineFrom" type="date" defaultValue={params.deadlineFrom} /></label>
-              <label>截止日期到<input name="deadlineTo" type="date" defaultValue={params.deadlineTo} /></label>
-            </div>
-          </section>
-
+          </details>
           <div className="form-actions screening-filter-actions">
             <button className="primary" type="submit">开始筛查</button>
             <Link className="button" href="/screening">清空条件</Link>
