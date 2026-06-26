@@ -19,6 +19,15 @@ function parseDateParam(value?: string) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+
+const supervisorAcceptanceModes = ["required", "not_required", "unknown"] as const;
+
+function parseSupervisorAcceptance(value?: string): ScreeningCriteria["supervisorAcceptance"] {
+  return supervisorAcceptanceModes.includes(value as (typeof supervisorAcceptanceModes)[number])
+    ? (value as ScreeningCriteria["supervisorAcceptance"])
+    : null;
+}
+
 function toCriteria(params: Record<string, string | undefined>): ScreeningCriteria {
   return {
     programType: params.type,
@@ -40,8 +49,7 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     city: params.city,
     scholarshipRequired: params.scholarship === "yes",
     accommodationRequired: params.accommodation === "yes",
-    supervisorAcceptance:
-      (params.supervisorAcceptance as ScreeningCriteria["supervisorAcceptance"]) || null,
+    supervisorAcceptance: parseSupervisorAcceptance(params.supervisorAcceptance),
     deadlineFrom: parseDateParam(params.deadlineFrom),
     deadlineTo: parseDateParam(params.deadlineTo),
     deadlineMode:
@@ -227,14 +235,12 @@ export default async function ScreeningPage({
               <label>目标专业<input name="major" defaultValue={params.major} /></label>
               <label>入学年份<input name="intakeYear" type="number" min="2026" max="2035" defaultValue={params.intakeYear} /></label>
               <label>
-                导师接收函要求
+                学校是否要求导师接收函
                 <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
                   <option value="">不限</option>
-                  <option value="can_provide">客户可提供</option>
-                  <option value="cannot_provide">客户暂不能提供</option>
-                  <option value="required">只看明确要求</option>
-                  <option value="not_required">只看明确不要求</option>
-                  <option value="unknown">只看信息未知</option>
+                  <option value="required">学校明确要求</option>
+                  <option value="not_required">学校明确不要求</option>
+                  <option value="unknown">数据库未写明</option>
                 </select>
               </label>
               <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>

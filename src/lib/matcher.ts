@@ -4,12 +4,7 @@ import { normalizeKeyword } from "@/lib/utils";
 
 export type DeadlineMode = "open" | "unknown" | "expired" | "all";
 export type FitLevel = "MATCHED" | "NEEDS_ACTION" | "UNKNOWN" | "NOT_MATCHED";
-export type SupervisorAcceptanceMode =
-  | "required"
-  | "not_required"
-  | "unknown"
-  | "can_provide"
-  | "cannot_provide";
+export type SupervisorAcceptanceMode = "required" | "not_required" | "unknown";
 
 export type ScreeningCriteria = {
   programType?: string;
@@ -281,41 +276,25 @@ function supervisorAcceptanceEvidence(
   const status = getSupervisorAcceptanceStatus(program);
   if (mode === "required") {
     return status === "REQUIRED"
-      ? { label: "导师接收函", level: "PASS", detail: "数据库文本明确要求导师接收函" }
+      ? { label: "导师接收函", level: "PASS", detail: "学校申请条件明确要求导师接收函" }
       : status === "NOT_REQUIRED"
-        ? { label: "导师接收函", level: "FAIL", detail: "数据库文本明确不要求导师接收函" }
+        ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" }
         : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
   }
 
   if (mode === "not_required") {
     return status === "NOT_REQUIRED"
-      ? { label: "导师接收函", level: "PASS", detail: "数据库文本明确不要求导师接收函" }
+      ? { label: "导师接收函", level: "PASS", detail: "学校申请条件明确不要求导师接收函" }
       : status === "REQUIRED"
-        ? { label: "导师接收函", level: "FAIL", detail: "数据库文本明确要求导师接收函" }
+        ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确要求导师接收函" }
         : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
   }
 
-  if (mode === "unknown") {
-    return status === "UNKNOWN"
-      ? { label: "导师接收函", level: "PASS", detail: "数据库未有相关信息" }
-      : status === "REQUIRED"
-        ? { label: "导师接收函", level: "FAIL", detail: "数据库文本明确要求导师接收函" }
-        : { label: "导师接收函", level: "FAIL", detail: "数据库文本明确不要求导师接收函" };
-  }
-
-  if (mode === "can_provide") {
-    return status === "REQUIRED"
-      ? { label: "导师接收函", level: "PASS", detail: "项目要求导师接收函，客户可提供" }
-      : status === "NOT_REQUIRED"
-        ? { label: "导师接收函", level: "PASS", detail: "项目明确不要求导师接收函" }
-        : { label: "导师接收函", level: "UNKNOWN", detail: "数据库未有相关信息" };
-  }
-
-  return status === "REQUIRED"
-    ? { label: "导师接收函", level: "FAIL", detail: "项目明确要求导师接收函，客户暂不能提供" }
-    : status === "NOT_REQUIRED"
-      ? { label: "导师接收函", level: "PASS", detail: "项目明确不要求导师接收函" }
-      : { label: "导师接收函", level: "UNKNOWN", detail: "数据库未有相关信息" };
+  return status === "UNKNOWN"
+    ? { label: "导师接收函", level: "PASS", detail: "数据库未有相关信息" }
+    : status === "REQUIRED"
+      ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确要求导师接收函" }
+      : { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" };
 }
 
 function englishEvidence(program: MatchProgram, criteria: ScreeningCriteria): MatchEvidence {
