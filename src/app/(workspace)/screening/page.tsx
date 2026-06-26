@@ -40,6 +40,8 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     city: params.city,
     scholarshipRequired: params.scholarship === "yes",
     accommodationRequired: params.accommodation === "yes",
+    supervisorAcceptance:
+      (params.supervisorAcceptance as ScreeningCriteria["supervisorAcceptance"]) || null,
     deadlineFrom: parseDateParam(params.deadlineFrom),
     deadlineTo: parseDateParam(params.deadlineTo),
     deadlineMode:
@@ -67,6 +69,7 @@ const searchKeys = [
   "city",
   "scholarship",
   "accommodation",
+  "supervisorAcceptance",
   "deadlineFrom",
   "deadlineTo",
 ] as const;
@@ -223,6 +226,17 @@ export default async function ScreeningPage({
               </label>
               <label>目标专业<input name="major" defaultValue={params.major} /></label>
               <label>入学年份<input name="intakeYear" type="number" min="2026" max="2035" defaultValue={params.intakeYear} /></label>
+              <label>
+                导师接收函要求
+                <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
+                  <option value="">不限</option>
+                  <option value="can_provide">客户可提供</option>
+                  <option value="cannot_provide">客户暂不能提供</option>
+                  <option value="required">只看明确要求</option>
+                  <option value="not_required">只看明确不要求</option>
+                  <option value="unknown">只看信息未知</option>
+                </select>
+              </label>
               <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>
               <label>年龄<input name="age" type="number" min="1" max="100" defaultValue={params.age} /></label>
             </div>

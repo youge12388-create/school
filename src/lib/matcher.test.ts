@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateProgram,
   getEffectiveDeadlineStatus,
+  getSupervisorAcceptanceStatus,
   majorMatches,
   rankPrograms,
   type MatchProgram,
@@ -19,6 +20,7 @@ const baseProgram: MatchProgram = {
   teachingLanguage: "ENGLISH",
   majorText: "软件工程\n人工智能",
   requirementsText: "申请人须为非中国籍，雅思 6.0，GPA 80/100，年龄不超过 30 岁",
+  sourceText: null,
   semesterText: "2027 年秋季入学",
   applicationTimeText: "申请截止日期为 2027年5月31日",
   accommodationText: "校内住宿 8000 元/年",
@@ -215,6 +217,43 @@ describe("screening matcher", () => {
       label: "申请截止",
       level: "UNKNOWN",
       detail: "数据库未有相关信息",
+    });
+  });
+
+  it("detects required supervisor acceptance letter", () => {
+    const program = makeProgram({
+      programType: "MASTER",
+      requirementsText: "申请材料包括导师接收函、成绩单和语言成绩。",
+    });
+    const result = evaluateProgram(
+      program,
+      { programType: "MASTER", supervisorAcceptance: "cannot_provide" },
+      now,
+    );
+    expect(getSupervisorAcceptanceStatus(program)).toBe("REQUIRED");
+    expect(result.fitLevel).toBe("NOT_MATCHED");
+    expect(result.evidence).toContainEqual({
+      label: "导师接收函",
+      level: "FAIL",
+      detail: "项目明确要求导师接收函，客户暂不能提供",
+    });
+  });
+
+  it("detects explicit supervisor acceptance letter exemption", () => {
+    const program = makeProgram({
+      programType: "MASTER",
+      requirementsText: "无需提前联系导师，不需要导师接收函。",
+    });
+    const result = evaluateProgram(
+      program,
+      { programType: "MASTER", supervisorAcceptance: "not_required" },
+      now,
+    );
+    expect(getSupervisorAcceptanceStatus(program)).toBe("NOT_REQUIRED");
+    expect(result.evidence).toContainEqual({
+      label: "导师接收函",
+      level: "PASS",
+      detail: "数据库文本明确不要求导师接收函",
     });
   });
 });
