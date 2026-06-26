@@ -220,22 +220,22 @@ describe("screening matcher", () => {
     });
   });
 
-  it("detects required supervisor acceptance letter", () => {
+  it("detects school-required supervisor acceptance letter", () => {
     const program = makeProgram({
       programType: "MASTER",
       requirementsText: "申请材料包括导师接收函、成绩单和语言成绩。",
     });
     const result = evaluateProgram(
       program,
-      { programType: "MASTER", supervisorAcceptance: "cannot_provide" },
+      { programType: "MASTER", supervisorAcceptance: "required" },
       now,
     );
     expect(getSupervisorAcceptanceStatus(program)).toBe("REQUIRED");
-    expect(result.fitLevel).toBe("NOT_MATCHED");
+    expect(result.fitLevel).toBe("MATCHED");
     expect(result.evidence).toContainEqual({
       label: "导师接收函",
-      level: "FAIL",
-      detail: "项目明确要求导师接收函，客户暂不能提供",
+      level: "PASS",
+      detail: "学校申请条件明确要求导师接收函",
     });
   });
 
@@ -253,7 +253,7 @@ describe("screening matcher", () => {
     expect(result.evidence).toContainEqual({
       label: "导师接收函",
       level: "PASS",
-      detail: "数据库文本明确不要求导师接收函",
+      detail: "学校申请条件明确不要求导师接收函",
     });
   });
 });
