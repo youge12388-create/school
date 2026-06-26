@@ -209,6 +209,15 @@ export async function getProgramsForScreening() {
         p.teaching_language AS teachingLanguage,
         p.major_text AS majorText,
         p.requirements_text AS requirementsText,
+        TRIM(
+          COALESCE(p.requirements_text, '') || ' ' ||
+          COALESCE(p.introduction, '') || ' ' ||
+          COALESCE(p.direction_text, '') || ' ' ||
+          COALESCE(p.scholarship_content, '') || ' ' ||
+          COALESCE(p.scholarship_note, '') || ' ' ||
+          COALESCE(p.fee_note, '') || ' ' ||
+          COALESCE(p.raw_json, '')
+        ) AS sourceText,
         p.semester_text AS semesterText,
         p.application_time_text AS applicationTimeText,
         p.accommodation_text AS accommodationText,
@@ -245,6 +254,7 @@ export async function getProgramsForScreening() {
       teachingLanguage: string;
       majorText: string | null;
       requirementsText: string | null;
+      sourceText: string | null;
       semesterText: string | null;
       applicationTimeText: string | null;
       accommodationText: string | null;

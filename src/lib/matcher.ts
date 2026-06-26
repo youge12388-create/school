@@ -4,6 +4,12 @@ import { normalizeKeyword } from "@/lib/utils";
 
 export type DeadlineMode = "open" | "unknown" | "expired" | "all";
 export type FitLevel = "MATCHED" | "NEEDS_ACTION" | "UNKNOWN" | "NOT_MATCHED";
+export type SupervisorAcceptanceMode =
+  | "required"
+  | "not_required"
+  | "unknown"
+  | "can_provide"
+  | "cannot_provide";
 
 export type ScreeningCriteria = {
   programType?: string;
@@ -25,6 +31,7 @@ export type ScreeningCriteria = {
   city?: string;
   scholarshipRequired?: boolean;
   accommodationRequired?: boolean;
+  supervisorAcceptance?: SupervisorAcceptanceMode | null;
   deadlineFrom?: Date | null;
   deadlineTo?: Date | null;
   deadlineMode?: DeadlineMode;
@@ -39,6 +46,7 @@ export type MatchProgram = {
   teachingLanguage: string;
   majorText: string | null;
   requirementsText: string | null;
+  sourceText: string | null;
   semesterText: string | null;
   applicationTimeText: string | null;
   accommodationText: string | null;
@@ -249,6 +257,67 @@ function accommodationEvidence(program: MatchProgram, required?: boolean): Match
   };
 }
 
+const supervisorAcceptanceRequiredPattern =
+  /(导师.{0,12}(接收函|接受函|同意函|同意接收|同意接受)|接收导师|接受导师|supervisor.{0,30}(acceptance|approval|consent)|advisor.{0,30}(acceptance|approval|consent)|adviser.{0,30}(acceptance|approval|consent)|acceptance letter.{0,30}(supervisor|advisor|adviser))/iu;
+
+const supervisorAcceptanceNotRequiredPattern =
+  /((不需要|无需|无须|不用|不要求|免).{0,12}(导师|接收函|接受函|同意函)|(导师|接收函|接受函|同意函).{0,12}(不需要|无需|无须|不用|不要求|非必需|非必须)|no need.{0,30}(supervisor|advisor|adviser|acceptance letter)|not required.{0,30}(supervisor|advisor|adviser|acceptance letter))/iu;
+
+export function getSupervisorAcceptanceStatus(program: MatchProgram): RuleStatus {
+  const text = [program.requirementsText, program.sourceText]
+    .filter(Boolean)
+    .join("\\n");
+  if (!text.trim()) return "UNKNOWN";
+  if (supervisorAcceptanceNotRequiredPattern.test(text)) return "NOT_REQUIRED";
+  return supervisorAcceptanceRequiredPattern.test(text) ? "REQUIRED" : "UNKNOWN";
+}
+
+function supervisorAcceptanceEvidence(
+  program: MatchProgram,
+  mode?: SupervisorAcceptanceMode | null,
+): MatchEvidence | null {
+  if (!mode) return null;
+
+  const status = getSupervisorAcceptanceStatus(program);
+  if (mode === "required") {
+    return status === "REQUIRED"
+      ? { label: "导师接收函", level: "PASS", detail: "数据库文本明确要求导师接收函" }
+      : status === "NOT_REQUIRED"
+        ? { label: "导师接收函", level: "FAIL", detail: "数据库文本明确不要求导师接收函" }
+        : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
+  }
+
+  if (mode === "not_required") {
+    return status === "NOT_REQUIRED"
+      ? { label: "导师接收函", level: "PASS", detail: "数据库文本明确不要求导师接收函" }
+      : status === "REQUIRED"
+        ? { label: "导师接收函", level: "FAIL", detail: "数据库文本明确要求导师接收函" }
+        : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
+  }
+
+  if (mode === "unknown") {
+    return status === "UNKNOWN"
+      ? { label: "导师接收函", level: "PASS", detail: "数据库未有相关信息" }
+      : status === "REQUIRED"
+        ? { label: "导师接收函", level: "FAIL", detail: "数据库文本明确要求导师接收函" }
+        : { label: "导师接收函", level: "FAIL", detail: "数据库文本明确不要求导师接收函" };
+  }
+
+  if (mode === "can_provide") {
+    return status === "REQUIRED"
+      ? { label: "导师接收函", level: "PASS", detail: "项目要求导师接收函，客户可提供" }
+      : status === "NOT_REQUIRED"
+        ? { label: "导师接收函", level: "PASS", detail: "项目明确不要求导师接收函" }
+        : { label: "导师接收函", level: "UNKNOWN", detail: "数据库未有相关信息" };
+  }
+
+  return status === "REQUIRED"
+    ? { label: "导师接收函", level: "FAIL", detail: "项目明确要求导师接收函，客户暂不能提供" }
+    : status === "NOT_REQUIRED"
+      ? { label: "导师接收函", level: "PASS", detail: "项目明确不要求导师接收函" }
+      : { label: "导师接收函", level: "UNKNOWN", detail: "数据库未有相关信息" };
+}
+
 function englishEvidence(program: MatchProgram, criteria: ScreeningCriteria): MatchEvidence {
   const scores = [
     compareThreshold("雅思", criteria.ielts, program.ieltsMin),
@@ -349,6 +418,7 @@ export function evaluateProgram(
     nationalityEvidence(program, criteria.nationality),
     intakeYearEvidence(program, criteria.intakeYear),
     accommodationEvidence(program, criteria.accommodationRequired),
+    supervisorAcceptanceEvidence(program, criteria.supervisorAcceptance),
   ];
   for (const item of optionalEvidence) if (item) evidence.push(item);
 
