@@ -87,6 +87,65 @@ npm run dev
 powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
 ```
 
+
+.env.example 默认使用 Zeabur 推荐的 /data 持久化路径；本地开发如果不希望写入系统根目录，请复制后把 .env.local 中的路径改回 ./data/...。
+
+## Zeabur 部署说明
+
+本项目使用 Next.js + SQLite，并通过 Node.js 内置 `node:sqlite` 访问数据库。Zeabur 上建议使用 Node.js 24，并把所有运行期数据放到持久化 Volume 中。
+
+### 1. 环境变量
+
+在 Zeabur 项目的 Environment Variables 中配置：
+
+```env
+DATABASE_PATH=/data/app.sqlite
+UPLOAD_DIR=/data/uploads
+IMPORT_DIR=/data/imports
+APP_KEY_PATH=/data/app.key
+SESSION_TTL_HOURS=24
+MAX_UPLOAD_MB=20
+```
+
+### 2. 持久化 Volume
+
+需要在 Zeabur 创建 Volume，建议挂载到 `/data`。以下文件都应该放在 `/data` 下，避免服务重启或重新部署后丢失：
+
+- `/data/app.sqlite`：SQLite 数据库文件
+- `/data/uploads`：加密后的上传材料
+- `/data/imports`：导入预览临时文件
+- `/data/app.key`：文件加密密钥
+
+如果没有持久化 Volume，SQLite 数据库、上传文件和 `APP_KEY` 可能会在重启后丢失；`APP_KEY` 丢失后，旧上传文件将无法解密。
+
+### 3. 构建与启动
+
+优先沿用项目脚本：
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+`npm start` 使用 `next start`，Next.js 默认监听 `0.0.0.0` 并读取 Zeabur 注入的 `PORT`，适合容器平台访问。
+
+### 4. 首次上线后的命令
+
+部署完成后，在 Zeabur 的 Command Execution 中执行数据库迁移：
+
+```bash
+npm run db:migrate
+```
+
+然后创建管理员账号，参数依次是“用户名、显示名称、密码”：
+
+```bash
+npm run admin:create -- admin "系统管理员" "请替换为至少10位的强密码"
+```
+
+`admin:create` 会自动确保数据库迁移已执行；如果用户名已存在，脚本会停止并提示“用户名已存在”。生产环境不要使用弱密码或测试密码。
+
 ## Excel 导入
 
 网页中以管理员或数据管理员身份进入“数据导入”，同时选择：

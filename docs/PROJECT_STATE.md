@@ -236,3 +236,10 @@ http://127.0.0.1:3000/dashboard
 - 恢复筛选结果卡片的“顾问推荐理由”输入，保存推荐方案后打印页可继续展示逐项目理由。
 - 验证结果：`npm test` 69 项通过；`npm run typecheck` 通过；`npm run lint` 通过；`git diff --check 0fdec32a7f700d1be9d087cbabb89553f928c4be` 通过；`npm run build` 通过。
 - 已知风险：`npm run build` 仍有既有 Turbopack NFT warning 和 `node:sqlite` ExperimentalWarning；本轮未能执行联网 `npm audit`，此前已知 `xlsx@0.18.5` 有依赖审计风险，上传前建议在可联网环境补跑。
+
+## 本轮 Zeabur 部署配置补齐（2026-06-30）
+- 为 Zeabur 部署补齐最小配置：`package.json` 增加 Node.js 24 引擎要求，`npm start` 改为平台友好的 `next start`，由 Next.js 默认监听 `0.0.0.0` 并读取平台 `PORT`。
+- 更新 `.env.example` 为 Zeabur 推荐持久化路径：`DATABASE_PATH=/data/app.sqlite`、上传目录、导入目录和 `APP_KEY_PATH=/data/app.key`。
+- README 新增“Zeabur 部署说明”，记录环境变量、`/data` Volume、首次迁移命令 `npm run db:migrate` 和管理员创建命令 `npm run admin:create -- <用户名> <显示名称> <密码>`。
+- 本轮不改业务逻辑、不新增复杂部署配置文件；当前未发现已有 Dockerfile、`zbpack.json` 或 `nixpacks.toml`。
+- 验证结果：`npm run typecheck` 通过；`npm run lint` 通过；`npm run build` 通过；`npm test` 69 项通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
