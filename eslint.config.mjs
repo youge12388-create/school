@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     ".codex-preview-*/**",
     "out/**",
     "build/**",
+    "coverage/**",
+    "releases/**",
     "next-env.d.ts",
   ]),
 ]);

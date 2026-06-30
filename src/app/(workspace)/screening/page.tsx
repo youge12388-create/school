@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { saveRecommendationAction } from "@/app/actions";
 import { ScreeningResultCard } from "@/components/screening-result-card";
+import { HeaderSearch } from "@/components/header-search";
 import { EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import {
@@ -34,7 +35,6 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     programType: params.type,
     teachingLanguage: params.language,
     targetMajor: params.major,
-    intakeYear: asNumber(params.intakeYear),
     budget: asNumber(params.budget),
     hasCsca: params.csca === "yes" ? true : params.csca === "no" ? false : null,
     gpa: asNumber(params.gpa),
@@ -44,11 +44,10 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     ielts: asNumber(params.ielts),
     toefl: asNumber(params.toefl),
     duolingo: asNumber(params.duolingo),
-    age: asNumber(params.age),
     nationality: params.nationality,
     province: params.province,
     city: params.city,
-    scholarshipRequired: params.scholarship === "yes",
+    scholarshipType: params.scholarshipType || "",
     accommodationRequired: params.accommodation === "yes",
     supervisorAcceptance: parseSupervisorAcceptance(params.supervisorAcceptance),
     deadlineFrom: parseDateParam(params.deadlineFrom),
@@ -62,7 +61,6 @@ const searchKeys = [
   "type",
   "language",
   "major",
-  "intakeYear",
   "budget",
   "csca",
   "gpa",
@@ -72,11 +70,10 @@ const searchKeys = [
   "ielts",
   "toefl",
   "duolingo",
-  "age",
   "nationality",
   "province",
   "city",
-  "scholarship",
+  "scholarshipType",
   "accommodation",
   "supervisorAcceptance",
   "deadlineFrom",
@@ -99,7 +96,6 @@ function hasAnyParam(
 }
 
 const academicFilterKeys = [
-  "csca",
   "gpa",
   "gpaScale",
   "hskLevel",
@@ -113,7 +109,7 @@ const preferenceFilterKeys = [
   "budget",
   "province",
   "city",
-  "scholarship",
+  "scholarshipType",
   "accommodation",
 ] as const;
 const fitSection: Record<
@@ -205,11 +201,12 @@ export default async function ScreeningPage({
         <div className="card-header">
           <div>
             <h3>客户筛选条件</h3>
-            <p className="small muted">未取得或数据库未明确的信息可以留空，系统不会擅自推断。</p>
+            <p className="small muted">空缺信息不参与判断，可按需展开更多条件。</p>
           </div>
+          <HeaderSearch />
         </div>
         <div className="card-body screening-filter-body">
-          <section className="screening-filter-section">
+          <section className="screening-filter-section screening-filter-primary">
             <h4>申请目标</h4>
             <div className="form-grid">
               <label>
@@ -231,9 +228,8 @@ export default async function ScreeningPage({
                 </select>
               </label>
               <label>目标专业<input name="major" defaultValue={params.major} /></label>
-              <label>入学年份<input name="intakeYear" type="number" min="2026" max="2035" defaultValue={params.intakeYear} /></label>
               <label>
-                学校是否要求导师接收函
+                导师接收函要求
                 <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
                   <option value="">不限</option>
                   <option value="required">明确或部分要求</option>
@@ -242,11 +238,18 @@ export default async function ScreeningPage({
                 </select>
               </label>
               <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>
-              <label>年龄<input name="age" type="number" min="1" max="100" defaultValue={params.age} /></label>
+              <label>
+                CSCA 当前状态
+                <select name="csca" defaultValue={params.csca}>
+                  <option value="">不限</option>
+                  <option value="yes">已有</option>
+                  <option value="no">目前没有</option>
+                </select>
+              </label>
             </div>
           </section>
 
-          <section className="screening-filter-section">
+          <section className="screening-filter-section screening-filter-deadline">
             <h4>申请时间</h4>
             <div className="form-grid">
               <label>
@@ -263,23 +266,15 @@ export default async function ScreeningPage({
             </div>
           </section>
 
-          <details className="screening-filter-section screening-filter-advanced" open={showAcademicFilters}>
+          <details className="screening-filter-section screening-filter-advanced screening-filter-academic" open={showAcademicFilters}>
             <summary>
               <span>
                 <strong>学术与语言条件</strong>
-                <small>CSCA、GPA、HSK、雅思、托福、多邻国</small>
+                <small>GPA、HSK、雅思、托福、多邻国</small>
               </span>
               <span className="screening-advanced-toggle">展开</span>
             </summary>
             <div className="form-grid screening-advanced-body">
-              <label>
-                CSCA 当前状态
-                <select name="csca" defaultValue={params.csca}>
-                  <option value="">不限</option>
-                  <option value="yes">已有</option>
-                  <option value="no">目前没有</option>
-                </select>
-              </label>
               <label>GPA / 均分<input name="gpa" type="number" step="0.01" defaultValue={params.gpa} /></label>
               <label>GPA 满分制<input name="gpaScale" type="number" step="0.01" placeholder="4、5 或 100" defaultValue={params.gpaScale} /></label>
               <label>HSK 级别<input name="hskLevel" type="number" min="1" max="6" defaultValue={params.hskLevel} /></label>
@@ -290,7 +285,7 @@ export default async function ScreeningPage({
             </div>
           </details>
 
-          <details className="screening-filter-section screening-filter-advanced" open={showPreferenceFilters}>
+          <details className="screening-filter-section screening-filter-advanced screening-filter-preferences" open={showPreferenceFilters}>
             <summary>
               <span>
                 <strong>预算与偏好</strong>
@@ -304,9 +299,11 @@ export default async function ScreeningPage({
               <label>意向城市<input name="city" defaultValue={params.city} placeholder="例如：深圳" /></label>
               <label>
                 奖学金需求
-                <select name="scholarship" defaultValue={params.scholarship}>
+                <select name="scholarshipType" defaultValue={params.scholarshipType}>
                   <option value="">不限</option>
-                  <option value="yes">需要奖学金信息</option>
+                  <option value="full">全额奖学金</option>
+                  <option value="any">有其他奖学金</option>
+                  <option value="none">无奖学金（自费）</option>
                 </select>
               </label>
               <label>
@@ -351,18 +348,37 @@ export default async function ScreeningPage({
               <button className="primary" type="submit">保存并生成对比页</button>
             </div>
 
-            <div className="screening-summary">
-              <strong>共找到 {results.length} 个项目</strong>
-              <span>可直接申请 {grouped.MATCHED.length}</span>
-              <span>需要补充 {grouped.NEEDS_ACTION.length}</span>
-              <span>信息待核实 {grouped.UNKNOWN.length}</span>
-              <span>明确不符合 {notMatchedResults.length}</span>
-              <span>已截止 {expiredResults.length}</span>
+            <div className="screening-summary screening-summary-prominent">
+              <strong>📊 共找到 {results.length} 个项目</strong>
+              <span className="summary-matched">✅ 可直接申请 {grouped.MATCHED.length}</span>
+              <span className="summary-need">⚠️ 需要补充 {grouped.NEEDS_ACTION.length}</span>
+              <span className="summary-unknown">❓ 信息待核实 {grouped.UNKNOWN.length}</span>
+              <span>⛔ 明确不符合 {notMatchedResults.length}</span>
+              <span>⏰ 已截止 {expiredResults.length}</span>
             </div>
 
             <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} />
             <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} />
             <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} />
+
+                        {expiredResults.length ? (
+              <details className="card screening-collapsible-group">
+                <summary>
+                  <span><strong>已截止项目</strong><small>已过期，点击展开查看</small></span>
+                  <span>{expiredResults.length} 个项目</span>
+                </summary>
+                <div className="screening-collapsible-body">
+                  {expiredResults.map((result) => (
+                    <ScreeningResultCard
+                      result={result}
+                      rank={ranks.get(result.program.id) ?? 0}
+                      detailParams={detailParams}
+                      key={result.program.id}
+                    />
+                  ))}
+                </div>
+              </details>
+            ) : null}
 
             {notMatchedResults.length ? (
               <details className="card screening-collapsible-group">
@@ -383,27 +399,6 @@ export default async function ScreeningPage({
               </details>
             ) : null}
 
-            {expiredResults.length ? (
-              <details
-                className="card screening-collapsible-group"
-                open={criteria.deadlineMode === "expired" || criteria.deadlineMode === "all"}
-              >
-                <summary>
-                  <span><strong>已截止项目</strong><small>全部状态下自动展开，仅供历史对照</small></span>
-                  <span>{expiredResults.length} 个项目</span>
-                </summary>
-                <div className="screening-collapsible-body">
-                  {expiredResults.map((result) => (
-                    <ScreeningResultCard
-                      result={result}
-                      rank={ranks.get(result.program.id) ?? 0}
-                      detailParams={detailParams}
-                      key={result.program.id}
-                    />
-                  ))}
-                </div>
-              </details>
-            ) : null}
           </form>
         )}
       </div>

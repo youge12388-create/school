@@ -125,7 +125,7 @@ describe("screening matcher", () => {
       deadlineStatus: "OPEN",
     });
     expect(getEffectiveDeadlineStatus(program, now)).toBe("EXPIRED");
-    expect(evaluateProgram(program, {}, now).fitLevel).toBe("NOT_MATCHED");
+    expect(evaluateProgram(program, {}, now).fitLevel).toBe("NEEDS_ACTION");
   });
 
   it("截止日期超出筛选范围时展示不符合原因", () => {

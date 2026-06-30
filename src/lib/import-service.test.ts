@@ -204,6 +204,21 @@ describe("manual entry", () => {
     expect(program).toEqual({ tuition_max: 32000, manually_verified: 1 });
   });
 
+
+  it("筛选池排除已归档学校的项目", () => {
+    createManualEntry(input, null, databaseFile);
+    const database = openRawDatabase(databaseFile);
+    database.prepare("UPDATE schools SET archived = 1 WHERE name_zh = ?").run(input.schoolNameZh);
+    const rows = database
+      .prepare(`SELECT p.id
+        FROM programs p
+        INNER JOIN schools s ON s.id = p.school_id
+        WHERE p.archived = 0 AND s.archived = 0`)
+      .all();
+    database.close();
+
+    expect(rows).toHaveLength(0);
+  });
   it("拒绝重复项目并回滚写入", () => {
     createManualEntry(input, null, databaseFile);
     expect(() => createManualEntry(input, null, databaseFile)).toThrow(

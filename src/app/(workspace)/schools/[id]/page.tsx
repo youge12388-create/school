@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
+import { requireUser } from "@/lib/auth";
 import { getSchoolDetails } from "@/lib/queries";
 import { parseMajorItems } from "@/lib/screening-results";
 import { formatDate, formatMoney, safeJson } from "@/lib/utils";
@@ -176,6 +177,8 @@ export default async function SchoolDetailsPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
+  const user = await requireUser();
+  const canEdit = user.role === "ADMIN" || user.role === "DATA_MANAGER";
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs } = data;
@@ -227,7 +230,7 @@ export default async function SchoolDetailsPage({
       <PageHeading
         title={school.nameZh}
         description={school.name && school.name !== school.nameZh ? school.name : "学校知识库完整档案"}
-        action={<Link className="button" href="/screening">返回学校筛查</Link>}
+        action={<>{canEdit ? <Link className="button primary" href={`/schools/${school.id}/edit`}>编辑学校</Link> : null} <Link className="button" href="/screening">返回学校筛查</Link></>}
       />
 
       <section className="grid cols-3 school-overview-grid">

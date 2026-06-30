@@ -35,7 +35,7 @@ export function AppNav({ role }: { role: string }) {
         .filter((item) => {
           if (item.href === "/admin/users") return role === "ADMIN";
           if (item.href === "/imports") return role !== "ADVISOR";
-          if (item.href === "/audit") return role === "ADMIN";
+          if (item.href === "/audit") return role === "ADMIN" || role === "DATA_MANAGER";
           return true;
         })
         .map((item) => {

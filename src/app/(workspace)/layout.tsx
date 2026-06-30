@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AppNav } from "@/components/app-nav";
+import { GlobalSearch } from "@/components/global-search";
 import { logoutAction } from "@/app/actions";
 import { requireUser } from "@/lib/auth";
 
@@ -36,7 +37,10 @@ export default async function WorkspaceLayout({
       <main className="main">
         <header className="topbar">
           <h1>留学项目工作台</h1>
-          <span className="topbar-note">本地数据 · 登录后访问 · 操作留痕</span>
+          <div className="topbar-actions">
+            <GlobalSearch />
+            <span className="topbar-note">本地数据 · 登录后访问 · 操作留痕</span>
+          </div>
         </header>
         <div className="page-content">{children}</div>
       </main>

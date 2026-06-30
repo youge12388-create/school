@@ -58,37 +58,44 @@ export function ScreeningResultCard({
         : null;
   const schoolDetailHref = buildSchoolDetailHref(result, detailParams);
   const majors = parseMajorItems(program.majorText);
+  const visibleMajors = majors.slice(0, 8);
+  const hiddenMajorCount = majors.length - visibleMajors.length;
   return (
     <article className="card result-card">
       <div className="result-main">
-        <input
-          type="checkbox"
-          name="programIds"
-          value={program.id}
-          aria-label={`选择 ${program.schoolName} ${program.programName}`}
-        />
+        <div className="result-select">
+          <input
+            type="checkbox"
+            name="programIds"
+            value={program.id}
+            aria-label={`选择 ${program.schoolName} ${program.programName}`}
+          />
+          <span className="result-rank" aria-label={`排序第 ${rank}`}>{rank}</span>
+        </div>
         <div className="result-content">
           <div className="result-heading-row">
-            <div>
-              <Link className="result-school-link" href={schoolDetailHref}>
-                {program.schoolName}
-              </Link>
-              <div className="result-program-name">{program.programName}</div>
-              {supervisorBadge ? (
-                <div className="result-warning-badges">
+            <div className="result-title-wrap">
+              <div className="result-title-line">
+                <Link className="result-school-link" href={schoolDetailHref}>
+                  {program.schoolName}
+                </Link>
+                {supervisorBadge ? (
                   <Badge tone={supervisorBadge.tone}>{supervisorBadge.label}</Badge>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
+              <div className="result-program-name">{program.programName}</div>
             </div>
-            <Link className="button result-detail-link" href={schoolDetailHref}>
-              查看学校详情
-            </Link>
+            <div className="result-status">
+              <Badge tone={toneByFit[result.fitLevel]}>{labelByFit[result.fitLevel]}</Badge>
+              <Link className="button result-detail-link" href={schoolDetailHref}>
+                查看详情
+              </Link>
+            </div>
           </div>
           <div className="result-meta">
             <span>{PROGRAM_TYPE_LABELS[program.programType] ?? program.programType}</span>
             <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
             <span>{[program.province, program.city].filter(Boolean).join(" · ") || "地区未知"}</span>
-            <span>首年上限：{formatMoney(program.firstYearCostMax)}</span>
             <span>申请截止：{formatDate(program.deadlineDate)}</span>
             <span>
               {result.effectiveDeadlineStatus === "OPEN"
@@ -97,18 +104,22 @@ export function ScreeningResultCard({
                   ? "已截止"
                   : "截止日期未知"}
             </span>
+            <span className="result-money">首年上限：{formatMoney(program.firstYearCostMax)}</span>
           </div>
           {majors.length ? (
             <div className="result-majors">
               <span className="result-major-label">专业方向</span>
               <ul className="major-chip-list" aria-label={`专业方向，共 ${majors.length} 个`}>
-                {majors.map((major) => (
+                {visibleMajors.map((major) => (
                   <li className="major-chip" key={major}>{major}</li>
                 ))}
+                {hiddenMajorCount > 0 ? (
+                  <li className="major-chip major-chip-more">另有 {hiddenMajorCount} 个</li>
+                ) : null}
               </ul>
             </div>
           ) : (
-            <p className="small muted result-major-empty">数据库未有相关专业信息</p>
+            <span className="small muted result-major-empty">暂无专业信息</span>
           )}
           <label className="result-reason">
             顾问推荐理由
@@ -120,10 +131,6 @@ export function ScreeningResultCard({
             name={`evidence_${program.id}`}
             value={JSON.stringify(result.evidence)}
           />
-        </div>
-        <div className="result-status">
-          <Badge tone={toneByFit[result.fitLevel]}>{labelByFit[result.fitLevel]}</Badge>
-          <div className="small muted">排序 {rank}</div>
         </div>
       </div>
       <div className="evidence-strip">

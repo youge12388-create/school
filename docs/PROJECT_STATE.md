@@ -1,6 +1,6 @@
 # 项目状态同步
 
-最后更新：2026-06-29
+最后更新：2026-06-30
 
 ## 当前项目目标
 
@@ -190,3 +190,49 @@ http://127.0.0.1:3000/dashboard
 - 文档仅记录路径、配置模板和公开连接信息，不包含真实私钥、证书私钥、密码或 API Token。
 - 验证结果：Markdown 共 1155 行；DOCX 包含 9 个 OpenXML 条目，全部 XML 校验通过，标题、回滚和备份章节均存在。
 - 已知风险：DOCX 由 OpenXML 直接生成，本机没有安装 Word 或 LibreOffice，因此未做真实 Office 渲染截图；包结构和内容已完成程序化校验。
+## 本轮筛选UI优化（2026-06-30）
+
+- 学校筛选页"申请目标"板块：移除**年龄**和**入学年份**两个筛选字段。
+- CSCA 筛选条件从"学术与语言条件"板块移至"申请目标"板块最前面，优先级高于申请学历。
+- 右上角新增全局搜索框，输入关键词后跳转至 `/schools?q=...` 进行学校搜索。
+- 涉及文件：`src/app/(workspace)/screening/page.tsx`、`src/components/global-search.tsx`（新建）、`src/app/(workspace)/layout.tsx`、`src/app/globals.css`。
+- 验证结果：TypeScript 编译通过，68 个测试全部通过。
+- 已知风险：matcher.ts 中 `age` 和 `intakeYear` 相关代码保留但不再被调用，后续可清理。
+
+## 本轮筛选结果卡片视觉重构（2026-06-30）
+
+- 修复排名列加入后旧三列 CSS 造成的学校名称横向错位；结果卡片统一为“左侧选择与排名 + 右侧内容”的固定双列结构。
+- 状态与详情入口并入标题操作区，学校名称、项目名称、元信息和专业方向统一左对齐。
+- 专业方向默认展示前 8 项，超出部分显示“另有 N 个”，完整信息仍可进入学校详情查看。
+- 证据提醒区改为四列等宽轻量状态卡，仅用细左边框和低饱和底色表达通过、补充、待核实和不符合，减少大色块占用。
+- 涉及文件：`src/components/screening-result-card.tsx`、`src/app/google-ui.css`、`src/app/globals.css`。
+- 验证结果：`npm run typecheck` 通过；目标组件 ESLint 通过；浏览器前四张卡片高度、内容起点、排名位置和证据列宽完全一致，控制台无错误。
+- 已修复：全量 `npm run lint` 已在 ESLint 忽略配置中排除 `coverage/` 和 `releases/`，不再扫描生成产物。
+
+## 本轮客户筛选条件面板压缩（2026-06-30）
+
+- 客户筛选条件改为紧凑信息面板：顶部标题、说明和学校搜索同行展示。
+- 申请目标采用左侧分组标签轨与六列字段栅格；申请时间保持三列；学术与语言、预算与偏好改为 43px 高折叠栏。
+- 控件高度统一为 36px，字段间距、分组间距和操作区留白同步缩小；开始筛查与清空条件统一右对齐。
+- 精简说明文案和“导师接收函要求”字段名称，避免标签换行造成列高不一致。
+- 涉及文件：`src/app/(workspace)/screening/page.tsx`、`src/app/google-ui.css`。
+- 验证结果：筛选卡片总高度 363px，申请目标六个字段均为 58px 高，高级折叠栏均为 43px；`npm run typecheck`、目标页面 ESLint 和浏览器控制台检查均通过。
+
+## 本轮手动录入页面入口修复（2026-06-30）
+
+- 根因：原“手动录入一条”仅依赖 ImportPanel 客户端状态切换，没有独立 URL，页面状态异常时无法进入表单。
+- 新增独立受权限保护页面 `/imports/manual`，直接展示手动录入学校与项目表单。
+- Excel 批量导入与手动录入入口改为原生页面链接，避免依赖客户端状态或路由水合，支持直接访问、刷新和浏览器返回。
+- 涉及文件：`src/components/import-method-tabs.tsx`、`src/components/import-panel.tsx`、`src/app/(workspace)/imports/manual/page.tsx`、`src/app/google-ui.css`。
+- 验证结果：真实鼠标点击成功跳转到 `/imports/manual`；表单可见、学校中文名必填、保存按钮可用；类型检查、目标文件 ESLint 和手动导入服务 8 项测试均通过，浏览器控制台无错误。
+
+## 本轮 GitHub 上传前严格修复（2026-06-30）
+
+- 删除误入工作区的 `releases/`、`school-syt.zip` 和 `tmp_patch.js`；当前未跟踪上传候选仅剩 5 个源码文件，约 10KB，无超过 100MB 文件。
+- 更新 `.gitignore` 和 `eslint.config.mjs`：忽略 `releases/`、`*.zip`、`tmp_patch.js`、`coverage/`，避免构建产物和压缩包再次进入 Git / lint。
+- 修复筛选池查询：`getProgramsForScreening()` 重新排除已归档学校，新增导入服务回归测试覆盖该条件。
+- 修复学校搜索：筛选页搜索框 Enter 会阻止父表单提交并跳转 `/schools?q=...`；顶栏接入 `GlobalSearch`。
+- 修复学校 / 项目编辑：编辑页增加 `ADMIN`、`DATA_MANAGER` 页面级权限；保存学校会标记 `VERIFIED` 并支持清空可选字段；保存项目会重新解析费用、CSCA、语言成绩、GPA、年龄、截止日期和专业索引，并设置 `manuallyVerified` 防止后续 Excel 覆盖。
+- 恢复筛选结果卡片的“顾问推荐理由”输入，保存推荐方案后打印页可继续展示逐项目理由。
+- 验证结果：`npm test` 69 项通过；`npm run typecheck` 通过；`npm run lint` 通过；`git diff --check 0fdec32a7f700d1be9d087cbabb89553f928c4be` 通过；`npm run build` 通过。
+- 已知风险：`npm run build` 仍有既有 Turbopack NFT warning 和 `node:sqlite` ExperimentalWarning；本轮未能执行联网 `npm audit`，此前已知 `xlsx@0.18.5` 有依赖审计风险，上传前建议在可联网环境补跑。

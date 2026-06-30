@@ -4,7 +4,7 @@ import { listAuditLogs } from "@/lib/queries";
 import { formatDate, safeJson } from "@/lib/utils";
 
 export default async function AuditPage() {
-  await requireRole(["ADMIN"]);
+  await requireRole(["ADMIN", "DATA_MANAGER"]);
   const rows = await listAuditLogs();
   return (
     <>

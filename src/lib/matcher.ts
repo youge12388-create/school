@@ -25,7 +25,7 @@ export type ScreeningCriteria = {
   nationality?: string;
   province?: string;
   city?: string;
-  scholarshipRequired?: boolean;
+  scholarshipType?: string; // "full" | "any" | "none"
   accommodationRequired?: boolean;
   supervisorAcceptance?: SupervisorAcceptanceMode | null;
   deadlineFrom?: Date | null;
@@ -175,6 +175,10 @@ function deadlineEvidence(
   }
   const dateText = program.deadlineDate.toLocaleDateString("zh-CN");
   if (status === "EXPIRED") {
+    const hasDeadlineFilter = criteria.deadlineFrom != null || criteria.deadlineTo != null || (criteria.deadlineMode && criteria.deadlineMode !== "all");
+    if (!hasDeadlineFilter) {
+      return { label: "申请截止", level: "NEED" as const, detail: `已截止 ${dateText}，需确认是否仍可申请` };
+    }
     return { label: "申请截止", level: "FAIL" as const, detail: `已截止 ${dateText}` };
   }
   const time = program.deadlineDate.getTime();
@@ -465,12 +469,31 @@ export function evaluateProgram(
     );
   }
 
-  if (criteria.scholarshipRequired) {
-    evidence.push(
-      program.scholarshipCategory
-        ? { label: "奖学金", level: "PASS", detail: `有奖学金信息：${program.scholarshipCategory}` }
-        : { label: "奖学金", level: "UNKNOWN", detail: "数据库未有相关信息" },
-    );
+  if (criteria.scholarshipType) {
+    const cat = program.scholarshipCategory ?? "";
+    const isFull = /全额|全奖|完全|full/i.test(cat);
+    const hasAny = cat.length > 0;
+    if (criteria.scholarshipType === "full") {
+      evidence.push(
+        isFull
+          ? { label: "奖学金", level: "PASS", detail: `全额奖学金：${cat}` }
+          : hasAny
+            ? { label: "奖学金", level: "NEED", detail: `非全额奖学金：${cat}` }
+            : { label: "奖学金", level: "FAIL", detail: "数据库未有奖学金信息" },
+      );
+    } else if (criteria.scholarshipType === "any") {
+      evidence.push(
+        hasAny
+          ? { label: "奖学金", level: "PASS", detail: `有奖学金：${cat}` }
+          : { label: "奖学金", level: "FAIL", detail: "数据库未有奖学金信息" },
+      );
+    } else if (criteria.scholarshipType === "none") {
+      evidence.push(
+        !hasAny
+          ? { label: "奖学金", level: "PASS", detail: "该项目无奖学金（自费）" }
+          : { label: "奖学金", level: "NEED", detail: `该项目有奖学金信息：${cat}` },
+      );
+    }
   }
 
   const effectiveDeadlineStatus = getEffectiveDeadlineStatus(program, now);
