@@ -249,3 +249,9 @@ http://127.0.0.1:3000/dashboard
 - 修复：数据库连接改为懒加载，导入 `@/lib/db` 不再打开 SQLite；首次执行 Drizzle 查询或调用 `sqlite.prepare/exec` 时才创建连接并设置 WAL、foreign_keys 和 busy_timeout。
 - 新增回归测试：`src/lib/db/index.test.ts` 验证导入数据库模块不会创建 SQLite 文件。
 - 验证结果：`npm test -- src/lib/db/index.test.ts` 通过；使用临时 `DATABASE_PATH` 模拟 Zeabur 构建，`npm run build` 通过；`npm run typecheck` 通过；`npm run lint` 通过；`npm test` 70 项通过；常规 `npm run build` 通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
+
+## 本轮 Zeabur npm install 失败修复（2026-06-30）
+- Zeabur 日志显示失败发生在 Docker `RUN npm install` 阶段，报错 `npm error Invalid Version:`，尚未进入 `npm run build`。
+- 根因定位：`package-lock.json` 中存在唯一缺失 `version` 的包条目 `node_modules/@img/sharp-wasm32/node_modules/@emnapi/runtime`，npm 11 在解析 `@img/sharp-wasm32` optional dependency 时触发空版本比较错误。
+- 修复：删除该异常嵌套 lock 条目，让 npm 重新使用正常的 `@emnapi/runtime` 解析结果；未改业务代码。
+- 验证结果：`npm install --package-lock-only --ignore-scripts --no-audit --no-fund` 通过；lock 中缺失 version 条目为 0；`npm run typecheck` 通过；`npm run build` 通过。
