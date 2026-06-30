@@ -5,6 +5,7 @@
 /.next/
 /out/
 /build/
+/.codex-preview-*/
 
 # tests and logs
 /coverage/

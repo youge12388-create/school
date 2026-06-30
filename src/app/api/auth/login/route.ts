@@ -5,6 +5,7 @@ import { auditLoginFailure, createSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { appUrl } from "@/lib/http";
 import { verifyPassword } from "@/lib/password";
 import { asText } from "@/lib/utils";
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   if (!user?.active || !(await verifyPassword(password, user.passwordHash))) {
     await auditLoginFailure(username, ipAddress ?? undefined);
     return NextResponse.redirect(
-      new URL("/login?error=用户名或密码错误", request.url),
+      appUrl(request, "/login?error=用户名或密码错误"),
       303,
     );
   }
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   await createSession(user.id, {
     ipAddress,
     userAgent: request.headers.get("user-agent"),
+    secure: request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() !== "http",
   });
   await db
     .update(users)
@@ -43,5 +45,5 @@ export async function POST(request: Request) {
     entityId: user.id,
     ipAddress,
   });
-  return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+  return NextResponse.redirect(appUrl(request, "/dashboard"), 303);
 }

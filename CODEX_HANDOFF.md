@@ -21,11 +21,11 @@
 - 在线支付。
 - 外部 AI 推荐。
 
-当前本地数据状态（来自 `data/app.db`）：
+当前本地数据状态（来自上一轮 `data/app.db` 统计，接手时请重新确认）：
 
 - 学校：86 所。
 - 有效项目：281 条。
-- 当前客户：0 个。
+- 当前客户：以本机 `data/app.db` 为准，接手时运行数据库统计确认。
 - 活跃用户：1 个。
 - 待复核项目：86 条。
 - 截止状态：开放中 106 条，已截止 123 条，未知 52 条。
@@ -239,14 +239,13 @@ D:\codex-all\school-syt
 
 ## 7. 当前还没完成的任务
 
-- 还没有初始化本地 Git 仓库。
-- 还没有完整跑完最终交付验证：typecheck、lint、test、build、启动验证。
+- Git 仓库已初始化，主分支为 `master`，已有多次提交和 `feature/school-screening` 合并记录。
+- 最近一轮已跑过：typecheck、lint、test、build。接手后如继续改代码，应重新运行相关验证。
 - 用户最新反馈后的改动需要继续验证：
   - 筛选页申请时间/截止时间筛选是否在浏览器里实际生效。
   - 新增客户是否可以从页面成功提交并跳转详情页。
   - `admin / admin` 登录是否在当前运行进程中生效。
-- 需要修复或重写存在中文乱码的文件。
-- 需要把 `README.md`、`docs/ARCHITECTURE.md` 修复为正常 UTF-8 中文。
+- `README.md`、`docs/ARCHITECTURE.md` 当前可用；如终端显示乱码，优先确认 PowerShell 编码和读取方式。
 - 数据管理员在系统内直接修正学校、项目、专业同义词和解析结果的能力还不完整。
 - 导入冲突复核队列还不完整。
 - 人工确认字段保护策略需要进一步验证。
@@ -260,23 +259,14 @@ D:\codex-all\school-syt
 
 ### 高优先级
 
-- 多个中文文件存在乱码风险，至少包括：
-  - `README.md`
-  - `docs/ARCHITECTURE.md`
-  - `src/lib/constants.ts`
-  - `src/app/actions.ts`
-  - `src/lib/import-service.ts`
-  - `src/lib/file-crypto.ts`
-  - 部分脚本输出文案
-- 乱码可能不只是显示问题，可能导致 TypeScript 语法错误或页面文案异常。下一步应先运行 `npm run typecheck` 确认。
+- 文档已同步为 UTF-8；如个别终端仍显示乱码，先确认终端编码，再判断是否需要修正文案文件。
 - Drizzle sqlite-proxy 与 Node `node:sqlite` 的返回格式兼容性较脆弱。登录问题曾由 `all()` / `get()` 映射错误引起。
 - `src/app/actions.ts` 里仍有不少写操作走 Drizzle mutation，如果再出现写入失败，优先改为 `openRawDatabase()`。
 - 当前默认密码 `admin / admin` 只适合本地测试，真实使用前必须强制修改。
 
 ### 中优先级
 
-- 项目当前不是 Git 仓库，无法用 `git diff` 做审查和回滚。
-- 现有 README 和架构文档已经乱码，暂时不能作为可靠交接资料。
+- 当前有 Git 仓库，可以用 `git status` / `git diff` 审查；注意不要提交 `data/`、密钥或上传材料。
 - `xlsx@0.18.5` 有审计风险。
 - `node:sqlite` 仍是实验特性，未来 Node 升级可能影响行为。
 - 没有 HTTPS，不能直接开放公网。
@@ -327,6 +317,18 @@ Windows 一键启动脚本：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
+桌面快捷方式入口脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\open-local.ps1
+```
+
+当前已创建桌面快捷方式：
+
+```text
+C:\Users\w\Desktop\高校筛查系统.lnk
 ```
 
 如果 3000 端口已有旧进程，先停止：
@@ -460,17 +462,9 @@ npm run dev
    npm test
    ```
 
-2. 如果有 TypeScript 错误，优先处理中文乱码导致的语法/字符串问题。
+2. 如果有 TypeScript 错误，优先处理最近改动或编码读取异常导致的问题。
 
-3. 修复这些文件的中文编码和文案：
-
-   - `src/lib/constants.ts`
-   - `src/app/actions.ts`
-   - `src/lib/import-service.ts`
-   - `src/lib/file-crypto.ts`
-   - `README.md`
-   - `docs/ARCHITECTURE.md`
-   - `scripts/*.ts`
+3. 检查当前未提交改动，确认登录 Host 修复、桌面启动脚本和文档同步是否需要一起提交。
 
 4. 重启开发服务，浏览器实测：
 
@@ -484,15 +478,7 @@ npm run dev
 
 5. 如果新增客户或其他写操作仍失败，优先检查是否仍走 Drizzle mutation；必要时改为 `openRawDatabase()`。
 
-6. 初始化 Git 仓库并做首次提交：
-
-   ```powershell
-   git init
-   git add .
-   git commit -m "Initial local screening system"
-   ```
-
-   注意：执行前确认 `.gitignore` 已正确排除 `data/`、`backups/`、`.env*`。
+6. 使用 `git status --short` 检查未提交改动，确认后提交当前修复。
 
 7. 修复并更新文档：
 
@@ -531,7 +517,7 @@ npm run dev
 
 当前最重要的不是继续加新功能，而是先把最近一轮修复真正跑通：
 
-1. 修复中文乱码。
+1. 确认当前未提交改动范围。
 2. 确认项目能 typecheck。
 3. 确认 `admin / admin` 可登录。
 4. 确认新增客户可用。

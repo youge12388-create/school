@@ -5,6 +5,7 @@ import { normalizeKeyword } from "@/lib/utils";
 export type DeadlineMode = "open" | "unknown" | "expired" | "all";
 export type FitLevel = "MATCHED" | "NEEDS_ACTION" | "UNKNOWN" | "NOT_MATCHED";
 export type SupervisorAcceptanceMode = "required" | "not_required" | "unknown";
+export type SupervisorAcceptanceStatus = RuleStatus | "PARTIAL_REQUIRED";
 
 export type ScreeningCriteria = {
   programType?: string;
@@ -253,18 +254,58 @@ function accommodationEvidence(program: MatchProgram, required?: boolean): Match
 }
 
 const supervisorAcceptanceRequiredPattern =
-  /(导师.{0,12}(接收函|接受函|同意函|同意接收|同意接受)|接收导师|接受导师|supervisor.{0,30}(acceptance|approval|consent)|advisor.{0,30}(acceptance|approval|consent)|adviser.{0,30}(acceptance|approval|consent)|acceptance letter.{0,30}(supervisor|advisor|adviser))/iu;
+  /(导师.{0,24}(接收函|接受函|同意函|接收意向函|接受意向函|邀请函|意向表|同意接收|同意接受|审核接收|审核通过|接收确认|接受确认)|接收导师|接受导师|选择导师.{0,20}审核通过|意向导师推荐信|supervisor.{0,30}(acceptance|approval|consent|invitation)|advisor.{0,30}(acceptance|approval|consent|invitation)|adviser.{0,30}(acceptance|approval|consent|invitation)|(acceptance|invitation) letter.{0,30}(supervisor|advisor|adviser)|pre[-\s]?(acceptance|approval).{0,30}(supervisor|advisor|adviser))/iu;
 
 const supervisorAcceptanceNotRequiredPattern =
   /((不需要|无需|无须|不用|不要求|免).{0,12}(导师|接收函|接受函|同意函)|(导师|接收函|接受函|同意函).{0,12}(不需要|无需|无须|不用|不要求|非必需|非必须)|no need.{0,30}(supervisor|advisor|adviser|acceptance letter)|not required.{0,30}(supervisor|advisor|adviser|acceptance letter))/iu;
 
-export function getSupervisorAcceptanceStatus(program: MatchProgram): RuleStatus {
+const supervisorAcceptancePartialScopePattern =
+  /(部分|指定|个别|相关).{0,12}(学院|院系|专业|项目)|(以下|上述).{0,12}(学院|院系|专业|项目)|其他.{0,12}(学院|院系|专业|项目)|(学院|院系).{0,40}(必须|须|需要|要求).{0,40}(导师|接收函|接受函|同意函)/iu;
+
+function splitRequirementSegments(text: string) {
+  return text
+    .split(/[。；;\n\r]+/u)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function hasPartialSupervisorAcceptanceScope(text: string) {
+  return supervisorAcceptancePartialScopePattern.test(text);
+}
+
+export function getSupervisorAcceptanceStatus(program: MatchProgram): SupervisorAcceptanceStatus {
   const text = [program.requirementsText, program.sourceText]
     .filter(Boolean)
     .join("\\n");
   if (!text.trim()) return "UNKNOWN";
-  if (supervisorAcceptanceNotRequiredPattern.test(text)) return "NOT_REQUIRED";
-  return supervisorAcceptanceRequiredPattern.test(text) ? "REQUIRED" : "UNKNOWN";
+
+  const segments = splitRequirementSegments(text);
+  const requiredSegments = segments.filter(
+    (segment) =>
+      supervisorAcceptanceRequiredPattern.test(segment) &&
+      !supervisorAcceptanceNotRequiredPattern.test(segment),
+  );
+  const notRequiredSegments = segments.filter((segment) =>
+    supervisorAcceptanceNotRequiredPattern.test(segment),
+  );
+
+  if (requiredSegments.length) {
+    return notRequiredSegments.length ||
+      requiredSegments.some(hasPartialSupervisorAcceptanceScope)
+      ? "PARTIAL_REQUIRED"
+      : "REQUIRED";
+  }
+
+  const hasRequiredText = supervisorAcceptanceRequiredPattern.test(text);
+  const hasNotRequiredText = supervisorAcceptanceNotRequiredPattern.test(text);
+  if (hasRequiredText && hasNotRequiredText) {
+    return hasPartialSupervisorAcceptanceScope(text)
+      ? "PARTIAL_REQUIRED"
+      : "NOT_REQUIRED";
+  }
+  if (hasRequiredText) return "REQUIRED";
+  if (hasNotRequiredText) return "NOT_REQUIRED";
+  return "UNKNOWN";
 }
 
 function supervisorAcceptanceEvidence(
@@ -277,7 +318,9 @@ function supervisorAcceptanceEvidence(
   if (mode === "required") {
     return status === "REQUIRED"
       ? { label: "导师接收函", level: "PASS", detail: "学校申请条件明确要求导师接收函" }
-      : status === "NOT_REQUIRED"
+      : status === "PARTIAL_REQUIRED"
+        ? { label: "导师接收函", level: "NEED", detail: "部分学院或专业要求导师接收函，需确认目标专业" }
+        : status === "NOT_REQUIRED"
         ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" }
         : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
   }
@@ -287,14 +330,18 @@ function supervisorAcceptanceEvidence(
       ? { label: "导师接收函", level: "PASS", detail: "学校申请条件明确不要求导师接收函" }
       : status === "REQUIRED"
         ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确要求导师接收函" }
-        : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
+        : status === "PARTIAL_REQUIRED"
+          ? { label: "导师接收函", level: "FAIL", detail: "部分学院或专业要求导师接收函" }
+          : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
   }
 
   return status === "UNKNOWN"
     ? { label: "导师接收函", level: "PASS", detail: "数据库未有相关信息" }
     : status === "REQUIRED"
       ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确要求导师接收函" }
-      : { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" };
+      : status === "PARTIAL_REQUIRED"
+        ? { label: "导师接收函", level: "FAIL", detail: "部分学院或专业要求导师接收函" }
+        : { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" };
 }
 
 function englishEvidence(program: MatchProgram, criteria: ScreeningCriteria): MatchEvidence {

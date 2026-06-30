@@ -10,8 +10,8 @@ export default async function ImportsPage() {
   return (
     <>
       <PageHeading
-        title="Excel 数据导入"
-        description="先预览再确认。人工复核过的项目不会被自动覆盖，冲突保留给数据管理员处理。"
+        title="数据录入"
+        description="支持 Excel 批量导入或手动录入一条。人工确认的数据不会被后续批量导入自动覆盖。"
         action={<a className="button" href="/api/templates/programs">下载维护模板</a>}
       />
       <ImportPanel />

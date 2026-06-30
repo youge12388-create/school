@@ -4,6 +4,7 @@ import { writeAudit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { CONTRACT_STATUSES, type ContractStatus } from "@/lib/constants";
 import { sqlite } from "@/lib/db";
+import { appUrl } from "@/lib/http";
 import { asNumber, asText, newId, parseDateInput } from "@/lib/utils";
 
 export async function POST(request: Request) {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     const name = asText(formData.get("name"));
     if (!name) {
       return NextResponse.redirect(
-        new URL("/customers/new?error=客户姓名不能为空", request.url),
+        appUrl(request, "/customers/new?error=客户姓名不能为空"),
         303,
       );
     }
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
       .get(requestedOwnerId) as { id: string } | undefined;
     if (!owner) {
       return NextResponse.redirect(
-        new URL("/customers/new?error=负责老师账号不存在或已停用", request.url),
+        appUrl(request, "/customers/new?error=负责老师账号不存在或已停用"),
         303,
       );
     }
@@ -103,11 +104,11 @@ export async function POST(request: Request) {
       throw new Error(`${transactionStep}写入失败：${message}`);
     }
 
-    return NextResponse.redirect(new URL(`/customers/${id}`, request.url), 303);
+    return NextResponse.redirect(appUrl(request, `/customers/${id}`), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "新增客户失败";
     return NextResponse.redirect(
-      new URL(`/customers/new?error=${encodeURIComponent(message)}`, request.url),
+      appUrl(request, `/customers/new?error=${encodeURIComponent(message)}`),
       303,
     );
   }

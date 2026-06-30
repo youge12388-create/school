@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documents } from "@/lib/db/schema";
 import { encryptBuffer } from "@/lib/file-crypto";
+import { appUrl } from "@/lib/http";
 import { asText, newId } from "@/lib/utils";
 
 export async function POST(request: Request) {
@@ -62,5 +63,5 @@ export async function POST(request: Request) {
     entityId: id,
     details: { customerId, applicationId, category, size: file.size },
   });
-  return NextResponse.redirect(new URL(`/customers/${customerId}`, request.url), 303);
+  return NextResponse.redirect(appUrl(request, `/customers/${customerId}`), 303);
 }

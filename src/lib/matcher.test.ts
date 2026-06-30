@@ -239,6 +239,54 @@ describe("screening matcher", () => {
     });
   });
 
+  it("detects common supervisor acceptance wording variants", () => {
+    const variants = [
+      "在线申请系统中选择专业时选择导师，并取得导师审核通过。",
+      "博士申请人应提供导师邀请函等录取材料。",
+      "申请材料包含《意向导师推荐信》。",
+      "Applicants must submit a supervisor invitation letter.",
+      "Applicants should provide pre-acceptance approval from an advisor.",
+    ];
+
+    for (const requirementsText of variants) {
+      const program = makeProgram({ programType: "MASTER", requirementsText });
+
+      expect(getSupervisorAcceptanceStatus(program)).toBe("REQUIRED");
+    }
+  });
+
+  it("keeps mixed supervisor requirements as partial required", () => {
+    const program = makeProgram({
+      programType: "MASTER",
+      requirementsText:
+        "以下院系须在报名前取得导师接收意向函：航空学院；其他学院硕士项目申请，导师接收函为非必需文件。",
+    });
+
+    const result = evaluateProgram(
+      program,
+      { programType: "MASTER", supervisorAcceptance: "required" },
+      now,
+    );
+
+    expect(getSupervisorAcceptanceStatus(program)).toBe("PARTIAL_REQUIRED");
+    expect(result.fitLevel).toBe("NEEDS_ACTION");
+    expect(result.evidence).toContainEqual({
+      label: "导师接收函",
+      level: "NEED",
+      detail: "部分学院或专业要求导师接收函，需确认目标专业",
+    });
+  });
+
+  it("detects supervisor intention form as required", () => {
+    const program = makeProgram({
+      programType: "MASTER",
+      requirementsText:
+        "《浙江工商大学导师接收国际学生意向表》原则上，硕士和博士项目申请者应向导师提供该表格填写并提交。",
+    });
+
+    expect(getSupervisorAcceptanceStatus(program)).toBe("REQUIRED");
+  });
+
   it("detects explicit supervisor acceptance letter exemption", () => {
     const program = makeProgram({
       programType: "MASTER",

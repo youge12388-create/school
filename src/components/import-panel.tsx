@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { ManualEntryForm } from "@/components/manual-entry-form";
+
 type Preview = {
   batchId: string;
   sourceNames: string[];
@@ -15,6 +17,36 @@ type Preview = {
 };
 
 export function ImportPanel() {
+  const [mode, setMode] = useState<"excel" | "manual">("excel");
+
+  return (
+    <>
+      <div aria-label="数据录入方式" className="import-method-tabs" role="tablist">
+        <button
+          aria-selected={mode === "excel"}
+          className={mode === "excel" ? "active" : ""}
+          onClick={() => setMode("excel")}
+          role="tab"
+          type="button"
+        >
+          Excel 批量导入
+        </button>
+        <button
+          aria-selected={mode === "manual"}
+          className={mode === "manual" ? "active" : ""}
+          onClick={() => setMode("manual")}
+          role="tab"
+          type="button"
+        >
+          手动录入一条
+        </button>
+      </div>
+      {mode === "excel" ? <ExcelImportPanel /> : <ManualEntryForm />}
+    </>
+  );
+}
+
+function ExcelImportPanel() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);

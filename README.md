@@ -13,6 +13,56 @@
 
 系统不会把原表未写明的信息推断为“符合”或“不符合”，统一显示“数据库未有相关信息”。
 
+## 一键部署（推荐）
+
+以下脚本自动完成安装依赖、构建、数据库迁移、启动生产服务并打开浏览器：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
+```
+
+如果希望开机自动启动（登录时自动部署）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1 -Startup
+```
+
+### 服务管理
+
+部署后，服务在后台静默运行（无窗口），通过以下命令管理：
+
+```powershell
+.\scripts\manage-service.ps1 status     # 查看运行状态
+.\scripts\manage-service.ps1 stop       # 停止服务
+.\scripts\manage-service.ps1 restart    # 重启
+.\scripts\manage-service.ps1 logs       # 查看最近 50 行日志
+.\scripts\manage-service.ps1 info       # 查看部署信息
+```
+
+### 桌面快捷方式
+
+双击 `scripts\open-local.ps1` 或桌面快捷方式，自动检测生产服务 → 已构建则启动 → 回退开发模式。
+
+## 首次启动（手动）
+
+如果需要手动启动开发模式：
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npm run db:migrate
+npm run admin:create -- admin "系统管理员" "请替换为至少10位的强密码"
+npm run dev
+```
+
+浏览器打开 [http://127.0.0.1:3000](http://127.0.0.1:3000)。
+
+也可以双击或执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
 ## 环境要求
 
 - Windows 10/11
@@ -45,6 +95,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
 - `高校项目汇总-中文.xlsx`
 
 系统会先显示新增、修改、重复、冲突和待复核统计。确认后才写入数据库。
+
+少量数据可在同一页面切换到“手动录入一条”。仅学校中文名必填，其余字段可留空；同名学校会自动关联，保存后的项目可立即在学校库、项目库和学校筛查中搜索；已存在相同项目类型与授课语言时会阻止重复创建。
 
 命令行直接导入：
 

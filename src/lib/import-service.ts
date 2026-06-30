@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { DEFAULT_MAJOR_SYNONYMS } from "@/lib/constants";
+import { z } from "zod";
+
+import {
+  DEFAULT_MAJOR_SYNONYMS,
+  LANGUAGE_LABELS,
+  PROGRAM_TYPE_LABELS,
+} from "@/lib/constants";
 import {
   parseProgramWorkbook,
   parseSchoolWorkbook,
@@ -10,8 +16,8 @@ import {
   type SchoolImportRow,
 } from "@/lib/excel-import";
 import { openRawDatabase } from "@/lib/db/raw";
-import { findMajorCategory } from "@/lib/program-parser";
-import { newId, normalizeKeyword } from "@/lib/utils";
+import { findMajorCategory, parseProgram } from "@/lib/program-parser";
+import { asNumber, newId, normalizeKeyword } from "@/lib/utils";
 
 type PreviewEntry = {
   key: string;
@@ -35,16 +41,73 @@ export type ImportPreview = {
 
 const emptyCounts = () => ({ NEW: 0, MODIFIED: 0, DUPLICATE: 0, CONFLICT: 0 });
 
-export function createImportPreview(input: {
-  schoolBuffer: Buffer;
-  schoolName: string;
-  programBuffer: Buffer;
-  programName: string;
-  userId?: string | null;
-}) {
+const manualText = (maxLength: number) =>
+  z.string().trim().max(maxLength).optional().default("");
+
+export const manualEntrySchema = z.object({
+  schoolNameZh: z
+    .string({ error: "请填写学校中文名" })
+    .trim()
+    .min(1, "请填写学校中文名")
+    .max(120),
+  schoolName: manualText(160),
+  schoolCategory: manualText(80),
+  province: manualText(80),
+  city: manualText(80),
+  website: manualText(500),
+  qsRanking: manualText(20),
+  partnershipRating: manualText(20),
+  schoolCscaStatus: z.enum(["REQUIRED", "NOT_REQUIRED", "UNKNOWN"]).default("UNKNOWN"),
+  schoolTags: manualText(500),
+  schoolDescription: manualText(5000),
+  cooperationPrograms: manualText(2000),
+  programType: z
+    .enum(["UG", "MASTER", "PHD", "LONG_TERM", "SHORT_TERM", "UNKNOWN"])
+    .default("UNKNOWN"),
+  teachingLanguage: z
+    .enum(["CHINESE", "ENGLISH", "FRENCH", "UNKNOWN"])
+    .default("UNKNOWN"),
+  programTags: manualText(500),
+  introduction: manualText(5000),
+  duration: manualText(120),
+  durationNote: manualText(1000),
+  majorText: manualText(5000),
+  directionText: manualText(5000),
+  requirementsText: manualText(10000),
+  semesterText: manualText(2000),
+  applicationTimeText: manualText(2000),
+  scholarshipCategory: manualText(500),
+  scholarshipContent: manualText(5000),
+  scholarshipNote: manualText(2000),
+  scholarshipDeadlineText: manualText(1000),
+  accommodationText: manualText(2000),
+  insuranceText: manualText(1000),
+  applicationFeeText: manualText(1000),
+  scholarshipApplicationFeeText: manualText(1000),
+  feeNote: manualText(2000),
+  tuitionText: manualText(2000),
+});
+
+export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
+
+type ImportServiceOptions = {
+  databaseFile?: string;
+  importDir?: string;
+};
+
+export function createImportPreview(
+  input: {
+    schoolBuffer: Buffer;
+    schoolName: string;
+    programBuffer: Buffer;
+    programName: string;
+    userId?: string | null;
+  },
+  options: ImportServiceOptions = {},
+) {
   const schoolResult = parseSchoolWorkbook(input.schoolBuffer);
   const programResult = parseProgramWorkbook(input.programBuffer);
-  const database = openRawDatabase();
+  const database = openRawDatabase(options.databaseFile);
   const schoolRows = database.prepare("SELECT name_zh, raw_json, review_status FROM schools").all() as Array<{
     name_zh: string;
     raw_json: string | null;
@@ -122,7 +185,10 @@ export function createImportPreview(input: {
     summary,
     entries,
   };
-  const importDir = resolve(/* turbopackIgnore: true */ process.env.IMPORT_DIR ?? "./data/imports");
+  const importDir = resolve(
+    /* turbopackIgnore: true */
+    options.importDir ?? process.env.IMPORT_DIR ?? "./data/imports",
+  );
   mkdirSync(importDir, { recursive: true });
   const previewPath = resolve(importDir, `${batchId}.json`);
   writeFileSync(previewPath, JSON.stringify(preview), "utf8");
@@ -131,7 +197,7 @@ export function createImportPreview(input: {
     .update(schoolResult.sourceHash)
     .update(programResult.sourceHash)
     .digest("hex");
-  const db = openRawDatabase();
+  const db = openRawDatabase(options.databaseFile);
   db.prepare(
     `INSERT INTO import_batches
      (id, kind, source_name, source_hash, status, summary_json, preview_path,
@@ -176,8 +242,9 @@ function insertMajors(
 
 function upsertSchool(
   database: ReturnType<typeof openRawDatabase>,
-  batchId: string,
+  batchId: string | null,
   school: SchoolImportRow,
+  manuallyEntered = false,
 ) {
   const existing = database
     .prepare("SELECT id, review_status FROM schools WHERE name_zh = ?")
@@ -191,7 +258,7 @@ function upsertSchool(
          ranking_info, partnership_rating, csca_status, tags, description,
          cooperation_programs, raw_json, source_batch_id, review_status,
          archived, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AUTO_PARSED', 0, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
       )
       .run(
         id,
@@ -210,13 +277,14 @@ function upsertSchool(
         school.cooperationPrograms,
         school.rawJson,
         batchId,
+        manuallyEntered ? "VERIFIED" : "AUTO_PARSED",
         Date.now(),
         Date.now(),
       );
     return id;
   }
 
-  if (existing.review_status !== "VERIFIED") {
+  if (!manuallyEntered && existing.review_status !== "VERIFIED") {
     database
       .prepare(
         `UPDATE schools SET name = ?, category = ?, province = ?, city = ?,
@@ -249,9 +317,10 @@ function upsertSchool(
 
 function upsertProgram(
   database: ReturnType<typeof openRawDatabase>,
-  batchId: string,
+  batchId: string | null,
   schoolId: string,
   program: ProgramImportRow,
+  manuallyEntered = false,
 ) {
   const existing = database
     .prepare(
@@ -308,9 +377,18 @@ function upsertProgram(
     JSON.stringify(parsed),
     program.rawJson,
     batchId,
-    parsed.reviewReasons.length ? "NEEDS_REVIEW" : "AUTO_PARSED",
+    manuallyEntered
+      ? parsed.reviewReasons.length
+        ? "NEEDS_REVIEW"
+        : "VERIFIED"
+      : parsed.reviewReasons.length
+        ? "NEEDS_REVIEW"
+        : "AUTO_PARSED",
   ];
 
+  if (manuallyEntered && existing) {
+    throw new Error("该学校已存在相同项目类型和授课语言的项目");
+  }
   if (existing?.manually_verified) return existing.id;
   const programId = existing?.id ?? newId();
   if (existing) {
@@ -348,7 +426,7 @@ function upsertProgram(
         deadline_status, parsed_json, raw_json, source_batch_id, review_status,
         manually_verified, archived, created_at, updated_at)
         VALUES (?, ?, ?, ?, ${Array(values.length).fill("?").join(", ")},
-        0, 0, ?, ?)`,
+        ?, 0, ?, ?)`,
       )
       .run(
         programId,
@@ -356,6 +434,7 @@ function upsertProgram(
         program.programType,
         program.teachingLanguage,
         ...values,
+        manuallyEntered ? 1 : 0,
         Date.now(),
         Date.now(),
       );
@@ -364,8 +443,127 @@ function upsertProgram(
   return programId;
 }
 
-export function confirmImport(batchId: string, userId?: string | null) {
-  const database = openRawDatabase();
+function buildManualSchool(input: ManualEntryInput): SchoolImportRow {
+  return {
+    nameZh: input.schoolNameZh,
+    name: input.schoolName || input.schoolNameZh,
+    category: input.schoolCategory || null,
+    province: input.province || null,
+    city: input.city || null,
+    website: input.website || null,
+    qsRanking: asNumber(input.qsRanking),
+    rankingInfo: null,
+    partnershipRating: asNumber(input.partnershipRating) ?? 0,
+    cscaStatus: input.schoolCscaStatus,
+    tags: input.schoolTags || null,
+    description: input.schoolDescription || null,
+    cooperationPrograms: input.cooperationPrograms || null,
+    rawJson: JSON.stringify(input),
+  };
+}
+
+function buildManualProgram(input: ManualEntryInput): ProgramImportRow {
+  const parsed = parseProgram({
+    tuitionText: input.tuitionText,
+    accommodationText: input.accommodationText,
+    insuranceText: input.insuranceText,
+    applicationFeeText: input.applicationFeeText,
+    requirementsText: input.requirementsText,
+    applicationTimeText: input.applicationTimeText,
+    majorText: input.majorText,
+    programType: input.programType,
+  });
+  const rawJson = JSON.stringify(input);
+  return {
+    schoolName: input.schoolNameZh,
+    name: [
+      input.schoolNameZh,
+      input.programType === "UNKNOWN"
+        ? "项目类型待补充"
+        : (PROGRAM_TYPE_LABELS[input.programType] ?? input.programType),
+      input.teachingLanguage === "UNKNOWN"
+        ? "授课语言待补充"
+        : (LANGUAGE_LABELS[input.teachingLanguage] ?? input.teachingLanguage) + "授课",
+    ].join(" · "),
+    programType: input.programType,
+    tuitionText: input.tuitionText,
+    teachingLanguage: input.teachingLanguage,
+    tags: input.programTags || null,
+    introduction: input.introduction || null,
+    duration: input.duration || null,
+    durationNote: input.durationNote || null,
+    majorText: input.majorText || null,
+    directionText: input.directionText || null,
+    requirementsText: input.requirementsText || null,
+    semesterText: input.semesterText || null,
+    applicationTimeText: input.applicationTimeText || null,
+    scholarshipCategory: input.scholarshipCategory || null,
+    scholarshipContent: input.scholarshipContent || null,
+    scholarshipNote: input.scholarshipNote || null,
+    scholarshipDeadlineText: input.scholarshipDeadlineText || null,
+    accommodationText: input.accommodationText || null,
+    insuranceText: input.insuranceText || null,
+    applicationFeeText: input.applicationFeeText || null,
+    scholarshipApplicationFeeText: input.scholarshipApplicationFeeText || null,
+    feeNote: input.feeNote || null,
+    parsed,
+    rawJson,
+    fingerprint: createHash("sha256").update(rawJson).digest("hex"),
+  };
+}
+
+export function createManualEntry(
+  rawInput: unknown,
+  userId?: string | null,
+  databaseFile?: string,
+) {
+  const input = manualEntrySchema.parse(rawInput);
+  const database = openRawDatabase(databaseFile);
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const existingSchool = database
+      .prepare("SELECT id, archived FROM schools WHERE name_zh = ?")
+      .get(input.schoolNameZh) as { id: string; archived: number } | undefined;
+    if (existingSchool?.archived) throw new Error("该学校已归档，请先恢复后再录入项目");
+
+    const schoolId = existingSchool?.id ?? upsertSchool(database, null, buildManualSchool(input), true);
+    const program = buildManualProgram(input);
+    const programId = upsertProgram(database, null, schoolId, program, true);
+    const reviewStatus = program.parsed.reviewReasons.length
+      ? "NEEDS_REVIEW"
+      : "VERIFIED";
+    database.prepare(
+      `INSERT INTO audit_logs
+       (id, user_id, action, entity_type, entity_id, details_json, created_at)
+       VALUES (?, ?, 'MANUAL_PROGRAM_CREATED', 'PROGRAM', ?, ?, ?)`,
+    ).run(
+      newId(),
+      userId ?? null,
+      programId,
+      JSON.stringify({
+        schoolId,
+        schoolName: input.schoolNameZh,
+        programType: input.programType,
+        teachingLanguage: input.teachingLanguage,
+      }),
+      Date.now(),
+    );
+    database.exec("COMMIT");
+    return { schoolId, programId, createdSchool: !existingSchool, reviewStatus };
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
+export function confirmImport(
+  batchId: string,
+  userId?: string | null,
+  options: ImportServiceOptions = {},
+) {
+  const database = openRawDatabase(options.databaseFile);
   const batch = database
     .prepare("SELECT preview_path, status FROM import_batches WHERE id = ?")
     .get(batchId) as { preview_path: string; status: string } | undefined;

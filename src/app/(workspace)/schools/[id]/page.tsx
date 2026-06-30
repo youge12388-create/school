@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { getSchoolDetails } from "@/lib/queries";
+import { parseMajorItems } from "@/lib/screening-results";
 import { formatDate, formatMoney, safeJson } from "@/lib/utils";
 
 const UNKNOWN_TEXT = "数据库未有相关信息";
@@ -70,6 +71,32 @@ function deadlineLabel(deadlineDate: Date | null) {
     ? `截止 ${formatDate(deadlineDate)}`
     : `已截止 ${formatDate(deadlineDate)}`;
 }
+function normalizeSearchText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function programMatchesContext(
+  program: { id: string; programType: string; teachingLanguage: string; majorText: string | null },
+  context: { programId?: string; type?: string; language?: string; major?: string },
+) {
+  if (context.programId) return program.id === context.programId;
+  if (context.type && program.programType !== context.type) return false;
+  if (context.language && program.teachingLanguage !== context.language) return false;
+  if (context.major) {
+    const normalizedMajor = normalizeSearchText(context.major);
+    const normalizedText = normalizeSearchText(program.majorText ?? "");
+    if (!normalizedText.includes(normalizedMajor)) return false;
+  }
+  return true;
+}
+
+function contextLabel(context: { type?: string; language?: string; major?: string }) {
+  return [
+    context.type ? PROGRAM_TYPE_LABELS[context.type] ?? context.type : null,
+    context.language ? LANGUAGE_LABELS[context.language] ?? context.language : null,
+    context.major ? `专业：${context.major}` : null,
+  ].filter(Boolean).join(" · ");
+}
 
 function displayValue(value: unknown) {
   if (value == null) return UNKNOWN_TEXT;
@@ -110,13 +137,23 @@ function KnowledgeFieldGrid({
       {fields.map((label) => {
         const value = data[label];
         const text = displayValue(value);
+        const majorItems =
+          text !== UNKNOWN_TEXT && ["专业列表", "专业方向"].includes(label)
+            ? parseMajorItems(text)
+            : [];
         return (
           <div
             className={`knowledge-field${isLongField(label, value) ? " knowledge-field-wide" : ""}`}
             key={label}
           >
             <span>{label}</span>
-            {label === "官网" && text !== UNKNOWN_TEXT ? (
+            {majorItems.length ? (
+              <ul className="major-chip-list" aria-label={`${label}，共 ${majorItems.length} 个`}>
+                {majorItems.map((major) => (
+                  <li className="major-chip" key={major}>{major}</li>
+                ))}
+              </ul>
+            ) : label === "官网" && text !== UNKNOWN_TEXT ? (
               <a href={externalUrl(text)} target="_blank" rel="noreferrer">
                 {text}
               </a>
@@ -132,13 +169,34 @@ function KnowledgeFieldGrid({
 
 export default async function SchoolDetailsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs } = data;
+  const screeningContext = {
+    programId: query.programId,
+    type: query.type,
+    language: query.language,
+    major: query.major,
+  };
+  const hasScreeningContext =
+    query.from === "screening" &&
+    Boolean(
+      screeningContext.programId ||
+        screeningContext.type ||
+        screeningContext.language ||
+        screeningContext.major,
+    );
+  const visiblePrograms = hasScreeningContext
+    ? programs.filter((program) => programMatchesContext(program, screeningContext))
+    : programs;
+  const activeContextLabel = contextLabel(screeningContext);
   const schoolRaw = safeJson<Record<string, unknown>>(school.rawJson, {});
   const schoolKnowledge: Record<string, unknown> = {
     学校中文名: school.nameZh,
@@ -183,7 +241,7 @@ export default async function SchoolDetailsPage({
         </div>
         <div className="card school-overview-card">
           <span>知识库项目</span>
-          <strong>{programs.length} 个</strong>
+          <strong>{visiblePrograms.length} / {programs.length} 个</strong>
         </div>
       </section>
 
@@ -205,14 +263,23 @@ export default async function SchoolDetailsPage({
       <section className="school-programs-section">
         <div className="school-programs-heading">
           <div>
-            <h2>高校项目表 · 全部项目与字段</h2>
-            <p>共 {programs.length} 个有效项目。每个项目均按原始 Excel 列完整展示。</p>
+            <h2>{hasScreeningContext ? "筛选相关项目" : "高校项目表 · 全部项目与字段"}</h2>
+            <p>
+              {hasScreeningContext
+                ? `当前从筛选结果进入，仅显示 ${activeContextLabel || "当前筛选"} 相关项目：${visiblePrograms.length} / ${programs.length} 个。`
+                : `共 ${programs.length} 个有效项目。每个项目均按原始 Excel 列完整展示。`}
+            </p>
           </div>
-          <Link className="button primary" href="/screening">返回筛选</Link>
+          <div className="school-program-actions">
+            {hasScreeningContext ? (
+              <Link className="button" href={`/schools/${school.id}`}>查看该校全部项目</Link>
+            ) : null}
+            <Link className="button primary" href="/screening">返回筛选</Link>
+          </div>
         </div>
 
-        {programs.length ? (
-          programs.map((program, index) => {
+        {visiblePrograms.length ? (
+          visiblePrograms.map((program, index) => {
             const raw = safeJson<Record<string, unknown>>(program.rawJson, {});
             const programKnowledge: Record<string, unknown> = {
               学校中文名: school.nameZh,
@@ -265,7 +332,7 @@ export default async function SchoolDetailsPage({
             );
           })
         ) : (
-          <EmptyState>该学校暂无有效项目</EmptyState>
+          <EmptyState>{hasScreeningContext ? "该学校没有符合当前筛选上下文的项目。" : "该学校暂无有效项目"}</EmptyState>
         )}
       </section>
     </>

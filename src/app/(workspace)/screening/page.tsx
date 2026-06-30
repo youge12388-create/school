@@ -11,6 +11,7 @@ import {
   type ScreeningCriteria,
 } from "@/lib/matcher";
 import { getProgramsForScreening, listCustomerOptions } from "@/lib/queries";
+import { partitionScreeningResults } from "@/lib/screening-results";
 import { asNumber } from "@/lib/utils";
 
 function parseDateParam(value?: string) {
@@ -137,10 +138,12 @@ function ResultSection({
   fitLevel,
   results,
   ranks,
+  detailParams,
 }: {
   fitLevel: Exclude<FitLevel, "NOT_MATCHED">;
   results: RankedProgram[];
   ranks: Map<string, number>;
+  detailParams: Record<string, string | undefined>;
 }) {
   if (!results.length) return null;
   const section = fitSection[fitLevel];
@@ -157,6 +160,7 @@ function ResultSection({
         <ScreeningResultCard
           result={result}
           rank={ranks.get(result.program.id) ?? 0}
+          detailParams={detailParams}
           key={result.program.id}
         />
       ))}
@@ -180,21 +184,15 @@ export default async function ScreeningPage({
   ]);
   const results = hasSearch ? rankPrograms(programs, criteria) : [];
   const ranks = new Map(results.map((result, index) => [result.program.id, index + 1]));
-  const expiredResults = results.filter(
-    (result) => result.effectiveDeadlineStatus === "EXPIRED",
-  );
-  const currentResults = results.filter(
-    (result) => result.effectiveDeadlineStatus !== "EXPIRED",
-  );
-  const grouped = {
-    MATCHED: currentResults.filter((result) => result.fitLevel === "MATCHED"),
-    NEEDS_ACTION: currentResults.filter(
-      (result) => result.fitLevel === "NEEDS_ACTION",
-    ),
-    UNKNOWN: currentResults.filter((result) => result.fitLevel === "UNKNOWN"),
-    NOT_MATCHED: currentResults.filter(
-      (result) => result.fitLevel === "NOT_MATCHED",
-    ),
+  const {
+    currentByFit: grouped,
+    expired: expiredResults,
+    notMatched: notMatchedResults,
+  } = partitionScreeningResults(results);
+  const detailParams = {
+    type: params.type,
+    language: params.language,
+    major: params.major,
   };
 
   return (
@@ -238,7 +236,7 @@ export default async function ScreeningPage({
                 学校是否要求导师接收函
                 <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
                   <option value="">不限</option>
-                  <option value="required">学校明确要求</option>
+                  <option value="required">明确或部分要求</option>
                   <option value="not_required">学校明确不要求</option>
                   <option value="unknown">数据库未写明</option>
                 </select>
@@ -277,7 +275,7 @@ export default async function ScreeningPage({
               <label>
                 CSCA 当前状态
                 <select name="csca" defaultValue={params.csca}>
-                  <option value="">未确认</option>
+                  <option value="">不限</option>
                   <option value="yes">已有</option>
                   <option value="no">目前没有</option>
                 </select>
@@ -358,25 +356,26 @@ export default async function ScreeningPage({
               <span>可直接申请 {grouped.MATCHED.length}</span>
               <span>需要补充 {grouped.NEEDS_ACTION.length}</span>
               <span>信息待核实 {grouped.UNKNOWN.length}</span>
-              <span>明确不符合 {grouped.NOT_MATCHED.length}</span>
+              <span>明确不符合 {notMatchedResults.length}</span>
               <span>已截止 {expiredResults.length}</span>
             </div>
 
-            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} />
-            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} />
-            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} />
+            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} />
+            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} />
+            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} />
 
-            {grouped.NOT_MATCHED.length ? (
+            {notMatchedResults.length ? (
               <details className="card screening-collapsible-group">
                 <summary>
-                  <span><strong>明确不符合</strong><small>保留项目并展示不符合原因</small></span>
-                  <span>{grouped.NOT_MATCHED.length} 个项目</span>
+                  <span><strong>明确不符合</strong><small>默认收起，需要核对原因时再展开</small></span>
+                  <span>{notMatchedResults.length} 个项目</span>
                 </summary>
                 <div className="screening-collapsible-body">
-                  {grouped.NOT_MATCHED.map((result) => (
+                  {notMatchedResults.map((result) => (
                     <ScreeningResultCard
                       result={result}
                       rank={ranks.get(result.program.id) ?? 0}
+                      detailParams={detailParams}
                       key={result.program.id}
                     />
                   ))}
@@ -387,10 +386,10 @@ export default async function ScreeningPage({
             {expiredResults.length ? (
               <details
                 className="card screening-collapsible-group"
-                open={criteria.deadlineMode === "expired"}
+                open={criteria.deadlineMode === "expired" || criteria.deadlineMode === "all"}
               >
                 <summary>
-                  <span><strong>已截止项目</strong><small>默认折叠，仅供历史对照</small></span>
+                  <span><strong>已截止项目</strong><small>全部状态下自动展开，仅供历史对照</small></span>
                   <span>{expiredResults.length} 个项目</span>
                 </summary>
                 <div className="screening-collapsible-body">
@@ -398,6 +397,7 @@ export default async function ScreeningPage({
                     <ScreeningResultCard
                       result={result}
                       rank={ranks.get(result.program.id) ?? 0}
+                      detailParams={detailParams}
                       key={result.program.id}
                     />
                   ))}

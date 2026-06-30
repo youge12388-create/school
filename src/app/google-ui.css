@@ -701,6 +701,13 @@ tbody tr:hover {
   margin-bottom: 14px;
 }
 
+.school-program-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .screening-section-heading h3,
 .school-programs-heading h2 {
   font-size: 22px;
@@ -752,15 +759,56 @@ tbody tr:hover {
   font-size: 13px;
 }
 
+.result-warning-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .result-detail-link {
   min-height: 34px;
   flex: 0 0 auto;
   padding: 6px 14px;
 }
 
-.result-major-text {
+.result-majors {
+  display: flex;
+  align-items: baseline;
+  gap: 6px 10px;
   margin-top: 10px;
-  white-space: pre-wrap;
+}
+
+.result-major-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.major-chip-list {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 5px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.major-chip {
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: #fff;
+  padding: 3px 7px;
+  color: #3c4043;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.result-major-empty {
+  margin-top: 10px;
 }
 
 .result-reason {
@@ -998,6 +1046,10 @@ tbody tr:hover {
     flex-direction: column;
   }
 
+  .school-program-actions {
+    justify-content: flex-start;
+  }
+
   .result-detail-link {
     width: max-content;
   }
@@ -1090,5 +1142,111 @@ tbody tr:hover {
   .toolbar-actions,
   .toolbar-actions > * {
     width: 100%;
+  }
+}
+
+/* 数据录入：白底、细分隔线和编号步骤保持高密度表单清晰可扫读。 */
+.import-method-tabs {
+  display: flex;
+  gap: 24px;
+  margin: 4px 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.import-method-tabs button {
+  min-height: 44px;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 2px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.import-method-tabs button:hover,
+.import-method-tabs button.active {
+  border-bottom-color: var(--primary);
+  background: transparent;
+  color: var(--primary);
+}
+
+.manual-entry-form {
+  max-width: 980px;
+}
+
+.manual-entry-section {
+  margin-top: 22px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 18px;
+}
+
+.manual-entry-section.optional {
+  margin-top: 14px;
+}
+
+.manual-entry-section-title {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.manual-entry-section-title > span {
+  color: var(--primary);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-entry-section-title h4 {
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+
+.manual-entry-section-title p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.manual-entry-stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.manual-entry-details {
+  margin-top: 22px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 16px;
+}
+
+.manual-entry-details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.manual-entry-message {
+  margin-top: 14px;
+}
+
+.manual-entry-message a {
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .import-method-tabs {
+    gap: 16px;
+  }
+
+  .manual-entry-section-title {
+    grid-template-columns: 34px minmax(0, 1fr);
   }
 }
