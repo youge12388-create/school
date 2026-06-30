@@ -243,3 +243,9 @@ http://127.0.0.1:3000/dashboard
 - README 新增“Zeabur 部署说明”，记录环境变量、`/data` Volume、首次迁移命令 `npm run db:migrate` 和管理员创建命令 `npm run admin:create -- <用户名> <显示名称> <密码>`。
 - 本轮不改业务逻辑、不新增复杂部署配置文件；当前未发现已有 Dockerfile、`zbpack.json` 或 `nixpacks.toml`。
 - 验证结果：`npm run typecheck` 通过；`npm run lint` 通过；`npm run build` 通过；`npm test` 69 项通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
+
+## 本轮 Zeabur 构建失败根因修复（2026-06-30）
+- 根因：`src/lib/db/index.ts` 在模块导入时立即创建 `DatabaseSync`，导致 Zeabur / Docker 的 `npm run build` 阶段提前打开运行期 SQLite 路径，Volume 未挂载或数据库目录不可用时构建失败。
+- 修复：数据库连接改为懒加载，导入 `@/lib/db` 不再打开 SQLite；首次执行 Drizzle 查询或调用 `sqlite.prepare/exec` 时才创建连接并设置 WAL、foreign_keys 和 busy_timeout。
+- 新增回归测试：`src/lib/db/index.test.ts` 验证导入数据库模块不会创建 SQLite 文件。
+- 验证结果：`npm test -- src/lib/db/index.test.ts` 通过；使用临时 `DATABASE_PATH` 模拟 Zeabur 构建，`npm run build` 通过；`npm run typecheck` 通过；`npm run lint` 通过；`npm test` 70 项通过；常规 `npm run build` 通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。

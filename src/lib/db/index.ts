@@ -7,19 +7,44 @@ import { drizzle, type AsyncRemoteCallback } from "drizzle-orm/sqlite-proxy";
 
 import * as schema from "./schema";
 
-const databasePath = resolve(/* turbopackIgnore: true */ process.env.DATABASE_PATH ?? "./data/app.db");
-mkdirSync(dirname(databasePath), { recursive: true });
+export function getDatabasePath() {
+  return resolve(
+    /* turbopackIgnore: true */ process.env.DATABASE_PATH ?? "./data/app.db",
+  );
+}
 
-const sqlite = new DatabaseSync(databasePath);
-sqlite.exec("PRAGMA journal_mode = WAL");
-sqlite.exec("PRAGMA foreign_keys = ON");
-sqlite.exec("PRAGMA busy_timeout = 5000");
+let sqliteInstance: DatabaseSync | null = null;
+
+function createDatabase() {
+  const databasePath = getDatabasePath();
+  mkdirSync(dirname(databasePath), { recursive: true });
+  const database = new DatabaseSync(databasePath);
+  database.exec("PRAGMA journal_mode = WAL");
+  database.exec("PRAGMA foreign_keys = ON");
+  database.exec("PRAGMA busy_timeout = 5000");
+  return database;
+}
+
+export function getSqlite() {
+  sqliteInstance ??= createDatabase();
+  return sqliteInstance;
+}
+
+export const sqlite = new Proxy({} as DatabaseSync, {
+  get(_target, property, receiver) {
+    const database = getSqlite();
+    const value = Reflect.get(database, property, receiver);
+    return typeof value === "function" ? value.bind(database) : value;
+  },
+});
+
+export const databasePath = getDatabasePath();
 
 type QueryMethod = "run" | "all" | "values" | "get";
 type ProxyRows = unknown[] | unknown[][] | Record<string, unknown> | undefined;
 
 async function execute(sql: string, params: unknown[], method: QueryMethod): Promise<{ rows: ProxyRows }> {
-  const statement = sqlite.prepare(sql);
+  const statement = getSqlite().prepare(sql);
   const values = params as SQLInputValue[];
 
   if (method === "run") {
@@ -47,4 +72,3 @@ async function execute(sql: string, params: unknown[], method: QueryMethod): Pro
 }
 
 export const db = drizzle(execute as unknown as AsyncRemoteCallback, { schema });
-export { sqlite, databasePath };
