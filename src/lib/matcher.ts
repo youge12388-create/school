@@ -1,6 +1,12 @@
 import type { RuleStatus } from "@/lib/constants";
 import { DEFAULT_MAJOR_SYNONYMS } from "@/lib/constants";
+import { parseAgeRequirement } from "@/lib/program-parser";
+import {
+  parseProgramSoftRequirements,
+  type SoftRequirement,
+} from "@/lib/soft-requirements";
 import { normalizeKeyword } from "@/lib/utils";
+
 
 export type DeadlineMode = "open" | "unknown" | "expired" | "all";
 export type FitLevel = "MATCHED" | "NEEDS_ACTION" | "UNKNOWN" | "NOT_MATCHED";
@@ -22,6 +28,8 @@ export type ScreeningCriteria = {
   toefl?: number | null;
   duolingo?: number | null;
   age?: number | null;
+  hasPaperPatent?: string | null;
+  hasCompetition?: string | null;
   nationality?: string;
   province?: string;
   city?: string;
@@ -197,18 +205,22 @@ function deadlineEvidence(
 
 function ageEvidence(program: MatchProgram, age: number | null | undefined): MatchEvidence | null {
   if (age == null) return null;
-  if (program.minAge == null && program.maxAge == null) {
+  const parsedAge = parseAgeRequirement(program.requirementsText);
+  const hasParsedAge = parsedAge.minAge != null || parsedAge.maxAge != null;
+  const minAge = hasParsedAge ? parsedAge.minAge : program.minAge;
+  const maxAge = hasParsedAge ? parsedAge.maxAge : program.maxAge;
+  if (minAge == null && maxAge == null) {
     return { label: "年龄", level: "UNKNOWN", detail: "数据库未有相关信息" };
   }
-  if (program.minAge != null && age < program.minAge) {
-    return { label: "年龄", level: "FAIL", detail: `${age} 岁，低于最低年龄 ${program.minAge} 岁` };
+  if (minAge != null && age < minAge) {
+    return { label: "年龄", level: "FAIL", detail: `${age} 岁，低于最低年龄 ${minAge} 岁` };
   }
-  if (program.maxAge != null && age > program.maxAge) {
-    return { label: "年龄", level: "FAIL", detail: `${age} 岁，超过最高年龄 ${program.maxAge} 岁` };
+  if (maxAge != null && age > maxAge) {
+    return { label: "年龄", level: "FAIL", detail: `${age} 岁，超过最高年龄 ${maxAge} 岁` };
   }
   const range = [
-    program.minAge == null ? null : `最低 ${program.minAge} 岁`,
-    program.maxAge == null ? null : `最高 ${program.maxAge} 岁`,
+    minAge == null ? null : `最低 ${minAge} 岁`,
+    maxAge == null ? null : `最高 ${maxAge} 岁`,
   ].filter(Boolean).join("，");
   return { label: "年龄", level: "PASS", detail: `${age} 岁，符合${range}` };
 }
@@ -352,7 +364,7 @@ function englishEvidence(program: MatchProgram, criteria: ScreeningCriteria): Ma
   const scores = [
     compareThreshold("雅思", criteria.ielts, program.ieltsMin),
     compareThreshold("托福", criteria.toefl, program.toeflMin),
-    compareThreshold("多邻国", criteria.duolingo, program.duolingoMin),
+    compareThreshold("多邻国分数", criteria.duolingo, program.duolingoMin),
   ];
   if (scores.some((item) => item.level === "PASS")) {
     return { label: "英语", level: "PASS", detail: "至少一项英语成绩达到要求" };
@@ -365,6 +377,55 @@ function englishEvidence(program: MatchProgram, criteria: ScreeningCriteria): Ma
   }
   return { label: "英语", level: "NEED", detail: "英语成绩需要补充或人工复核" };
 }
+
+
+function paperPatentEvidence(
+  actual: string | null | undefined,
+  requirement: SoftRequirement,
+): MatchEvidence | null {
+  if (!actual) return null;
+  if (actual === "sci_ei" && requirement.hasSCI) {
+    return { label: "论文/专利成果", level: "PASS", detail: "客户有SCI/EI论文，匹配学校SCI/EI要求，更具竞争力" };
+  }
+  if (requirement.status === "UNKNOWN") {
+    return { label: "论文/专利成果", level: "PASS", detail: "知识库未提及论文/专利要求，不影响申报" };
+  }
+  const isRequired = requirement.status === "REQUIRED";
+  const isPreferred = requirement.status === "PREFERRED";
+  if (isRequired && actual === "general") {
+    if (requirement.hasSCI) {
+      return { label: "论文/专利成果", level: "PASS", detail: "学校要求SCI/EI论文，客户有普通论文可尝试申报" };
+    }
+    return { label: "论文/专利成果", level: "PASS", detail: "学校要求论文/专利，客户有相关成果可申报" };
+  }
+  if (isRequired && actual === "sci_ei") {
+    return { label: "论文/专利成果", level: "PASS", detail: "学校要求论文/专利，客户有SCI/EI级别更具优势" };
+  }
+  if (actual === "general") {
+    return { label: "论文/专利成果", level: "PASS", detail: "客户有论文/专利，可作为辅助材料提交" };
+  }
+  return { label: "论文/专利成果", level: "PASS", detail: "客户有SCI/EI级别论文/专利，竞争力强" };
+}
+
+function competitionEvidence(
+  actual: string | null | undefined,
+  requirement: SoftRequirement,
+): MatchEvidence | null {
+  if (!actual) return null;
+  if (requirement.status === "UNKNOWN") {
+    return { label: "竞赛/突出表现", level: "PASS", detail: "知识库未提及相关条件，不影响申报" };
+  }
+  const isRequired = requirement.status === "REQUIRED";
+  const isPreferred = requirement.status === "PREFERRED";
+  if (isRequired) {
+    return { label: "竞赛/突出表现", level: "PASS", detail: "学校要求/认可竞赛或突出表现，客户符合条件竞争力更强" };
+  }
+  if (isPreferred) {
+    return { label: "竞赛/突出表现", level: "PASS", detail: "学校鼓励或优先考虑竞赛/突出表现，客户有优势" };
+  }
+  return { label: "竞赛/突出表现", level: "PASS", detail: "学校提及竞赛/获奖材料，可作为辅助材料提交" };
+}
+
 
 export function evaluateProgram(
   program: MatchProgram,
@@ -496,7 +557,15 @@ export function evaluateProgram(
     }
   }
 
-  const effectiveDeadlineStatus = getEffectiveDeadlineStatus(program, now);
+  
+  const softRequirements = parseProgramSoftRequirements(program.requirementsText);
+  const softEvidence = [
+    paperPatentEvidence(criteria.hasPaperPatent, softRequirements.paperPatent),
+    competitionEvidence(criteria.hasCompetition, softRequirements.competition),
+  ];
+  for (const item of softEvidence) if (item) evidence.push(item);
+
+const effectiveDeadlineStatus = getEffectiveDeadlineStatus(program, now);
   evidence.push(deadlineEvidence(program, criteria, effectiveDeadlineStatus));
 
   const failures = evidence.filter((item) => item.level === "FAIL").length;

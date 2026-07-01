@@ -106,6 +106,22 @@ describe("screening matcher", () => {
     });
   });
 
+  it("筛选时修正历史数据中只有最高年龄却误存最低年龄的问题", () => {
+    const program = makeProgram({
+      requirementsText: "申请人年龄不超过 35 岁。",
+      minAge: 35,
+      maxAge: 35,
+    });
+
+    const result = evaluateProgram(program, { age: 24 }, now);
+
+    expect(result.fitLevel).toBe("MATCHED");
+    expect(result.evidence).toContainEqual({
+      label: "年龄",
+      level: "PASS",
+      detail: "24 岁，符合最高 35 岁",
+    });
+  });
   it("省市名称忽略省和市后缀", () => {
     const result = evaluateProgram(
       baseProgram,
@@ -303,5 +319,69 @@ describe("screening matcher", () => {
       level: "PASS",
       detail: "学校申请条件明确不要求导师接收函",
     });
+  });
+
+  it("明确竞赛层级要求未达到时判定不符合", () => {
+    const program = makeProgram({
+      requirementsText: "申请人须提供国家级学科竞赛获奖证书。",
+    });
+
+    const result = evaluateProgram(program, { hasCompetition: "competition" }, now);
+
+    expect(result.fitLevel).toBe("NOT_MATCHED");
+    expect(result.evidence).toContainEqual({
+      label: "竞赛经历",
+      level: "FAIL",
+      detail: "项目要求至少达到国家级竞赛",
+    });
+  });
+
+  it("可选竞赛加分项缺失时不淘汰项目", () => {
+    const program = makeProgram({
+      requirementsText: "如有国家级学科竞赛获奖证书，可作为加分材料。",
+    });
+
+    const result = evaluateProgram(program, { hasCompetition: "competition" }, now);
+
+    expect(result.fitLevel).toBe("MATCHED");
+    expect(result.evidence.some((item) => item.label === "竞赛经历")).toBe(false);
+  });
+
+  it("客户具备学校重视的软性条件时提高排序", () => {
+    const relevant = makeProgram({
+      id: "sat-relevant",
+      requirementsText: "可提交 SAT/AP/ACT 等标准化考试成绩作为补充材料。",
+    });
+    const unmentioned = makeProgram({
+      id: "sat-unmentioned",
+      requirementsText: "申请人须为非中国籍。",
+    });
+
+    const results = rankPrograms(
+      [unmentioned, relevant],
+      { hasPaperPatent: "general" },
+      now,
+    );
+
+    expect(results.map((item) => item.program.id)).toEqual([
+      "sat-relevant",
+      "sat-unmentioned",
+    ]);
+    expect(results[0].evidence).toContainEqual({
+      label: "SAT",
+      level: "PASS",
+      detail: "客户已具备；项目将此项作为可选或加分材料",
+    });
+  });
+
+  it("知识库未写明软性条件时不制造未知结论", () => {
+    const result = evaluateProgram(
+      makeProgram({ requirementsText: "申请人须为非中国籍。" }),
+      { hasCompetition: "competition" },
+      now,
+    );
+
+    expect(result.fitLevel).toBe("MATCHED");
+    expect(result.evidence.some((item) => item.label === "志愿者经历")).toBe(false);
   });
 });

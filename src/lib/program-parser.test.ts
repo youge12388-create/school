@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  parseAgeRequirement,
   parseDeadline,
   parseMoneyRange,
   parseProgram,
@@ -50,6 +51,25 @@ describe("program parser", () => {
     expect(result.ieltsMin).toBe(6);
     expect(result.toeflMin).toBe(80);
     expect(result.duolingoMin).toBe(100);
+  });
+
+  it("区分最低年龄、最高年龄和年龄范围", () => {
+    expect(parseAgeRequirement("申请人年龄不超过 35 岁")).toEqual({
+      minAge: null,
+      maxAge: 35,
+    });
+    expect(parseAgeRequirement("申请人必须满 18 岁")).toEqual({
+      minAge: 18,
+      maxAge: null,
+    });
+    expect(parseAgeRequirement("年龄要求为 18-25 岁")).toEqual({
+      minAge: 18,
+      maxAge: 25,
+    });
+    expect(parseAgeRequirement("申请人年龄须在 35 岁以下")).toEqual({
+      minAge: null,
+      maxAge: 35,
+    });
   });
 
   it("选择多批次中的最晚截止日期", () => {
