@@ -67,7 +67,6 @@ export default async function DashboardPage() {
         <div className="card">
           <div className="card-header">
             <h3>30 天内截止项目</h3>
-            <Link href="/programs">全部项目</Link>
           </div>
           <div className="card-body">
             {data.deadlines.length ? (

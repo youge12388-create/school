@@ -67,7 +67,7 @@ export function ManualEntryForm() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "手动录入失败");
       setResult(body as ManualResult);
-      setMessage("录入成功，已可在学校库、项目库和学校筛查中搜索。");
+      setMessage("录入成功，已可在学校库和学校筛查中搜索。");
       formRef.current?.reset();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "手动录入失败");

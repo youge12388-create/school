@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BookOpen,
   ClipboardList,
   Database,
   FileClock,
@@ -22,7 +21,6 @@ const items = [
   { href: "/customers", label: "客户管理", icon: Users },
   { href: "/applications", label: "申请流程", icon: ClipboardList },
   { href: "/schools", label: "学校库", icon: GraduationCap },
-  { href: "/programs", label: "项目库", icon: BookOpen },
   { href: "/imports", label: "数据导入", icon: Database },
   { href: "/audit", label: "操作审计", icon: FileClock },
   { href: "/admin/users", label: "账号管理", icon: UserRoundCog },

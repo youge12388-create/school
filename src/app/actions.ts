@@ -242,25 +242,6 @@ export async function toggleUserAction(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
-export async function verifyProgramAction(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
-  const programId = asText(formData.get("programId"));
-  await db
-    .update(programs)
-    .set({
-      reviewStatus: "VERIFIED",
-      manuallyVerified: true,
-      updatedAt: new Date(),
-    })
-    .where(eq(programs.id, programId));
-  await writeAudit({
-    userId: user.id,
-    action: "PROGRAM_VERIFIED",
-    entityType: "PROGRAM",
-    entityId: programId,
-  });
-  revalidatePath("/programs");
-}
 
 function changedFields<T extends Record<string, unknown>>(
   oldValue: T | undefined,
@@ -428,7 +409,6 @@ export async function updateProgramAction(formData: FormData) {
     details: { changed: changedFields(oldProgram, updates) },
   });
   revalidatePath(`/schools/${oldProgram.schoolId}`);
-  revalidatePath("/programs");
 }
 export async function saveRecommendationAction(formData: FormData) {
   const user = await requireUser();

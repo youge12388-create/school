@@ -62,11 +62,7 @@ export default async function SchoolsPage({
                         : "数据库未有相关信息"}
                   </Badge>
                 </td>
-                <td>
-                  <Link href={`/programs?q=${encodeURIComponent(school.nameZh)}`}>
-                    {school.programCount}
-                  </Link>
-                </td>
+                <td>{school.programCount}</td>
                 <td>
                   <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : "gray"}>
                     {school.reviewStatus === "VERIFIED" ? "已复核" : "自动导入"}

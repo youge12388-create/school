@@ -1,6 +1,6 @@
 # 项目状态同步
 
-最后更新：2026-06-30
+最后更新：2026-07-01
 
 ## 当前项目目标
 
@@ -9,6 +9,10 @@
 首版不包含企业微信、客户外部分享、自动翻译、短信、支付或外部 AI 推荐。
 
 ## 当前进度
+
+- 2026-07-01：修复申请列表及其他多表查询字段错位。根因是 SQLite 代理将结果先转对象，重复列名覆盖后破坏 Drizzle 的列顺序；现改为 `setReturnArrays(true)` 直接返回数组，并新增重复列名关联查询回归测试。验证：目标测试 2 项通过，`npm run typecheck`、`npm run lint`、`npm run build` 通过；全量测试 84 项中 79 项通过，剩余 5 项为本次未修改的软性条件规则既有失败。
+
+- 2026-07-01：已移除独立“项目库”板块及其导航、工作台和学校列表跳转入口；项目数据仍保留供学校详情、客户申请和学校筛查使用。 验证：`npm run typecheck`、`npm run lint` 和 `npm run build` 通过，构建路由清单不再包含 `/programs`。
 
 - Git 仓库已初始化，主分支为 `master`。
 - 学校筛查专项分支已存在：`feature/school-screening`，并已多次合并回 `master`。
@@ -152,7 +156,7 @@ http://127.0.0.1:3000/dashboard
 ## 本轮数据导入增强（2026-06-29）
 
 - 数据导入页新增“Excel 批量导入 / 手动录入一条”双入口；手动录入仅要求学校中文名，其余字段可留空并标记待复核。
-- 同名学校自动关联；手工项目写入 programs、program_majors 和 audit_logs，可立即进入项目库与筛查查询。
+- 同名学校自动关联；手工项目写入 programs、program_majors 和 audit_logs，可立即进入学校库与筛查查询。
 - 手工项目设置 manually_verified；后续 Excel 预览显示冲突，确认导入也不会覆盖人工值。
 - 相同学校、项目类型和授课语言的有效项目会阻止重复创建，整个写入流程使用 SQLite 事务。
 - 新增 src/app/api/imports/manual/route.ts、src/components/manual-entry-form.tsx、src/lib/import-service.test.ts；更新 import-service、import-panel、样式和导入文档。
@@ -255,3 +259,16 @@ http://127.0.0.1:3000/dashboard
 - 根因定位：`package-lock.json` 中存在唯一缺失 `version` 的包条目 `node_modules/@img/sharp-wasm32/node_modules/@emnapi/runtime`，npm 11 在解析 `@img/sharp-wasm32` optional dependency 时触发空版本比较错误。
 - 修复：删除该异常嵌套 lock 条目，让 npm 重新使用正常的 `@emnapi/runtime` 解析结果；未改业务代码。
 - 验证结果：`npm install --package-lock-only --ignore-scripts --no-audit --no-fund` 通过；lock 中缺失 version 条目为 0；`npm run typecheck` 通过；`npm run build` 通过。
+
+## 本轮筛选条件与软性竞争力增强（2026-07-01）
+
+- 申请目标首行固定为申请学历、授课语言、目标专业、CSCA、年龄、奖学金需求；年龄紧跟 CSCA。国籍与导师接收函放在第二行。
+- 导师接收函筛选删除“学校明确不要求”和“数据库未写明”，仅保留“不限”和“明确或部分要求”；知识库未写明时不推断为不要求。
+- 新增“软性竞争力”折叠区：竞赛最高层级、SAT、研究成果/专利、论文成果、志愿者经历。
+- 新增 `src/lib/soft-requirements.ts`，只读取“申请要求及材料”，按句段识别 REQUIRED / PREFERRED / MENTIONED / UNKNOWN，并排除入学后志愿服务、办学资质和奖学金名称等误命中。
+- 明确要求但客户不具备时判为不符合；可选或加分项缺失不淘汰，客户具备时生成证据并提高排序；未写明不产生负面结论。
+- 修复年龄解析旧 bug：“不超过 35 岁”不再同时写入最低 35 岁；支持“必须满 18 岁”和“18-25 岁”。筛选时优先重解析原始要求，因此现有数据库无需重导即可避开历史错误结构化值。
+- 涉及文件：`src/app/(workspace)/screening/page.tsx`、`src/app/google-ui.css`、`src/lib/matcher.ts`、`src/lib/program-parser.ts`、`src/lib/soft-requirements.ts` 及对应测试、`docs/ARCHITECTURE.md`、`docs/需求规格说明书.md`。
+- 浏览器验收：首行 6 个字段在宽屏同一行；导师选项已精简；软性条件可展开；提交后年龄、竞赛和 SAT 参数保留；结果卡片展示对应证据。
+- 验证结果：`npm test` 81 项通过；`npm run typecheck`、`npm run lint`、`npm run build` 均通过。
+- 已知风险：软性条件仍依赖知识库文本规则，新增学校表述应补充样本测试；志愿者经历在当前知识库覆盖较少。构建仍有既有 Turbopack NFT warning 和 `node:sqlite` ExperimentalWarning。
