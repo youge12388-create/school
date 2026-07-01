@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AppNav } from "@/components/app-nav";
+import { SidebarShell } from "@/components/sidebar-shell";
 import { GlobalSearch } from "@/components/global-search";
 import { logoutAction } from "@/app/actions";
 import { requireUser } from "@/lib/auth";
@@ -20,8 +21,8 @@ export default async function WorkspaceLayout({
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
+      <SidebarShell>
+          <div className="brand">
           <div className="brand-mark">SYT</div>
           <div className="brand-name">高校筛查与申请管理</div>
         </div>
@@ -33,7 +34,7 @@ export default async function WorkspaceLayout({
             <button type="submit">退出登录</button>
           </form>
         </div>
-      </aside>
+      </SidebarShell>
       <main className="main">
         <header className="topbar">
           <h1>留学项目工作台</h1>

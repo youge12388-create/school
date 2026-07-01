@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSidebarCollapsed } from "@/components/sidebar-shell";
 
 const items = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
@@ -29,6 +30,7 @@ const items = [
 
 export function AppNav({ role }: { role: string }) {
   const pathname = usePathname();
+  const collapsed = useSidebarCollapsed();
   return (
     <nav className="nav" aria-label="主导航">
       {items
@@ -50,13 +52,13 @@ export function AppNav({ role }: { role: string }) {
               key={item.href}
             >
               <Icon aria-hidden="true" />
-              {item.label}
+              {!collapsed && item.label}
             </Link>
           );
         })}
       <Link className="nav-link" href="/security">
         <ShieldCheck aria-hidden="true" />
-        安全说明
+        {!collapsed && "安全说明"}
       </Link>
     </nav>
   );
