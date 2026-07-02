@@ -25,7 +25,9 @@
     src/lib/queries.ts        页面读查询
     src/lib/file-crypto.ts    AES-256-GCM 文件加密和完整性校验
     src/lib/auth.ts           会话 Cookie 和角色校验
-    src/lib/audit.ts          审计日志写入
+    src/lib/user-service.ts   账号创建、密码重置与会话失效事务
+    src/lib/audit-record.ts   不依赖 Web 运行时的审计记录写入
+    src/lib/audit.ts          Web 运行时审计入口
     drizzle/                  可审查的 SQL 迁移
     scripts/                  管理员、导入、模板、启动和备份命令
     scripts/start-local.ps1   本地迁移并启动开发服务
@@ -87,6 +89,8 @@
 ### 身份与权限
 
 - 账号只能由管理员创建。
+- 账号创建使用同源校验的 Route Handler，并在同一个 SQLite 事务中写入用户和审计日志。
+- CLI 重置密码后删除该账号全部旧会话，密码只接受环境变量或标准输入。
 - ADMIN：全部权限。
 - DATA_MANAGER：顾问权限，加知识库导入和复核。
 - ADVISOR：筛选、客户、申请和材料操作。
