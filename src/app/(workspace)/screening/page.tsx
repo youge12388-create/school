@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Search } from "lucide-react";
 import { saveRecommendationAction } from "@/app/actions";
 import { ScreeningResultCard } from "@/components/screening-result-card";
 import { HeaderSearch } from "@/components/header-search";
@@ -77,7 +78,6 @@ const searchKeys = [
   "toefl",
   "duolingo",
   "paperPatent",
-  "sat",
   "competition",
   "nationality",
   "province",
@@ -116,7 +116,6 @@ const academicFilterKeys = [
 
 const softFilterKeys = [
   "paperPatent",
-  "sat",
   "competition",
 ] as const;
 
@@ -190,7 +189,7 @@ export default async function ScreeningPage({
   const showSoftFilters = hasAnyParam(params, softFilterKeys);
   const showPreferenceFilters = hasAnyParam(params, preferenceFilterKeys);
   const [programs, customers] = await Promise.all([
-    getProgramsForScreening(),
+    hasSearch ? getProgramsForScreening() : Promise.resolve([]),
     listCustomerOptions(),
   ]);
   const results = hasSearch ? rankPrograms(programs, criteria) : [];
@@ -211,6 +210,11 @@ export default async function ScreeningPage({
       <PageHeading
         title="学校项目筛查"
         description="明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。"
+        action={
+          <Link className="button mobile-header-icon-only" href="/schools" aria-label="搜索学校">
+            <Search aria-hidden="true" />
+          </Link>
+        }
       />
       <form className="card screening-filter-card" method="get">
         <div className="card-header">

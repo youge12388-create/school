@@ -113,38 +113,52 @@ export async function getDashboardData() {
   };
 }
 
-export async function listSchools(query = "") {
-  return db
-    .select({
-      id: schools.id,
-      nameZh: schools.nameZh,
-      province: schools.province,
-      city: schools.city,
-      qsRanking: schools.qsRanking,
-      partnershipRating: schools.partnershipRating,
-      cscaStatus: schools.cscaStatus,
-      reviewStatus: schools.reviewStatus,
-      programCount: count(programs.id),
-    })
-    .from(schools)
-    .leftJoin(
-      programs,
-      and(eq(programs.schoolId, schools.id), eq(programs.archived, false)),
-    )
-    .where(
-      and(
-        eq(schools.archived, false),
-        query
-          ? or(
-              like(schools.nameZh, `%${query}%`),
-              like(schools.province, `%${query}%`),
-              like(schools.city, `%${query}%`),
-            )
-          : undefined,
-      ),
-    )
-    .groupBy(schools.id)
-    .orderBy(desc(schools.partnershipRating), asc(schools.nameZh));
+const SCHOOL_PAGE_SIZE = 20;
+
+export async function listSchools(query = "", page = 1, pageSize = SCHOOL_PAGE_SIZE) {
+  const offset = (Math.max(1, page) - 1) * pageSize;
+  const whereClause = query
+    ? `AND (s.name_zh LIKE ? OR s.province LIKE ? OR s.city LIKE ?)`
+    : "";
+  const params = query
+    ? [`%${query}%`, `%${query}%`, `%${query}%`, String(pageSize), String(offset)]
+    : [String(pageSize), String(offset)];
+
+  const rows = sqlite.prepare(`SELECT
+      s.id AS id,
+      s.name_zh AS nameZh,
+      s.province AS province,
+      s.city AS city,
+      s.qs_ranking AS qsRanking,
+      s.partnership_rating AS partnershipRating,
+      s.csca_status AS cscaStatus,
+      s.review_status AS reviewStatus,
+      COUNT(p.id) AS programCount
+    FROM schools s
+    LEFT JOIN programs p ON p.school_id = s.id AND p.archived = 0
+    WHERE s.archived = 0 ${whereClause}
+    GROUP BY s.id
+    ORDER BY s.partnership_rating DESC, s.name_zh ASC
+    LIMIT ? OFFSET ?`).all(...params) as Array<{
+      id: string;
+      nameZh: string;
+      province: string | null;
+      city: string | null;
+      qsRanking: number | null;
+      partnershipRating: string | null;
+      cscaStatus: string;
+      reviewStatus: string;
+      programCount: number;
+    }>;
+
+  const countParams = query
+    ? [`%${query}%`, `%${query}%`, `%${query}%`]
+    : [];
+  const totalRow = sqlite
+    .prepare(`SELECT COUNT(*) AS cnt FROM schools s WHERE s.archived = 0 ${whereClause}`)
+    .get(...countParams) as { cnt: number };
+
+  return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }
 
 export async function listPrograms(filters: {
@@ -215,8 +229,7 @@ export async function getProgramsForScreening() {
           COALESCE(p.direction_text, '') || ' ' ||
           COALESCE(p.scholarship_content, '') || ' ' ||
           COALESCE(p.scholarship_note, '') || ' ' ||
-          COALESCE(p.fee_note, '') || ' ' ||
-          COALESCE(p.raw_json, '')
+          COALESCE(p.fee_note, '')
         ) AS sourceText,
         p.semester_text AS semesterText,
         p.application_time_text AS applicationTimeText,
@@ -309,9 +322,16 @@ export type CustomerListFilters = {
   ownerId?: string;
   contractStatus?: ContractStatus | "";
   admissionStatus?: AdmissionStatus | "";
+  page?: number;
+  pageSize?: number;
 };
 
+const CUSTOMER_PAGE_SIZE = 20;
+
 export async function listCustomers(filters: CustomerListFilters = {}) {
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = filters.pageSize ?? CUSTOMER_PAGE_SIZE;
+  const offset = (page - 1) * pageSize;
   const where = ["c.archived = 0"];
   const params: string[] = [];
 
@@ -414,7 +434,8 @@ export async function listCustomers(filters: CustomerListFilters = {}) {
     FROM customers c
     LEFT JOIN users u ON u.id = c.owner_id
     WHERE ${where.join(" AND ")}
-    ORDER BY c.updated_at DESC`).all(...params) as Array<{
+    ORDER BY c.updated_at DESC
+    LIMIT ? OFFSET ?`).all(...params, String(pageSize), String(offset)) as Array<{
       id: string;
       customerNo: string;
       name: string;
@@ -432,12 +453,18 @@ export async function listCustomers(filters: CustomerListFilters = {}) {
       applicationStatuses: string | null;
     }>;
 
-  return rows.map(({ applicationStatuses, ...row }) => ({
+  const totalRow = sqlite
+    .prepare(`SELECT COUNT(*) AS cnt FROM customers c WHERE ${where.join(" AND ")}`)
+    .get(...params) as { cnt: number };
+
+  const mapped = rows.map(({ applicationStatuses, ...row }) => ({
     ...row,
     admissionStatus: deriveAdmissionStatus(
       applicationStatuses?.split("|").filter(Boolean) ?? [],
     ),
   }));
+
+  return { rows: mapped, total: totalRow.cnt, page, pageSize };
 }
 
 export function listCustomerOwners() {
@@ -612,22 +639,38 @@ export async function listImports() {
     .limit(30);
 }
 
-export async function listAuditLogs() {
-  return db
-    .select({
-      id: auditLogs.id,
-      action: auditLogs.action,
-      entityType: auditLogs.entityType,
-      entityId: auditLogs.entityId,
-      detailsJson: auditLogs.detailsJson,
-      ipAddress: auditLogs.ipAddress,
-      createdAt: auditLogs.createdAt,
-      displayName: users.displayName,
-    })
-    .from(auditLogs)
-    .leftJoin(users, eq(users.id, auditLogs.userId))
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(300);
+const AUDIT_PAGE_SIZE = 50;
+
+export async function listAuditLogs(page = 1, pageSize = AUDIT_PAGE_SIZE) {
+  const offset = (Math.max(1, page) - 1) * pageSize;
+  const rows = sqlite.prepare(`SELECT
+      a.id AS id,
+      a.action AS action,
+      a.entity_type AS entityType,
+      a.entity_id AS entityId,
+      a.details_json AS detailsJson,
+      a.ip_address AS ipAddress,
+      a.created_at AS createdAt,
+      u.display_name AS displayName
+    FROM audit_logs a
+    LEFT JOIN users u ON u.id = a.user_id
+    ORDER BY a.created_at DESC
+    LIMIT ? OFFSET ?`).all(String(pageSize), String(offset)) as Array<{
+      id: string;
+      action: string;
+      entityType: string;
+      entityId: string | null;
+      detailsJson: string | null;
+      ipAddress: string | null;
+      createdAt: number;
+      displayName: string | null;
+    }>;
+
+  const totalRow = sqlite
+    .prepare(`SELECT COUNT(*) AS cnt FROM audit_logs`)
+    .get() as { cnt: number };
+
+  return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }
 
 export async function listCustomerOptions() {

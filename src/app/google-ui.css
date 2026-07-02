@@ -585,7 +585,7 @@ tbody tr:hover {
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 760px) {
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -619,7 +619,7 @@ tbody tr:hover {
   }
 
   .page-content {
-    padding: 24px 16px 56px;
+    padding: 24px 16px 96px;
   }
 
   .page-heading {
@@ -875,7 +875,7 @@ tbody tr:hover {
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 760px) {
   .screening-filter-card .card-header {
     align-items: stretch;
     flex-direction: column;
@@ -896,6 +896,7 @@ tbody tr:hover {
 
   .screening-filter-primary .screening-primary-main,
   .screening-filter-primary .screening-primary-secondary,
+  .screening-filter-deadline .form-grid,
   .screening-filter-academic .form-grid,
   .screening-filter-soft .form-grid,
   .screening-filter-preferences .form-grid {
@@ -910,7 +911,18 @@ tbody tr:hover {
   .screening-filter-academic .form-grid,
   .screening-filter-soft .form-grid,
   .screening-filter-preferences .form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .screening-filter-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    margin-top: 8px;
+    padding: 12px 0 4px;
+  }
+  .screening-filter-actions .button,
+  .screening-filter-actions button {
+    min-height: 40px;
   }
 }
 
@@ -1321,7 +1333,7 @@ tbody tr:hover {
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 760px) {
   .screening-save-toolbar {
     position: static;
   }

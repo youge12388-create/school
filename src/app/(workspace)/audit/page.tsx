@@ -1,11 +1,19 @@
+import { Pagination } from "@/components/pagination";
 import { PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { listAuditLogs } from "@/lib/queries";
 import { formatDate, safeJson } from "@/lib/utils";
 
-export default async function AuditPage() {
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireRole(["ADMIN", "DATA_MANAGER"]);
-  const rows = await listAuditLogs();
+  const page = Math.max(1, Number((await searchParams).page) || 1);
+  const result = await listAuditLogs(page);
+  const rows = result.rows;
+  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   return (
     <>
       <PageHeading
@@ -29,6 +37,10 @@ export default async function AuditPage() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 ? (
+        <Pagination page={page} totalPages={totalPages} basePath="/audit" />
+      ) : null}
     </>
   );
 }
