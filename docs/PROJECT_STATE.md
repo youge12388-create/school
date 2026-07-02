@@ -1,6 +1,6 @@
 # 项目状态同步
 
-最后更新：2026-07-01
+最后更新：2026-07-02
 
 ## 当前项目目标
 
@@ -272,3 +272,26 @@ http://127.0.0.1:3000/dashboard
 - 浏览器验收：首行 6 个字段在宽屏同一行；导师选项已精简；软性条件可展开；提交后年龄、竞赛和 SAT 参数保留；结果卡片展示对应证据。
 - 验证结果：`npm test` 81 项通过；`npm run typecheck`、`npm run lint`、`npm run build` 均通过。
 - 已知风险：软性条件仍依赖知识库文本规则，新增学校表述应补充样本测试；志愿者经历在当前知识库覆盖较少。构建仍有既有 Turbopack NFT warning 和 `node:sqlite` ExperimentalWarning。
+
+## 本轮退出登录线上错误修复（2026-07-02）
+
+- 现象：线上点击“退出登录”进入 Next.js 通用服务端错误页；本地开发模式和原生产构建均无法复现，故障边界指向线上反向代理或部署版本下的 Server Action 传输层。
+- 修复：退出入口由 Server Action 改为普通 `POST /api/auth/logout` Route Handler，复用现有 Host/协议安全跳转逻辑；保留退出审计、数据库会话删除和 Cookie 清理，并允许过期会话幂等退出。
+- 涉及文件：`src/app/(workspace)/layout.tsx`、`src/app/actions.ts`、`src/app/api/auth/logout/route.ts`、`src/app/api/auth/logout/route.test.ts`。
+- 回归测试：新增 2 项，覆盖正常退出审计/清理/303 跳转，以及过期会话清理。
+- 验证结果：目标测试 2 项通过；`npm run typecheck` 通过；全量 lint 0 错误（保留 `src/lib/matcher.ts` 既有 1 条未使用变量 warning）；`npm run build` 通过；本地生产模式浏览器确认退出后进入 `/login`、控制台无错误、再次访问 `/dashboard` 仍回到登录页。
+- 全量测试：86 项中 81 项通过，5 项失败均为本次未修改的软性条件规则既有失败（`soft-requirements.test.ts` 3 项、`matcher.test.ts` 2 项）。
+- 风险：修复需重新部署后才能在线上生效；构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
+
+## 本轮管理员改密与账号持久化修复（2026-07-02）
+
+- 修改前使用项目备份脚本生成一致性备份：`backups/20260702-081931`。
+- 本地 `admin` 已更新为用户指定的新密码，密码只保存为 scrypt 哈希；该账号旧会话已清空，并记录 `PASSWORD_RESET_CLI` 审计。
+- 新增 `scripts/reset-password.ts` 和 `npm run admin:password -- <用户名>`，密码通过环境变量或标准输入提供，不写入代码和命令参数。
+- 账号创建从 Server Action 调整为同源校验的 `POST /api/admin/users` Route Handler，规避线上代理/部署版本下的 Action 传输错误；成功或校验失败均返回明确页面提示。
+- 新增 `src/lib/user-service.ts`：账号校验、用户写入和审计写入使用同一 SQLite 事务；重复用户名返回可读错误。`src/lib/audit-record.ts` 提供 Web 与 CLI 共用的纯数据库审计写入。
+- 结论：本地与服务器 SQLite 不会自动同步。服务器新增账号重启或发布后消失，优先检查运行进程的 `DATABASE_PATH` 是否固定为 `/opt/school-syt/shared/data/app.db`；代码没有自动删除用户的逻辑。
+- 自动化验证：账号服务、账号接口和退出登录目标测试 8 项通过；新增的重复用户名页面错误测试通过类型检查和 lint，但因本轮工具额度限制未单独重跑。全量测试 92 项中 87 项通过，5 项仍为既有软性条件规则失败。
+- 浏览器生产模式验证使用临时数据库副本：旧管理员密码失效，新密码可登录；创建测试账号后刷新仍存在，并可用该账号登录；临时数据库和测试进程已清理，真实数据库未写入测试账号。
+- `npm run typecheck` 通过；全量 lint 0 错误（保留 `src/lib/matcher.ts` 既有 1 条 warning）；`npm run build` 通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
+- 已更新 `README.md`、`docs/ARCHITECTURE.md` 和腾讯云部署教程，记录本地/宝塔改密方式及生产数据库路径检查命令。线上生效前需部署本次代码，并在宝塔终端针对永久数据库单独执行改密。
