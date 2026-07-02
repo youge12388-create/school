@@ -10,10 +10,9 @@ import {
   RULE_STATUSES,
   type ApplicationStatus,
   type ContractStatus,
-  USER_ROLES,
 } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { destroySession, requireRole, requireUser } from "@/lib/auth";
+import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   applications,
@@ -27,21 +26,8 @@ import {
   recommendations,
   users,
 } from "@/lib/db/schema";
-import { hashPassword } from "@/lib/password";
 import { parseProgram, splitMajors } from "@/lib/program-parser";
 import { asText, newId, normalizeKeyword, parseDateInput } from "@/lib/utils";
-
-export async function logoutAction() {
-  const user = await requireUser();
-  await writeAudit({
-    userId: user.id,
-    action: "LOGOUT",
-    entityType: "USER",
-    entityId: user.id,
-  });
-  await destroySession();
-  redirect("/login");
-}
 
 export async function addFollowUpAction(formData: FormData) {
   const user = await requireUser();
@@ -195,33 +181,6 @@ export async function updateApplicationStatusAction(formData: FormData) {
   revalidatePath("/applications");
   revalidatePath("/customers");
   revalidatePath(`/customers/${current.customerId}`);
-}
-
-export async function createUserAction(formData: FormData) {
-  const admin = await requireRole(["ADMIN"]);
-  const username = asText(formData.get("username")).toLowerCase();
-  const displayName = asText(formData.get("displayName"));
-  const password = asText(formData.get("password"));
-  const role = asText(formData.get("role"));
-  if (!username || !displayName || !USER_ROLES.includes(role as never)) {
-    throw new Error("账号信息不完整");
-  }
-  const id = newId();
-  await db.insert(users).values({
-    id,
-    username,
-    displayName,
-    passwordHash: await hashPassword(password),
-    role: role as (typeof USER_ROLES)[number],
-  });
-  await writeAudit({
-    userId: admin.id,
-    action: "USER_CREATED",
-    entityType: "USER",
-    entityId: id,
-    details: { username, role },
-  });
-  revalidatePath("/admin/users");
 }
 
 export async function toggleUserAction(formData: FormData) {

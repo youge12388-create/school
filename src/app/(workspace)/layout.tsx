@@ -3,7 +3,6 @@ import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
 import { SidebarShell } from "@/components/sidebar-shell";
 import { GlobalSearch } from "@/components/global-search";
-import { logoutAction } from "@/app/actions";
 import { requireUser } from "@/lib/auth";
 
 export default async function WorkspaceLayout({
@@ -30,7 +29,7 @@ export default async function WorkspaceLayout({
         <div className="sidebar-user">
           <Link href="/account"><strong>{user.displayName}</strong></Link>
           <small>{roleLabel}</small>
-          <form action={logoutAction}>
+          <form action="/api/auth/logout" method="post">
             <button type="submit">退出登录</button>
           </form>
         </div>
