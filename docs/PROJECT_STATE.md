@@ -6,9 +6,16 @@
 
 本项目是一个本地高校筛查与客户申请管理系统，服务在华留学顾问团队。首版重点是本地跑通：从 Excel 建立学校/项目知识库，按客户条件筛查项目，管理客户、跟进、申请状态和材料，并保留多账号、权限、审计和未来服务器/企业微信接入边界。
 
+移动端已完成第二阶段优化：P0+P1 问题已修复（底部导航增加"更多"Tab 接入抽屉、移动端全局搜索栏、触摸目标增大、筛查表单精简、详情页适配、CSS 断点统一、长列表分页、文件上传支持移动端拍照）。
+
 首版不包含企业微信、客户外部分享、自动翻译、短信、支付或外部 AI 推荐。
 
 ## 当前进度
+
+- 2026-07-02：完成筛选页低风险性能优化。无筛选条件时不再读取全量项目；实际筛选查询不再拼接重复且体积较大的 `raw_json`。本地 283 个项目对比中，筛选文本量减少 60.7%，筛选 SQL 平均耗时由约 36.4ms 降至约 22.5ms，导师接收函识别结果无变化，规则处理耗时由约 20.9ms 降至约 11.9ms。验证：`npm run typecheck`、`npm run lint`、`npm run build` 通过；相关测试 46 项中 41 项通过，5 项为既有软性条件规则失败。
+- 2026-07-02（第二轮）：移动端 P0+P1 优化 + 重构。1) 底部导航增加"更多"Tab，点击打开抽屉，解决 5 个页面无入口问题。2) layout 增加移动端搜索栏。3) 触摸目标 36→40px，筛查操作按钮 sticky。4) 筛查表单 560px 保持 2 列。5) 详情页卡片内表格扁平化，时间线 padding 减小。6) CSS 断点统一：google-ui.css 820px→760px，globals.css 1050px→1160px，消除三套断点混用。7) 客户/学校/审计日志列表增加分页（客户 20/页、学校 20/页、审计 50/页），新增 `src/components/pagination.tsx` 通用分页组件。8) `listSchools`/`listAuditLogs`/`listCustomers` 改为返回 `{ rows, total, page, pageSize }`。9) 文件上传增加 `accept` 和 `capture="environment"` 支持移动端拍照。涉及文件：`src/components/mobile-nav.tsx`、`src/components/pagination.tsx`、`src/app/(workspace)/layout.tsx`、`src/app/(workspace)/customers/page.tsx`、`src/app/(workspace)/schools/page.tsx`、`src/app/(workspace)/audit/page.tsx`、`src/app/(workspace)/customers/[id]/page.tsx`、`src/lib/queries.ts`、`src/app/globals.css`、`src/app/google-ui.css`。验证：`npm run typecheck`、`npm run lint`、`npm run build` 全部通过。
+
+- 2026-07-02（第一轮）：新增移动端页面适配。参照 4 张设计图，为工作台、筛查、学校库、账号管理、客户、我的六个页面增加移动端布局：底部 4 Tab 导航、移动端头部（汉堡菜单 + 标题 + 操作）、卡片式内容区域。桌面端通过 `desktop-only`/`mobile-only` 与媒体查询隔离，保持原样式不变。涉及文件：`src/app/(workspace)/layout.tsx`、6 个页面文件、`src/components/ui.tsx`、`src/components/mobile-shell.tsx`、`src/components/mobile-nav.tsx`、`src/app/globals.css`。验证：`npm run typecheck`、`npm run lint`、`npm run build` 通过；浏览器 527px 视口下 6 个页面渲染正常，底部 Tab、抽屉导航、头部操作均可交互。全量测试 93 项中 88 项通过，5 项失败为既有软性条件规则问题，与本次改动无关。
 
 - 2026-07-01：修复申请列表及其他多表查询字段错位。根因是 SQLite 代理将结果先转对象，重复列名覆盖后破坏 Drizzle 的列顺序；现改为 `setReturnArrays(true)` 直接返回数组，并新增重复列名关联查询回归测试。验证：目标测试 2 项通过，`npm run typecheck`、`npm run lint`、`npm run build` 通过；全量测试 84 项中 79 项通过，剩余 5 项为本次未修改的软性条件规则既有失败。
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Pagination } from "@/components/pagination";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import {
   ADMISSION_STATUS_LABELS,
@@ -34,6 +35,7 @@ export default async function CustomersPage({
     ownerId?: string;
     contractStatus?: string;
     admissionStatus?: string;
+    page?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -49,20 +51,27 @@ export default async function CustomersPage({
   )
     ? (params.admissionStatus as AdmissionStatus)
     : "";
-  const [rows, owners] = await Promise.all([
-    listCustomers({ query: q, ownerId, contractStatus, admissionStatus }),
+  const page = Math.max(1, Number(params.page) || 1);
+  const [result, owners] = await Promise.all([
+    listCustomers({ query: q, ownerId, contractStatus, admissionStatus, page }),
     Promise.resolve(listCustomerOwners()),
   ]);
+  const rows = result.rows;
+  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   return (
     <>
       <PageHeading
         title="客户管理"
         description="集中查看负责老师、签约进度、院校录取情况和后续跟进记录。"
-        action={<Link className="button primary" href="/customers/new">新增客户</Link>}
+        action={
+          <Link className="button primary" href="/customers/new">
+            新增客户
+          </Link>
+        }
       />
 
-      <form className="toolbar customer-filter-toolbar">
+      <form className="toolbar customer-filter-toolbar desktop-only">
         <label className="search">
           搜索客户
           <input name="q" defaultValue={q} placeholder="姓名、客户编号或电话" />
@@ -100,7 +109,33 @@ export default async function CustomersPage({
         </div>
       </form>
 
-      <div className="table-wrap customer-table-wrap">
+      <form className="mobile-only mobile-customer-filter">
+        <input name="q" defaultValue={q} placeholder="搜索客户姓名、编号或电话" />
+        <select name="ownerId" defaultValue={ownerId}>
+          <option value="">全部老师</option>
+          {owners.map((owner) => (
+            <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+          ))}
+        </select>
+        <select name="contractStatus" defaultValue={contractStatus}>
+          <option value="">全部签约状态</option>
+          {CONTRACT_STATUSES.map((status) => (
+            <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
+          ))}
+        </select>
+        <select name="admissionStatus" defaultValue={admissionStatus}>
+          <option value="">全部录取情况</option>
+          {ADMISSION_STATUSES.map((status) => (
+            <option value={status} key={status}>{ADMISSION_STATUS_LABELS[status]}</option>
+          ))}
+        </select>
+        <div className="mobile-filter-actions">
+          <button className="primary" type="submit">筛选</button>
+          <Link className="button" href="/customers">重置</Link>
+        </div>
+      </form>
+
+      <div className="table-wrap customer-table-wrap desktop-only">
         {rows.length ? (
           <table className="customer-table">
             <thead>
@@ -168,6 +203,61 @@ export default async function CustomersPage({
           <EmptyState>没有符合当前筛选条件的客户。</EmptyState>
         )}
       </div>
+
+      <div className="mobile-only mobile-customer-list">
+        {rows.length ? (
+          rows.map((customer) => (
+            <Link key={customer.id} href={`/customers/${customer.id}`} className="mobile-customer-card">
+              <div className="mobile-customer-header">
+                <div>
+                  <div className="mobile-customer-name">{customer.name}</div>
+                  <div className="small muted">{customer.customerNo} · {customer.nationality || "国籍未录入"}</div>
+                </div>
+                <Badge tone={contractTone(customer.contractStatus)}>
+                  {CONTRACT_STATUS_LABELS[customer.contractStatus]}
+                </Badge>
+              </div>
+              <div className="mobile-customer-body">
+                <div className="mobile-customer-row">
+                  <span className="mobile-customer-label">申请目标</span>
+                  <span>
+                    {PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "学历未确定"}
+                    {customer.targetMajor ? ` · ${customer.targetMajor}` : null}
+                  </span>
+                </div>
+                <div className="mobile-customer-row">
+                  <span className="mobile-customer-label">负责老师</span>
+                  <span>{customer.ownerName || "未分配"}</span>
+                </div>
+                <div className="mobile-customer-row">
+                  <span className="mobile-customer-label">录取情况</span>
+                  <Badge tone={admissionTone(customer.admissionStatus)}>
+                    {ADMISSION_STATUS_LABELS[customer.admissionStatus]}
+                  </Badge>
+                </div>
+                <div className="mobile-customer-row">
+                  <span className="mobile-customer-label">最新跟进</span>
+                  <span className="small muted">
+                    {customer.latestFollowUpContent
+                      ? `${customer.latestFollowUpChannel || "沟通"} · ${formatDate(customer.latestFollowUpAt)}`
+                      : "暂无沟通记录"}
+                  </span>
+                </div>
+                <div className="mobile-customer-row">
+                  <span className="mobile-customer-label">计划跟进</span>
+                  <span className="small muted">{formatDate(customer.nextFollowUpAt)}</span>
+                </div>
+              </div>
+            </Link>
+          ))
+        ) : (
+          <EmptyState>没有符合当前筛选条件的客户。</EmptyState>
+        )}
+      </div>
+
+      {totalPages > 1 ? (
+        <Pagination page={page} totalPages={totalPages} basePath="/customers" />
+      ) : null}
     </>
   );
 }
