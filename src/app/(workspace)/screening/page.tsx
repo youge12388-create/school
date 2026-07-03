@@ -2,11 +2,13 @@ import Link from "next/link";
 
 import { Search } from "lucide-react";
 import { saveRecommendationAction } from "@/app/actions";
+import { ClearScreeningFilters } from "@/components/clear-screening-filters";
 import { ScreeningResultCard } from "@/components/screening-result-card";
 import { HeaderSearch } from "@/components/header-search";
 import { EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import {
+  parseSchoolTier,
   rankPrograms,
   type FitLevel,
   type RankedProgram,
@@ -38,6 +40,7 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     programType: params.type,
     teachingLanguage: params.language,
     targetMajor: params.major,
+    schoolTier: parseSchoolTier(params.schoolTier),
     budget: asNumber(params.budget),
     hasCsca: params.csca === "yes" ? true : params.csca === "no" ? false : null,
     gpa: asNumber(params.gpa),
@@ -92,6 +95,7 @@ const searchKeys = [
 function hasSearchCriteria(params: Record<string, string | undefined>) {
   return (
     searchKeys.some((key) => Boolean(params[key])) ||
+    Boolean(parseSchoolTier(params.schoolTier)) ||
     Boolean(params.deadlineMode && params.deadlineMode !== "all")
   );
 }
@@ -271,6 +275,16 @@ export default async function ScreeningPage({
                 </label>
               </div>
               <div className="form-grid screening-primary-secondary">
+                <label>
+                  院校层次
+                  <select name="schoolTier" defaultValue={criteria.schoolTier || ""}>
+                    <option value="">不限</option>
+                    <option value="985">985</option>
+                    <option value="211">211</option>
+                    <option value="double_first_class_only">仅双一流</option>
+                    <option value="double_non">双非普通院校</option>
+                  </select>
+                </label>
                 <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>
                 <label>
                   导师接收函要求
@@ -373,7 +387,7 @@ export default async function ScreeningPage({
           </details>
           <div className="form-actions screening-filter-actions">
             <button className="primary" type="submit">开始筛查</button>
-            <Link className="button" href="/screening">清空条件</Link>
+            <ClearScreeningFilters />
           </div>
         </div>
       </form>

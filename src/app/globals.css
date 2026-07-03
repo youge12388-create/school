@@ -52,10 +52,12 @@
 
 /* Mobile utilities */
 .mobile-only{display:none}
+.mobile-nav,.mobile-page-header,.mobile-drawer,.mobile-drawer-backdrop{display:none}
 
 @media(max-width:760px){
 .desktop-only{display:none!important}
 .mobile-only{display:block}
+.mobile-nav,.mobile-page-header,.mobile-drawer,.mobile-drawer-backdrop{display:block}
 .app-shell{display:block;min-height:100vh}
 .sidebar,.topbar{display:none}
 .main{min-height:100vh}
