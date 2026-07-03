@@ -1,4 +1,8 @@
+"use client";
+
 import clsx from "clsx";
+import { Menu } from "lucide-react";
+import { useMobileDrawer } from "@/components/mobile-shell";
 
 export function Badge({
   children,
@@ -23,13 +27,30 @@ export function PageHeading({
   description?: string;
   action?: React.ReactNode;
 }) {
+  const { setOpen } = useMobileDrawer();
   return (
-    <div className="page-heading">
-      <div>
-        <h2>{title}</h2>
-        {description ? <p>{description}</p> : null}
+    <>
+      <div className="page-heading desktop-only">
+        <div>
+          <h2>{title}</h2>
+          {description ? <p>{description}</p> : null}
+        </div>
+        {action}
       </div>
-      {action}
-    </div>
+      <header className="mobile-page-header mobile-only">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setOpen(true)}
+          aria-label="打开导航"
+        >
+          <Menu aria-hidden="true" />
+        </button>
+        <div className="mobile-page-header-title">
+          <h1>{title}</h1>
+          {description ? <p>{description}</p> : null}
+        </div>
+        {action ? <div className="mobile-page-header-action">{action}</div> : null}
+      </header>
+    </>
   );
 }

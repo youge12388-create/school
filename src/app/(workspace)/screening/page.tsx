@@ -1,11 +1,14 @@
 import Link from "next/link";
 
+import { Search } from "lucide-react";
 import { saveRecommendationAction } from "@/app/actions";
+import { ClearScreeningFilters } from "@/components/clear-screening-filters";
 import { ScreeningResultCard } from "@/components/screening-result-card";
 import { HeaderSearch } from "@/components/header-search";
 import { EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import {
+  parseSchoolTier,
   rankPrograms,
   type FitLevel,
   type RankedProgram,
@@ -22,7 +25,7 @@ function parseDateParam(value?: string) {
 }
 
 
-const supervisorAcceptanceModes = ["required", "not_required", "unknown"] as const;
+const supervisorAcceptanceModes = ["required", "unknown"] as const;
 
 function parseSupervisorAcceptance(value?: string): ScreeningCriteria["supervisorAcceptance"] {
   return supervisorAcceptanceModes.includes(value as (typeof supervisorAcceptanceModes)[number])
@@ -30,11 +33,14 @@ function parseSupervisorAcceptance(value?: string): ScreeningCriteria["superviso
     : null;
 }
 
+
+
 function toCriteria(params: Record<string, string | undefined>): ScreeningCriteria {
   return {
     programType: params.type,
     teachingLanguage: params.language,
     targetMajor: params.major,
+    schoolTier: parseSchoolTier(params.schoolTier),
     budget: asNumber(params.budget),
     hasCsca: params.csca === "yes" ? true : params.csca === "no" ? false : null,
     gpa: asNumber(params.gpa),
@@ -44,6 +50,9 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     ielts: asNumber(params.ielts),
     toefl: asNumber(params.toefl),
     duolingo: asNumber(params.duolingo),
+    age: asNumber(params.age),
+    hasPaperPatent: params.paperPatent || null,
+    hasCompetition: params.competition || null,
     nationality: params.nationality,
     province: params.province,
     city: params.city,
@@ -63,6 +72,7 @@ const searchKeys = [
   "major",
   "budget",
   "csca",
+  "age",
   "gpa",
   "gpaScale",
   "hskLevel",
@@ -70,6 +80,8 @@ const searchKeys = [
   "ielts",
   "toefl",
   "duolingo",
+  "paperPatent",
+  "competition",
   "nationality",
   "province",
   "city",
@@ -83,6 +95,7 @@ const searchKeys = [
 function hasSearchCriteria(params: Record<string, string | undefined>) {
   return (
     searchKeys.some((key) => Boolean(params[key])) ||
+    Boolean(parseSchoolTier(params.schoolTier)) ||
     Boolean(params.deadlineMode && params.deadlineMode !== "all")
   );
 }
@@ -105,11 +118,15 @@ const academicFilterKeys = [
   "duolingo",
 ] as const;
 
+const softFilterKeys = [
+  "paperPatent",
+  "competition",
+] as const;
+
 const preferenceFilterKeys = [
   "budget",
   "province",
   "city",
-  "scholarshipType",
   "accommodation",
 ] as const;
 const fitSection: Record<
@@ -173,9 +190,10 @@ export default async function ScreeningPage({
   const criteria = toCriteria(params);
   const hasSearch = hasSearchCriteria(params);
   const showAcademicFilters = hasAnyParam(params, academicFilterKeys);
+  const showSoftFilters = hasAnyParam(params, softFilterKeys);
   const showPreferenceFilters = hasAnyParam(params, preferenceFilterKeys);
   const [programs, customers] = await Promise.all([
-    getProgramsForScreening(),
+    hasSearch ? getProgramsForScreening() : Promise.resolve([]),
     listCustomerOptions(),
   ]);
   const results = hasSearch ? rankPrograms(programs, criteria) : [];
@@ -196,6 +214,11 @@ export default async function ScreeningPage({
       <PageHeading
         title="学校项目筛查"
         description="明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。"
+        action={
+          <Link className="button mobile-header-icon-only" href="/schools" aria-label="搜索学校">
+            <Search aria-hidden="true" />
+          </Link>
+        }
       />
       <form className="card screening-filter-card" method="get">
         <div className="card-header">
@@ -208,44 +231,70 @@ export default async function ScreeningPage({
         <div className="card-body screening-filter-body">
           <section className="screening-filter-section screening-filter-primary">
             <h4>申请目标</h4>
-            <div className="form-grid">
-              <label>
-                申请学历
-                <select name="type" defaultValue={params.type}>
-                  <option value="">不限</option>
-                  {Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
-                    <option value={value} key={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                授课语言
-                <select name="language" defaultValue={params.language}>
-                  <option value="">不限</option>
-                  {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
-                    <option value={value} key={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>目标专业<input name="major" defaultValue={params.major} /></label>
-              <label>
-                导师接收函要求
-                <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
-                  <option value="">不限</option>
-                  <option value="required">明确或部分要求</option>
-                  <option value="not_required">学校明确不要求</option>
-                  <option value="unknown">数据库未写明</option>
-                </select>
-              </label>
-              <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>
-              <label>
-                CSCA 当前状态
-                <select name="csca" defaultValue={params.csca}>
-                  <option value="">不限</option>
-                  <option value="yes">已有</option>
-                  <option value="no">目前没有</option>
-                </select>
-              </label>
+            <div className="screening-primary-fields">
+              <div className="form-grid screening-primary-main">
+                <label>
+                  申请学历
+                  <select name="type" defaultValue={params.type}>
+                    <option value="">不限</option>
+                    {Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
+                      <option value={value} key={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  授课语言
+                  <select name="language" defaultValue={params.language}>
+                    <option value="">不限</option>
+                    {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
+                      <option value={value} key={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>目标专业<input name="major" defaultValue={params.major} /></label>
+                <label>
+                  CSCA 当前状态
+                  <select name="csca" defaultValue={params.csca}>
+                    <option value="">不限</option>
+                    <option value="yes">已有</option>
+                    <option value="no">目前没有</option>
+                  </select>
+                </label>
+                <label>
+                  年龄
+                  <input name="age" type="number" min="1" max="100" defaultValue={params.age} placeholder="周岁" />
+                </label>
+                <label>
+                  奖学金需求
+                  <select name="scholarshipType" defaultValue={params.scholarshipType}>
+                    <option value="">不限</option>
+                    <option value="full">全额奖学金</option>
+                    <option value="any">有其他奖学金</option>
+                    <option value="none">无奖学金（自费）</option>
+                  </select>
+                </label>
+              </div>
+              <div className="form-grid screening-primary-secondary">
+                <label>
+                  院校层次
+                  <select name="schoolTier" defaultValue={criteria.schoolTier || ""}>
+                    <option value="">不限</option>
+                    <option value="985">985</option>
+                    <option value="211">211</option>
+                    <option value="double_first_class_only">仅双一流</option>
+                    <option value="double_non">双非普通院校</option>
+                  </select>
+                </label>
+                <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>
+                <label>
+                  导师接收函要求
+                  <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
+                    <option value="">不限</option>
+                    <option value="required">明确或部分要求</option>
+                    <option value="unknown">未标明</option>
+                  </select>
+                </label>
+              </div>
             </div>
           </section>
 
@@ -270,7 +319,7 @@ export default async function ScreeningPage({
             <summary>
               <span>
                 <strong>学术与语言条件</strong>
-                <small>GPA、HSK、雅思、托福、多邻国</small>
+                <small>GPA、HSK、雅思、托福、多邻国分数</small>
               </span>
               <span className="screening-advanced-toggle">展开</span>
             </summary>
@@ -281,7 +330,37 @@ export default async function ScreeningPage({
               <label>HSK 分数<input name="hskScore" type="number" defaultValue={params.hskScore} /></label>
               <label>雅思<input name="ielts" type="number" step="0.5" defaultValue={params.ielts} /></label>
               <label>托福<input name="toefl" type="number" defaultValue={params.toefl} /></label>
-              <label>多邻国<input name="duolingo" type="number" defaultValue={params.duolingo} /></label>
+              <label>多邻国分数<input name="duolingo" type="number" defaultValue={params.duolingo} /></label>
+            </div>
+          </details>
+
+          <details className="screening-filter-section screening-filter-advanced screening-filter-soft" open={showSoftFilters}>
+            <summary>
+              <span>
+                <strong>软性竞争力</strong>
+                <small>论文/专利成果、竞赛/突出表现</small>
+              </span>
+              <span className="screening-advanced-toggle">展开</span>
+            </summary>
+            <div className="form-grid screening-advanced-body">
+              <label>
+                论文/专利成果
+                <select name="paperPatent" defaultValue={params.paperPatent}>
+                  <option value="">不限</option>
+                  <option value="general">有论文或专利</option>
+                  <option value="sci_ei">有SCI/EI级别论文</option>
+                </select>
+              </label>
+              
+              
+              <label>
+                竞赛/其他突出表现
+                <select name="competition" defaultValue={params.competition}>
+                  <option value="">不限</option>
+                  <option value="competition">有竞赛或突出表现</option>
+                </select>
+              </label>
+              
             </div>
           </details>
 
@@ -289,7 +368,7 @@ export default async function ScreeningPage({
             <summary>
               <span>
                 <strong>预算与偏好</strong>
-                <small>预算、省市、奖学金、住宿</small>
+                <small>预算、省市、住宿</small>
               </span>
               <span className="screening-advanced-toggle">展开</span>
             </summary>
@@ -297,15 +376,6 @@ export default async function ScreeningPage({
               <label>首年总预算（元）<input name="budget" type="number" min="0" defaultValue={params.budget} /></label>
               <label>意向省份<input name="province" defaultValue={params.province} placeholder="例如：广东" /></label>
               <label>意向城市<input name="city" defaultValue={params.city} placeholder="例如：深圳" /></label>
-              <label>
-                奖学金需求
-                <select name="scholarshipType" defaultValue={params.scholarshipType}>
-                  <option value="">不限</option>
-                  <option value="full">全额奖学金</option>
-                  <option value="any">有其他奖学金</option>
-                  <option value="none">无奖学金（自费）</option>
-                </select>
-              </label>
               <label>
                 住宿需求
                 <select name="accommodation" defaultValue={params.accommodation}>
@@ -317,7 +387,7 @@ export default async function ScreeningPage({
           </details>
           <div className="form-actions screening-filter-actions">
             <button className="primary" type="submit">开始筛查</button>
-            <Link className="button" href="/screening">清空条件</Link>
+            <ClearScreeningFilters />
           </div>
         </div>
       </form>

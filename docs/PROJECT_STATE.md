@@ -1,14 +1,39 @@
 # 项目状态同步
 
-最后更新：2026-06-30
+最后更新：2026-07-03
+
+## 本轮筛选条件清空修复（2026-07-03）
+
+- “清空条件”改为独立客户端控件：点击时先主动清空当前表单，再移除查询参数，避免浏览器表单恢复和 Next.js 同路由复用继续保留旧值。
+- 涉及文件：`src/app/(workspace)/screening/page.tsx`、`src/components/clear-screening-filters.tsx`。
+- 验证结果：`npm run typecheck`、`npm run lint`、`npm run build` 通过；使用独立临时数据库完成浏览器回归，确认已提交的英文/211条件和未提交的英文/211/目标专业条件均能清空，URL 查询参数与结果区状态同步恢复。
+
+## 本轮院校层次筛选（2026-07-03）
+
+- 学校筛查页提供“不限、985、211、仅双一流、双非普通院校”硬筛选，各档互斥，不符合层次的项目不进入结果区。
+- 分类只读取学校 `tags` 字段并按完整标签判断：`985` 档要求有 `985` 标签；`211` 档要求有 `211` 且无 `985` 标签；“仅双一流”要求有 `双一流` 且无 `985`/`211` 标签；“双非普通院校”要求三类标签均不存在。学校简介中的“985优势工程”等文本不参与判断。
+- 筛选方案的 `criteriaJson` 会保存 `schoolTier`，未新增数据库字段、迁移或导入模板列。
+- 涉及文件：`src/app/(workspace)/screening/page.tsx`、`src/app/google-ui.css`、`src/lib/matcher.ts`、`src/lib/matcher.test.ts`、`src/lib/queries.ts`。
+- 验证结果：院校层次测试已覆盖互斥分类、非法参数、标签精确匹配和“985优势工程”干扰文本；`npm run typecheck` 通过，`npm run lint` 通过（保留1条既有未使用变量警告）。Vitest 在受限 Windows 沙箱中因 `spawn EPERM` 未启动，沙箱外重跑又受当前工具额度限制，需额度恢复后补跑。只读数据核对结果为985 19所、211 10所、仅双一流5所、双非普通院校54所，西南财经大学归入211。
 
 ## 当前项目目标
 
 本项目是一个本地高校筛查与客户申请管理系统，服务在华留学顾问团队。首版重点是本地跑通：从 Excel 建立学校/项目知识库，按客户条件筛查项目，管理客户、跟进、申请状态和材料，并保留多账号、权限、审计和未来服务器/企业微信接入边界。
 
+移动端已完成第二阶段优化：P0+P1 问题已修复（底部导航增加"更多"Tab 接入抽屉、移动端全局搜索栏、触摸目标增大、筛查表单精简、详情页适配、CSS 断点统一、长列表分页、文件上传支持移动端拍照）。
+
 首版不包含企业微信、客户外部分享、自动翻译、短信、支付或外部 AI 推荐。
 
 ## 当前进度
+
+- 2026-07-02：完成筛选页低风险性能优化。无筛选条件时不再读取全量项目；实际筛选查询不再拼接重复且体积较大的 `raw_json`。本地 283 个项目对比中，筛选文本量减少 60.7%，筛选 SQL 平均耗时由约 36.4ms 降至约 22.5ms，导师接收函识别结果无变化，规则处理耗时由约 20.9ms 降至约 11.9ms。验证：`npm run typecheck`、`npm run lint`、`npm run build` 通过；相关测试 46 项中 41 项通过，5 项为既有软性条件规则失败。
+- 2026-07-02（第二轮）：移动端 P0+P1 优化 + 重构。1) 底部导航增加"更多"Tab，点击打开抽屉，解决 5 个页面无入口问题。2) layout 增加移动端搜索栏。3) 触摸目标 36→40px，筛查操作按钮 sticky。4) 筛查表单 560px 保持 2 列。5) 详情页卡片内表格扁平化，时间线 padding 减小。6) CSS 断点统一：google-ui.css 820px→760px，globals.css 1050px→1160px，消除三套断点混用。7) 客户/学校/审计日志列表增加分页（客户 20/页、学校 20/页、审计 50/页），新增 `src/components/pagination.tsx` 通用分页组件。8) `listSchools`/`listAuditLogs`/`listCustomers` 改为返回 `{ rows, total, page, pageSize }`。9) 文件上传增加 `accept` 和 `capture="environment"` 支持移动端拍照。涉及文件：`src/components/mobile-nav.tsx`、`src/components/pagination.tsx`、`src/app/(workspace)/layout.tsx`、`src/app/(workspace)/customers/page.tsx`、`src/app/(workspace)/schools/page.tsx`、`src/app/(workspace)/audit/page.tsx`、`src/app/(workspace)/customers/[id]/page.tsx`、`src/lib/queries.ts`、`src/app/globals.css`、`src/app/google-ui.css`。验证：`npm run typecheck`、`npm run lint`、`npm run build` 全部通过。
+
+- 2026-07-02（第一轮）：新增移动端页面适配。参照 4 张设计图，为工作台、筛查、学校库、账号管理、客户、我的六个页面增加移动端布局：底部 4 Tab 导航、移动端头部（汉堡菜单 + 标题 + 操作）、卡片式内容区域。桌面端通过 `desktop-only`/`mobile-only` 与媒体查询隔离，保持原样式不变。涉及文件：`src/app/(workspace)/layout.tsx`、6 个页面文件、`src/components/ui.tsx`、`src/components/mobile-shell.tsx`、`src/components/mobile-nav.tsx`、`src/app/globals.css`。验证：`npm run typecheck`、`npm run lint`、`npm run build` 通过；浏览器 527px 视口下 6 个页面渲染正常，底部 Tab、抽屉导航、头部操作均可交互。全量测试 93 项中 88 项通过，5 项失败为既有软性条件规则问题，与本次改动无关。
+
+- 2026-07-01：修复申请列表及其他多表查询字段错位。根因是 SQLite 代理将结果先转对象，重复列名覆盖后破坏 Drizzle 的列顺序；现改为 `setReturnArrays(true)` 直接返回数组，并新增重复列名关联查询回归测试。验证：目标测试 2 项通过，`npm run typecheck`、`npm run lint`、`npm run build` 通过；全量测试 84 项中 79 项通过，剩余 5 项为本次未修改的软性条件规则既有失败。
+
+- 2026-07-01：已移除独立“项目库”板块及其导航、工作台和学校列表跳转入口；项目数据仍保留供学校详情、客户申请和学校筛查使用。 验证：`npm run typecheck`、`npm run lint` 和 `npm run build` 通过，构建路由清单不再包含 `/programs`。
 
 - Git 仓库已初始化，主分支为 `master`。
 - 学校筛查专项分支已存在：`feature/school-screening`，并已多次合并回 `master`。
@@ -152,7 +177,7 @@ http://127.0.0.1:3000/dashboard
 ## 本轮数据导入增强（2026-06-29）
 
 - 数据导入页新增“Excel 批量导入 / 手动录入一条”双入口；手动录入仅要求学校中文名，其余字段可留空并标记待复核。
-- 同名学校自动关联；手工项目写入 programs、program_majors 和 audit_logs，可立即进入项目库与筛查查询。
+- 同名学校自动关联；手工项目写入 programs、program_majors 和 audit_logs，可立即进入学校库与筛查查询。
 - 手工项目设置 manually_verified；后续 Excel 预览显示冲突，确认导入也不会覆盖人工值。
 - 相同学校、项目类型和授课语言的有效项目会阻止重复创建，整个写入流程使用 SQLite 事务。
 - 新增 src/app/api/imports/manual/route.ts、src/components/manual-entry-form.tsx、src/lib/import-service.test.ts；更新 import-service、import-panel、样式和导入文档。
@@ -255,3 +280,39 @@ http://127.0.0.1:3000/dashboard
 - 根因定位：`package-lock.json` 中存在唯一缺失 `version` 的包条目 `node_modules/@img/sharp-wasm32/node_modules/@emnapi/runtime`，npm 11 在解析 `@img/sharp-wasm32` optional dependency 时触发空版本比较错误。
 - 修复：删除该异常嵌套 lock 条目，让 npm 重新使用正常的 `@emnapi/runtime` 解析结果；未改业务代码。
 - 验证结果：`npm install --package-lock-only --ignore-scripts --no-audit --no-fund` 通过；lock 中缺失 version 条目为 0；`npm run typecheck` 通过；`npm run build` 通过。
+
+## 本轮筛选条件与软性竞争力增强（2026-07-01）
+
+- 申请目标首行固定为申请学历、授课语言、目标专业、CSCA、年龄、奖学金需求；年龄紧跟 CSCA。国籍与导师接收函放在第二行。
+- 导师接收函筛选删除“学校明确不要求”和“数据库未写明”，仅保留“不限”和“明确或部分要求”；知识库未写明时不推断为不要求。
+- 新增“软性竞争力”折叠区：竞赛最高层级、SAT、研究成果/专利、论文成果、志愿者经历。
+- 新增 `src/lib/soft-requirements.ts`，只读取“申请要求及材料”，按句段识别 REQUIRED / PREFERRED / MENTIONED / UNKNOWN，并排除入学后志愿服务、办学资质和奖学金名称等误命中。
+- 明确要求但客户不具备时判为不符合；可选或加分项缺失不淘汰，客户具备时生成证据并提高排序；未写明不产生负面结论。
+- 修复年龄解析旧 bug：“不超过 35 岁”不再同时写入最低 35 岁；支持“必须满 18 岁”和“18-25 岁”。筛选时优先重解析原始要求，因此现有数据库无需重导即可避开历史错误结构化值。
+- 涉及文件：`src/app/(workspace)/screening/page.tsx`、`src/app/google-ui.css`、`src/lib/matcher.ts`、`src/lib/program-parser.ts`、`src/lib/soft-requirements.ts` 及对应测试、`docs/ARCHITECTURE.md`、`docs/需求规格说明书.md`。
+- 浏览器验收：首行 6 个字段在宽屏同一行；导师选项已精简；软性条件可展开；提交后年龄、竞赛和 SAT 参数保留；结果卡片展示对应证据。
+- 验证结果：`npm test` 81 项通过；`npm run typecheck`、`npm run lint`、`npm run build` 均通过。
+- 已知风险：软性条件仍依赖知识库文本规则，新增学校表述应补充样本测试；志愿者经历在当前知识库覆盖较少。构建仍有既有 Turbopack NFT warning 和 `node:sqlite` ExperimentalWarning。
+
+## 本轮退出登录线上错误修复（2026-07-02）
+
+- 现象：线上点击“退出登录”进入 Next.js 通用服务端错误页；本地开发模式和原生产构建均无法复现，故障边界指向线上反向代理或部署版本下的 Server Action 传输层。
+- 修复：退出入口由 Server Action 改为普通 `POST /api/auth/logout` Route Handler，复用现有 Host/协议安全跳转逻辑；保留退出审计、数据库会话删除和 Cookie 清理，并允许过期会话幂等退出。
+- 涉及文件：`src/app/(workspace)/layout.tsx`、`src/app/actions.ts`、`src/app/api/auth/logout/route.ts`、`src/app/api/auth/logout/route.test.ts`。
+- 回归测试：新增 2 项，覆盖正常退出审计/清理/303 跳转，以及过期会话清理。
+- 验证结果：目标测试 2 项通过；`npm run typecheck` 通过；全量 lint 0 错误（保留 `src/lib/matcher.ts` 既有 1 条未使用变量 warning）；`npm run build` 通过；本地生产模式浏览器确认退出后进入 `/login`、控制台无错误、再次访问 `/dashboard` 仍回到登录页。
+- 全量测试：86 项中 81 项通过，5 项失败均为本次未修改的软性条件规则既有失败（`soft-requirements.test.ts` 3 项、`matcher.test.ts` 2 项）。
+- 风险：修复需重新部署后才能在线上生效；构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
+
+## 本轮管理员改密与账号持久化修复（2026-07-02）
+
+- 修改前使用项目备份脚本生成一致性备份：`backups/20260702-081931`。
+- 本地 `admin` 已更新为用户指定的新密码，密码只保存为 scrypt 哈希；该账号旧会话已清空，并记录 `PASSWORD_RESET_CLI` 审计。
+- 新增 `scripts/reset-password.ts` 和 `npm run admin:password -- <用户名>`，密码通过环境变量或标准输入提供，不写入代码和命令参数。
+- 账号创建从 Server Action 调整为同源校验的 `POST /api/admin/users` Route Handler，规避线上代理/部署版本下的 Action 传输错误；成功或校验失败均返回明确页面提示。
+- 新增 `src/lib/user-service.ts`：账号校验、用户写入和审计写入使用同一 SQLite 事务；重复用户名返回可读错误。`src/lib/audit-record.ts` 提供 Web 与 CLI 共用的纯数据库审计写入。
+- 结论：本地与服务器 SQLite 不会自动同步。服务器新增账号重启或发布后消失，优先检查运行进程的 `DATABASE_PATH` 是否固定为 `/opt/school-syt/shared/data/app.db`；代码没有自动删除用户的逻辑。
+- 自动化验证：账号服务、账号接口和退出登录目标测试 8 项通过；新增的重复用户名页面错误测试通过类型检查和 lint，但因本轮工具额度限制未单独重跑。全量测试 92 项中 87 项通过，5 项仍为既有软性条件规则失败。
+- 浏览器生产模式验证使用临时数据库副本：旧管理员密码失效，新密码可登录；创建测试账号后刷新仍存在，并可用该账号登录；临时数据库和测试进程已清理，真实数据库未写入测试账号。
+- `npm run typecheck` 通过；全量 lint 0 错误（保留 `src/lib/matcher.ts` 既有 1 条 warning）；`npm run build` 通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
+- 已更新 `README.md`、`docs/ARCHITECTURE.md` 和腾讯云部署教程，记录本地/宝塔改密方式及生产数据库路径检查命令。线上生效前需部署本次代码，并在宝塔终端针对永久数据库单独执行改密。

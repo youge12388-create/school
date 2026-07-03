@@ -60,7 +60,7 @@ function ExcelImportPanel() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "确认导入失败");
-      setMessage("导入完成，学校库和项目库已更新。");
+      setMessage("导入完成，学校库和学校筛查数据已更新。");
       setPreview(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "确认导入失败");

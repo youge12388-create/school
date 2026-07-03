@@ -120,6 +120,34 @@ export function splitMajors(text: string) {
   );
 }
 
+export function parseAgeRequirement(requirementText: string | null | undefined) {
+  const requirement = requirementText ?? "";
+  const rangeMatch = requirement.match(
+    /(?:年龄(?:要求|范围|一般)?\s*(?:为|在)?\s*)?(\d{1,2})\s*(?:-|—|–|~|至|到)\s*(\d{1,2})\s*(?:周岁|岁)/u,
+  );
+  const explicitMinAge = firstNumber(
+    requirement,
+    /(?:年满|必须满|须满|年龄(?:要求)?(?:不低于|不少于|至少))\s*(\d{1,2})\s*(?:周岁|岁)?/u,
+  );
+  const suffixMinAge = firstNumber(
+    requirement,
+    /(\d{1,2})\s*(?:周岁|岁)\s*(?:以上|及以上)/u,
+  );
+  const explicitMaxAge = firstNumber(
+    requirement,
+    /(?:年龄(?:要求)?(?:不超过|不高于|低于|小于)|不超过|不满)\s*(\d{1,2})\s*(?:周岁|岁)?/u,
+  );
+  const suffixMaxAge = firstNumber(
+    requirement,
+    /(\d{1,2})\s*(?:周岁|岁)\s*(?:以下|以内)/u,
+  );
+
+  return {
+    minAge: explicitMinAge ?? suffixMinAge ?? (rangeMatch ? Number(rangeMatch[1]) : null),
+    maxAge: explicitMaxAge ?? suffixMaxAge ?? (rangeMatch ? Number(rangeMatch[2]) : null),
+  };
+}
+
 export function parseProgram(input: {
   tuitionText: string;
   accommodationText: string;
@@ -159,14 +187,7 @@ export function parseProgram(input: {
   const averageMatch = requirement.match(
     /(?:平均分|均分|百分制成绩)[^\d]{0,10}(\d{2,3})\s*分?/,
   );
-  const ages = Array.from(
-    requirement.matchAll(/(?:年满|年龄|不超过|以下|以上)[^\d]{0,8}(\d{1,2})\s*(?:周岁|岁)/g),
-  ).map((match) => Number(match[1]));
-  const explicitMinAge = firstNumber(requirement, /(?:年满|年龄不低于)\s*(\d{1,2})/);
-  const explicitMaxAge = firstNumber(
-    requirement,
-    /(?:不超过|不满|年龄一般在|年龄)\s*(\d{1,2})\s*(?:周岁|岁)?(?:以下|以内|以)?/,
-  );
+  const ageRequirement = parseAgeRequirement(requirement);
   const firstYearParts = [
     tuition.annualMax,
     accommodation.annualMax,
@@ -200,8 +221,8 @@ export function parseProgram(input: {
     duolingoMin,
     gpaMin: gpaMatch ? Number(gpaMatch[1]) : averageMatch ? Number(averageMatch[1]) : null,
     gpaScale: gpaMatch ? Number(gpaMatch[2]) : averageMatch ? 100 : null,
-    minAge: explicitMinAge ?? (ages.length ? Math.min(...ages) : null),
-    maxAge: explicitMaxAge ?? (ages.length ? Math.max(...ages) : null),
+    minAge: ageRequirement.minAge,
+    maxAge: ageRequirement.maxAge,
     deadlineDate: deadline.date,
     deadlineStatus: deadline.status,
     majors: splitMajors(input.majorText),

@@ -59,16 +59,14 @@ async function execute(sql: string, params: unknown[], method: QueryMethod): Pro
     };
   }
 
+  statement.setReturnArrays(true);
+
   if (method === "get") {
-    const row = statement.get(...values);
+    const row = statement.get(...values) as unknown[] | undefined;
     return { rows: row ?? undefined };
   }
 
-  if (method === "values") {
-    return { rows: statement.all(...values).map((row) => Object.values(row)) };
-  }
-
-  return { rows: statement.all(...values).map((row) => Object.values(row)) };
+  return { rows: statement.all(...values) as unknown as unknown[][] };
 }
 
 export const db = drizzle(execute as unknown as AsyncRemoteCallback, { schema });
