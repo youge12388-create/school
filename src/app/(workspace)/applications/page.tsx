@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Badge, PageHeading } from "@/components/ui";
 import {
   APPLICATION_STATUSES,
@@ -47,16 +49,16 @@ export default async function ApplicationsPage({
             {rows.map((application) => (
               <tr key={application.id}>
                 <td>
-                  <a href={`/customers/${application.customerId}`}>
+                  <Link href={`/customers/${application.customerId}`}>
                     <strong>{application.customerName}</strong>
                     <div className="small muted">{application.customerNo}</div>
-                  </a>
+                  </Link>
                 </td>
                 <td>
-                  <a href={`/applications/${application.id}`}>
+                  <Link href={`/applications/${application.id}`}>
                     <strong>{application.schoolName}</strong>
                     <div className="small muted">{application.programName}</div>
-                  </a>
+                  </Link>
                 </td>
                 <td>
                   <Badge tone="blue">

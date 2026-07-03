@@ -162,8 +162,7 @@ export default async function UsersPage({
               </label>
               <label>
                 角色
-                <select name="role">
-                  <option value="">请选择角色</option>
+                <select name="role" defaultValue="ADVISOR">
                   <option value="ADVISOR">顾问</option>
                   <option value="DATA_MANAGER">数据管理员</option>
                   <option value="ADMIN">管理员</option>

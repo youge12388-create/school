@@ -5,6 +5,8 @@ import {
   getEffectiveDeadlineStatus,
   getSupervisorAcceptanceStatus,
   majorMatches,
+  matchesSchoolTier,
+  parseSchoolTier,
   rankPrograms,
   type MatchProgram,
 } from "./matcher";
@@ -15,6 +17,7 @@ const baseProgram: MatchProgram = {
   id: "p1",
   schoolId: "s1",
   schoolName: "测试大学",
+  schoolTags: "985，211，双一流",
   programName: "测试大学 · 本科 · 英文授课",
   programType: "UG",
   teachingLanguage: "ENGLISH",
@@ -51,6 +54,47 @@ function makeProgram(overrides: Partial<MatchProgram> = {}): MatchProgram {
 }
 
 describe("screening matcher", () => {
+  it("解析院校层次时忽略非法值", () => {
+    expect(parseSchoolTier("985")).toBe("985");
+    expect(parseSchoolTier("double_first_class_only")).toBe("double_first_class_only");
+    expect(parseSchoolTier("ordinary")).toBeUndefined();
+    expect(parseSchoolTier()).toBeUndefined();
+  });
+
+  it("按学校标签将985、211、仅双一流和双非普通院校互斥分类", () => {
+    const programs = [
+      makeProgram({ id: "985", schoolTags: "985，211，双一流" }),
+      makeProgram({ id: "211", schoolTags: "211，双一流" }),
+      makeProgram({ id: "double-first-class", schoolTags: "双一流" }),
+      makeProgram({ id: "untagged", schoolTags: null }),
+    ];
+
+    expect(rankPrograms(programs, { schoolTier: "985" }, now).map((item) => item.program.id))
+      .toEqual(["985"]);
+    expect(rankPrograms(programs, { schoolTier: "211" }, now).map((item) => item.program.id))
+      .toEqual(["211"]);
+    expect(rankPrograms(programs, { schoolTier: "double_first_class_only" }, now).map((item) => item.program.id))
+      .toEqual(["double-first-class"]);
+    expect(rankPrograms(programs, { schoolTier: "double_non" }, now).map((item) => item.program.id))
+      .toEqual(["untagged"]);
+    expect(rankPrograms(programs, {}, now)).toHaveLength(4);
+  });
+
+  it("985只匹配精确标签，不受211或985优势工程文本影响", () => {
+    const programs = [
+      makeProgram({ id: "985-only", schoolTags: "985", programType: "UG" }),
+      makeProgram({ id: "southwestern-finance", schoolTags: "211，双一流，教育部直属" }),
+      makeProgram({ id: "advantage-project", schoolTags: "211，双一流，985优势工程" }),
+      makeProgram({ id: "ordinary", schoolTags: null, programType: "UG" }),
+    ];
+
+    expect(rankPrograms(programs, { schoolTier: "985" }, now).map((item) => item.program.id))
+      .toEqual(["985-only"]);
+    expect(matchesSchoolTier("985", "211")).toBe(false);
+    expect(matchesSchoolTier("211", "985")).toBe(false);
+    expect(matchesSchoolTier("211，双一流，985优势工程", "985")).toBe(false);
+  });
+
   it("通过专业同义词匹配", () => {
     expect(majorMatches("计算机", baseProgram.majorText)).toBe(true);
   });

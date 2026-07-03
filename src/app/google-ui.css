@@ -561,6 +561,11 @@ tbody tr:hover {
   padding: 12px 14px;
 }
 
+.alert.success {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
 .alert.error {
   border-color: #fad2cf;
   background: var(--red-soft);
@@ -586,38 +591,6 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: static;
-    height: auto;
-  }
-
-  .brand {
-    padding-bottom: 10px;
-  }
-
-  .nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .topbar {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
-
-  .topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.topbar-note {
-    display: none;
-  }
-
   .page-content {
     padding: 24px 16px 96px;
   }
@@ -766,7 +739,7 @@ tbody tr:hover {
 }
 
 .screening-filter-primary .screening-primary-secondary {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .screening-filter-deadline .form-grid {

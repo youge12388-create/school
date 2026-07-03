@@ -218,6 +218,7 @@ export async function getProgramsForScreening() {
         p.id AS id,
         s.id AS schoolId,
         s.name_zh AS schoolName,
+        s.tags AS schoolTags,
         p.name AS programName,
         p.program_type AS programType,
         p.teaching_language AS teachingLanguage,
@@ -262,6 +263,7 @@ export async function getProgramsForScreening() {
       id: string;
       schoolId: string;
       schoolName: string;
+      schoolTags: string | null;
       programName: string;
       programType: string;
       teachingLanguage: string;

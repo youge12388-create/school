@@ -10,6 +10,7 @@ import { normalizeKeyword } from "@/lib/utils";
 
 export type DeadlineMode = "open" | "unknown" | "expired" | "all";
 export type FitLevel = "MATCHED" | "NEEDS_ACTION" | "UNKNOWN" | "NOT_MATCHED";
+export type SchoolTier = "985" | "211" | "double_first_class_only" | "double_non";
 export type SupervisorAcceptanceMode = "required" | "not_required" | "unknown";
 export type SupervisorAcceptanceStatus = RuleStatus | "PARTIAL_REQUIRED";
 
@@ -17,6 +18,7 @@ export type ScreeningCriteria = {
   programType?: string;
   teachingLanguage?: string;
   targetMajor?: string;
+  schoolTier?: SchoolTier;
   intakeYear?: number | null;
   budget?: number | null;
   hasCsca?: boolean | null;
@@ -45,6 +47,7 @@ export type MatchProgram = {
   id: string;
   schoolId: string;
   schoolName: string;
+  schoolTags: string | null;
   programName: string;
   programType: string;
   teachingLanguage: string;
@@ -93,6 +96,38 @@ const FIT_PRIORITY: Record<FitLevel, number> = {
   UNKNOWN: 2,
   NOT_MATCHED: 3,
 };
+
+const SCHOOL_TIERS = ["985", "211", "double_first_class_only", "double_non"] as const;
+
+export function parseSchoolTier(value?: string): SchoolTier | undefined {
+  return SCHOOL_TIERS.includes(value as SchoolTier)
+    ? (value as SchoolTier)
+    : undefined;
+}
+
+export function matchesSchoolTier(
+  tags: string | null | undefined,
+  tier: SchoolTier | undefined,
+) {
+  if (!tier) return true;
+
+  const schoolTags = new Set(
+    (tags ?? "")
+      .split(/[，,、；;\s]+/)
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+  );
+  const has985 = schoolTags.has("985");
+  const has211 = schoolTags.has("211");
+  const hasDoubleFirstClass = schoolTags.has("双一流");
+
+  if (tier === "985") return has985;
+  if (tier === "211") return has211 && !has985;
+  if (tier === "double_first_class_only") {
+    return hasDoubleFirstClass && !has985 && !has211;
+  }
+  return !has985 && !has211 && !hasDoubleFirstClass;
+}
 
 function compareThreshold(
   label: string,
@@ -594,6 +629,7 @@ export function rankPrograms(
   now = new Date(),
 ): RankedProgram[] {
   return programs
+    .filter((program) => matchesSchoolTier(program.schoolTags, criteria.schoolTier))
     .map((program) => ({ program, ...evaluateProgram(program, criteria, now) }))
     .filter((result) => deadlineMatchesMode(result.effectiveDeadlineStatus, criteria.deadlineMode))
     .sort((a, b) => {

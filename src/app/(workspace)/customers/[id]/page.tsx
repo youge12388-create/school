@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
@@ -199,10 +200,10 @@ export default async function CustomerDetailPage({
                   {data.applications.map((application) => (
                     <tr key={application.id}>
                       <td>
-                        <a href={`/applications/${application.id}`}>
+                        <Link href={`/applications/${application.id}`}>
                           <strong>{application.schoolName}</strong>
                           <div className="small muted">{application.programName}</div>
-                        </a>
+                        </Link>
                       </td>
                       <td>
                         <Badge tone="blue">
@@ -249,7 +250,7 @@ export default async function CustomerDetailPage({
                     <td><strong>{recommendation.title}</strong></td>
                     <td>{recommendation.itemCount} 个项目</td>
                     <td>{formatDate(recommendation.createdAt)}</td>
-                    <td><a href={`/recommendations/${recommendation.id}/print`}>查看与打印</a></td>
+                    <td><Link href={`/recommendations/${recommendation.id}/print`}>查看与打印</Link></td>
                   </tr>
                 ))}
               </tbody>
