@@ -8,12 +8,18 @@ import { asText } from "@/lib/utils";
 
 function isSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  // 如果没有 Origin 头（例如浏览器直接提交表单），信任请求
-  // 因为这是服务器端跳转，同站请求一定是安全的
+  // 没有 Origin 头（浏览器表单直接提交常见）→ 信任
   if (!origin) return true;
 
   try {
-    return new URL(origin).origin === appUrl(request, "/").origin;
+    const originHost = new URL(origin).host;
+    const host =
+      request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+      request.headers.get("host") ||
+      new URL(request.url).host;
+    // 只比较 host（域名+端口），忽略协议
+    // 因为反向代理转发时 http/https 可能不一致
+    return originHost === host;
   } catch {
     return false;
   }
