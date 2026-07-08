@@ -156,10 +156,12 @@ function KnowledgeFieldGrid({
   fields,
   data,
   hideEmpty = false,
+  targetMajor,
 }: {
   fields: readonly string[];
   data: Record<string, unknown>;
   hideEmpty?: boolean;
+  targetMajor?: string;
 }) {
   const visibleFields = hideEmpty
     ? fields.filter((label) => displayValue(data[label]) !== UNKNOWN_TEXT)
@@ -222,6 +224,8 @@ export default async function SchoolDetailsPage({
     language: query.language,
     major: query.major,
   };
+  const targetProgramId = screeningContext.programId;
+  const targetMajor = screeningContext.major;
   const hasScreeningContext =
     query.from === "screening" &&
     Boolean(
@@ -268,18 +272,10 @@ export default async function SchoolDetailsPage({
     学校申请更新频率: school.applicationUpdateFrequency,
     "语言生面试、笔试": school.languageStudentAssessmentText,
     "学历生面试、笔试": school.degreeStudentAssessmentText,
-    招生偏向: canEdit ? school.recruitmentPreferenceText : null,
+    招生偏向: school.recruitmentPreferenceText,
     合作备注: school.cooperationNote,
     特殊情况备注: school.specialCaseNote,
   };
-  const visibleCooperationGroups = COOPERATION_FIELD_GROUPS
-    .map((group) => ({
-      ...group,
-      fields: group.fields.filter(
-        (field) => displayValue(cooperationKnowledge[field]) !== UNKNOWN_TEXT,
-      ),
-    }))
-    .filter((group) => group.fields.length);
 
   return (
     <>
@@ -319,31 +315,28 @@ export default async function SchoolDetailsPage({
         </div>
       </section>
 
-      {visibleCooperationGroups.length ? (
-        <section className="card card-compact school-cooperation-card">
-          <div className="card-header school-knowledge-header">
-            <div>
-              <h3>合作与招生信息</h3>
-              <p className="small muted">
-                来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。
-              </p>
-            </div>
-            <Badge tone="blue">学校级信息</Badge>
+      <details className="card card-compact school-cooperation-card">
+        <summary className="card-header school-knowledge-header">
+          <div>
+            <h3>合作与招生信息</h3>
+            <p className="small muted">
+              来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。大部分字段待后续补充，点击展开。
+            </p>
           </div>
-          <div className="card-body cooperation-field-groups">
-            {visibleCooperationGroups.map((group) => (
-              <section className="cooperation-field-group" key={group.title}>
-                <h4>{group.title}</h4>
-                <KnowledgeFieldGrid
-                  data={cooperationKnowledge}
-                  fields={group.fields}
-                  hideEmpty
-                />
-              </section>
-            ))}
-          </div>
-        </section>
-      ) : null}
+          <Badge tone="blue">学校级信息</Badge>
+        </summary>
+        <div className="card-body cooperation-field-groups">
+          {COOPERATION_FIELD_GROUPS.map((group) => (
+            <section className="cooperation-field-group" key={group.title}>
+              <h4>{group.title}</h4>
+              <KnowledgeFieldGrid
+                data={cooperationKnowledge}
+                fields={group.fields}
+              />
+            </section>
+          ))}
+        </div>
+      </details>
 
       <section className="school-programs-section">
         {targetProgramId ? <ScrollToProgram programId={targetProgramId} /> : null}
