@@ -386,3 +386,17 @@ export function parseProgramWorkbook(buffer: Buffer) {
     sourceHash: createHash("sha256").update(buffer).digest("hex"),
   };
 }
+
+/** 智能解析：自动尝试高校汇总和高校项目两张表，缺失不报错 */
+export function parseImportFile(buffer: Buffer) {
+  let schoolResult = { schools: [] as SchoolImportRow[], sourceHash: "" };
+  let programResult: ReturnType<typeof parseProgramWorkbook> | null = null;
+
+  try { schoolResult = parseSchoolWorkbook(buffer); } catch { /* 无高校汇总表 */ }
+  try { programResult = parseProgramWorkbook(buffer); } catch { /* 无高校项目表 */ }
+
+  if (!schoolResult.schools.length && !programResult) {
+    throw new Error("文件中未找到高校汇总或高校项目工作表");
+  }
+  return { schoolResult, programResult };
+}

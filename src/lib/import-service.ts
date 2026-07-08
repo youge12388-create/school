@@ -10,6 +10,7 @@ import {
   PROGRAM_TYPE_LABELS,
 } from "@/lib/constants";
 import {
+  parseImportFile,
   parseProgramWorkbook,
   parseSchoolWorkbook,
   type ProgramImportRow,
@@ -152,23 +153,41 @@ export function createImportPreview(
     schoolName?: string;
     programBuffer?: Buffer;
     programName?: string;
+    fileBuffer?: Buffer;
+    fileName?: string;
     userId?: string | null;
   },
   options: ImportServiceOptions = {},
 ) {
-  if (!input.schoolBuffer && !input.programBuffer) {
+  let schoolResult: { schools: SchoolImportRow[]; sourceHash: string };
+  let programResult: ReturnType<typeof parseProgramWorkbook> | null;
+
+  if (input.fileBuffer) {
+    const parsed = parseImportFile(input.fileBuffer);
+    schoolResult = parsed.schoolResult;
+    programResult = parsed.programResult;
+  } else if (input.schoolBuffer || input.programBuffer) {
+    schoolResult = input.schoolBuffer
+      ? parseSchoolWorkbook(input.schoolBuffer)
+      : { schools: [], sourceHash: "" };
+    programResult = input.programBuffer
+      ? parseProgramWorkbook(input.programBuffer)
+      : null;
+  } else {
     throw new Error("请至少提供一个 Excel 文件");
   }
-  const schoolResult = input.schoolBuffer
-    ? parseSchoolWorkbook(input.schoolBuffer)
-    : { schools: [], sourceHash: "" };
-  const programResult = input.programBuffer
-    ? parseProgramWorkbook(input.programBuffer)
-    : null;
+
   const importedSchools = mergeSchoolSources(
     schoolResult.schools,
     programResult?.schools ?? [],
   );
+
+  const sourceHash = (() => {
+    const builder = createHash("sha256");
+    builder.update(schoolResult.sourceHash);
+    if (programResult) builder.update(programResult.sourceHash);
+    return builder.digest("hex");
+  })();
   const database = openRawDatabase(options.databaseFile);
   const schoolRows = database.prepare("SELECT name_zh, raw_json, review_status FROM schools").all() as Array<{
     name_zh: string;
@@ -246,9 +265,11 @@ export function createImportPreview(
   const batchId = newId();
   const preview: ImportPreview = {
     batchId,
-    sourceNames: [input.schoolName, input.programName].filter(
-      (name): name is string => Boolean(name),
-    ),
+    sourceNames: input.fileName
+      ? [input.fileName]
+      : [input.schoolName, input.programName].filter(
+          (name): name is string => Boolean(name),
+        ),
     schools: importedSchools,
     programs: programResult?.programs ?? [],
     summary,
@@ -262,10 +283,6 @@ export function createImportPreview(
   const previewPath = resolve(importDir, `${batchId}.json`);
   writeFileSync(previewPath, JSON.stringify(preview), "utf8");
 
-  const sourceHashBuilder = createHash("sha256");
-  sourceHashBuilder.update(schoolResult.sourceHash);
-  if (programResult) sourceHashBuilder.update(programResult.sourceHash);
-  const sourceHash = sourceHashBuilder.digest("hex");
   const db = openRawDatabase(options.databaseFile);
   db.prepare(
     `INSERT INTO import_batches

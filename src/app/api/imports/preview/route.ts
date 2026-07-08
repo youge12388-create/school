@@ -1,25 +1,34 @@
 import { requireRole } from "@/lib/auth";
 import { createImportPreview } from "@/lib/import-service";
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
 export async function POST(request: Request) {
   const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
   try {
     const formData = await request.formData();
-    const schoolFile = formData.get("schoolFile");
-    const programFile = formData.get("programFile");
-    if (!(schoolFile instanceof File)) {
-      return Response.json({ error: "请选择高校汇总 Excel" }, { status: 400 });
+    const file = formData.get("file");
+
+    if (!(file instanceof File)) {
+      return Response.json({ error: "请选择 Excel 文件" }, { status: 400 });
     }
+
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+      return Response.json({ error: "仅支持 .xlsx 或 .xls 格式" }, { status: 400 });
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return Response.json({ error: "文件大小不能超过 20MB" }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
     const preview = createImportPreview({
-      schoolBuffer: Buffer.from(await schoolFile.arrayBuffer()),
-      schoolName: schoolFile.name,
-      programBuffer:
-        programFile instanceof File
-          ? Buffer.from(await programFile.arrayBuffer())
-          : undefined,
-      programName: programFile instanceof File ? programFile.name : undefined,
+      fileBuffer: buffer,
+      fileName: file.name,
       userId: user.id,
     });
+
     return Response.json({
       batchId: preview.batchId,
       sourceNames: preview.sourceNames,

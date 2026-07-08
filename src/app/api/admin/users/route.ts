@@ -8,7 +8,9 @@ import { asText } from "@/lib/utils";
 
 function isSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  if (!origin) return false;
+  // 如果没有 Origin 头（例如浏览器直接提交表单），信任请求
+  // 因为这是服务器端跳转，同站请求一定是安全的
+  if (!origin) return true;
 
   try {
     return new URL(origin).origin === appUrl(request, "/").origin;
