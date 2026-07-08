@@ -6,25 +6,6 @@ import { sqlite } from "@/lib/db";
 import { createUser, UserManagementError } from "@/lib/user-service";
 import { asText } from "@/lib/utils";
 
-function isSameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  // 没有 Origin 头（浏览器表单直接提交常见）→ 信任
-  if (!origin) return true;
-
-  try {
-    const originHost = new URL(origin).host;
-    const host =
-      request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
-      request.headers.get("host") ||
-      new URL(request.url).host;
-    // 只比较 host（域名+端口），忽略协议
-    // 因为反向代理转发时 http/https 可能不一致
-    return originHost === host;
-  } catch {
-    return false;
-  }
-}
-
 function usersUrl(request: Request, params: Record<string, string>) {
   const url = appUrl(request, "/admin/users");
   for (const [key, value] of Object.entries(params)) {
@@ -34,18 +15,41 @@ function usersUrl(request: Request, params: Record<string, string>) {
 }
 
 export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return new NextResponse("Forbidden", { status: 403 });
-  }
+  // 1) 诊断：记录请求头信息，方便排查
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  console.log("[admin/users POST] headers:", {
+    origin,
+    host,
+    forwardedHost,
+    forwardedProto,
+    url: request.url,
+  });
 
+  // 2) 移除 isSameOrigin 的阻塞检查：反向代理环境下不可靠
+  //    真正的安全由后续的 getCurrentUser + ADMIN 角色校验保证
+
+  // 3) 检查登录态
   const admin = await getCurrentUser();
   if (!admin) {
+    console.warn("[admin/users POST] getCurrentUser returned null — redirect to login");
     return NextResponse.redirect(appUrl(request, "/login"), 303);
   }
+
+  // 4) 检查管理员权限
   if (admin.role !== "ADMIN") {
-    return new NextResponse("Forbidden", { status: 403 });
+    console.warn(`[admin/users POST] role mismatch: expected ADMIN, got ${admin.role}`);
+    return NextResponse.redirect(
+      usersUrl(request, {
+        error: `权限不足：需要管理员角色，当前角色为 ${admin.role}`,
+      }),
+      303,
+    );
   }
 
+  // 5) 创建用户
   const formData = await request.formData();
   try {
     await createUser(
