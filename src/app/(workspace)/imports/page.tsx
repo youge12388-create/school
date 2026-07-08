@@ -12,7 +12,12 @@ export default async function ImportsPage() {
       <PageHeading
         title="数据录入"
         description="支持 Excel 批量导入或手动录入一条。人工确认的数据不会被后续批量导入自动覆盖。"
-        action={<a className="button" href="/api/templates/programs">下载维护模板</a>}
+        action={
+          <div style={{ display: "flex", gap: 8 }}>
+            <a className="button" href="/api/templates/maintenance">下载维护模板</a>
+            <a className="button" href="/api/templates/programs">导出完整数据</a>
+          </div>
+        }
       />
       <ImportPanel />
       <section className="card" style={{ marginTop: 16 }}>

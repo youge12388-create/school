@@ -1,6 +1,14 @@
-﻿# 项目状态同步
+# 项目状态同步
 
 最后更新：2026-07-08
+
+## 数据导入模块：下载模板功能修复（2026-07-08）
+
+- 新增 `GET /api/templates/maintenance`：空白维护模板，含"高校汇总"（27 列含 12 合作字段）和"高校项目"（38 列含合作字段）两张表头。
+- 重写 `GET /api/templates/programs`：从"项目维护模板"改为"全量数据导出"，同样含两张 Sheet，导出当前数据库中所有未归档学校与项目数据。
+- 导入页面（`/imports`）按钮区现在有两个按钮：下载维护模板、导出完整数据。
+- 涉及文件：`src/app/api/templates/maintenance/route.ts`（新增）、`src/app/api/templates/programs/route.ts`（重写）、`src/app/(workspace)/imports/page.tsx`。
+- 验证：`npm run typecheck` 通过，`npm run lint` 通过（仅 1 个既有 warning），`npm run build` 通过。
 
 ## 数据导入模块：全面支持 12 个学校合作字段（2026-07-07）
 
