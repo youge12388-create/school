@@ -1,4 +1,4 @@
-﻿
+
 /* 筛选结果专业标红 */
 .major-chip.highlight {
   background: #fde8e8;
@@ -1962,6 +1962,28 @@ tbody tr:hover {
 
 .program-long-body {
   padding: 4px 16px 14px;
+}
+
+.school-cooperation-card > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.school-cooperation-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.school-cooperation-card > summary::before {
+  content: '▶';
+  font-size: 11px;
+  display: inline-block;
+  transition: transform 0.15s;
+  margin-right: 8px;
+  color: var(--primary);
+}
+
+.school-cooperation-card[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 /* 折叠区内长字段：单列紧凑，字段间用细分隔线 */

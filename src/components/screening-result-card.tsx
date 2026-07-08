@@ -32,9 +32,7 @@ function buildSchoolDetailHref(result: RankedProgram, detailParams?: DetailLinkP
     if (value) params.set(key, value);
   }
 
-  if (!params.has("type") && !params.has("language") && !params.has("major")) {
-    params.set("programId", program.id);
-  }
+  params.set("programId", program.id);
 
   return `/schools/${program.schoolId}?${params.toString()}`;
 }
