@@ -1,6 +1,184 @@
-# 项目状态同步
+﻿# 项目状态同步
 
-最后更新：2026-07-03
+最后更新：2026-07-08
+
+## 数据导入模块：全面支持 12 个学校合作字段（2026-07-07）
+
+- 目标：`schools` 表新增的 12 个合作字段在 Excel 导入、手动录入两条数据入口完整打通，并补充测试覆盖。
+- 涉及字段：团体申请账号、奖学金发放形式、是否可代收、合作截止日期、公司招生名额、学校招生计划、招生偏向、语言生考核、学历生考核、合作备注、特殊情况备注、申请更新频率。
+- Excel 导入（`src/lib/excel-import.ts`）：
+  - `toSchool` 改为按优先级读取字段：高校汇总表使用简洁字段名，项目表保留旧字段名兼容；两套字段名均可导入同一批合作字段。
+  - `toProgramSchool` 同时兼容真实项目表字段名和简洁字段名。
+- 手动录入（`src/lib/import-service.ts`、`src/components/manual-entry-form.tsx`）：
+  - `manualEntrySchema` 与 `buildManualSchool` 新增 12 个合作字段。
+  - 手动录入表单新增"学校合作与招生信息"折叠区，12 个字段按短输入/长文本分组展示，并提示仅作顾问参考、不参与自动判断。
+- 测试（`src/lib/import-service.test.ts`）：
+  - 新增"高校汇总表可直接导入全部 12 个合作字段"测试。
+  - 扩展现有"项目表可补充学校合作字段"与手动录入测试，断言全部 12 个字段写入数据库。
+  - 修复测试运行时的 `server-only` 导入错误（`vi.mock`）。
+- 涉及文件：`src/lib/excel-import.ts`、`src/lib/import-service.ts`、`src/components/manual-entry-form.tsx`、`src/lib/import-service.test.ts`、`docs/PROJECT_STATE.md`。
+- 验证结果：`npm run typecheck` 通过；`npm run lint` 通过；`src/lib/import-service.test.ts` 13 项全过；`npm run build` 通过。全量测试 100 项中 94 项通过，6 项失败为既有软性条件/生源地偏好预存问题，与本次改动无关。
+- 已知风险与未指定：
+  - 学校编辑页（`/schools/[id]/edit`）尚未开放 12 个合作字段编辑；如需在页面端维护这些字段，后续再补。
+  - 高校汇总表合作字段为可选，不填不会报错；若后续要求必填，需调整 `validateHeaders` 逻辑。
+  - "招生偏向"在手动录入中尚未做权限隔离（详情页已隔离），敏感信息仍建议由管理员/数据管理员在页面端维护。
+
+
+## 测试补充：auth + queries 模块覆盖（2026-07-07）
+
+- 目标：uth.ts（0%覆盖）和 queries.ts（15%覆盖）补齐模块化测试。
+- 新增文件：src/lib/auth.test.ts，9 个用例；扩展 src/lib/queries.test.ts，新增 8 个用例。
+- auth 覆盖（9 用例）：getCurrentUser（有效/无cookie/过期/禁用）、equireUser（重定向/认证）、equireRole（拒绝/允许）、uditLoginFailure。
+- queries 覆盖（+8 用例）：listSchools（分页/搜索）、getSchoolDetails（详情/不存在）、getMajorCatalog（分组）、listCustomers（过滤已归档）、listApplications（状态筛选）、listAuditLogs（分页+用户名）。
+- 覆盖率变化：
+  - uth.ts：0% → 60.71%（stmts），0% → 52.63%（branch），0% → 71.42%（funcs）
+  - queries.ts：15.21% → 65.21%（stmts），0% → 52.45%（branch），11.11% → 50%（funcs）
+  - 项目整体：76.45% → 82.36%（stmts），66.7% → 71.22%（branch），82.63% → 89.47%（funcs）
+- 验证：
+pm test 17 文件 104 passed / 1 skipped / 0 fail，无回归。
+- 已知限制：
+  - uth.ts 未覆盖 createSession/destroySession（需 drizzle + cookie mock 联动，可后续补）
+  - queries.ts 未覆盖 getCustomer/listPrograms/getProgramsForScreening/listUsers/listImports/listCustomerOptions（后续按需补充）
+  - udit.ts 仍为 0%（仅一层薄封装，风险低）## 筛选模块：目标专业下拉（12 大类分组 + 搜索）（2026-07-06）
+
+- 背景：原"目标专业"是纯文本 input，用户需要手动输入专业名。游sir 提出：分析全部专业、按大类分组下拉、还要能搜索。
+- 实现：
+  - 新建 `src/lib/major-categories.ts`：定义教育部 12 大类（哲学/经济商科/法学政治/教育心理/文学语言/历史学/医学/农学/艺术学/管理学/理学/工学）+ 关键词归类规则 + 噪音过滤规则（HSK 课程、文化讲座、课程时间说明等非专业条目）。归类顺序：特异度高的类（医学/农学/艺术/管理）在前，engineering 在后兜底"X 工程"。提供 `categorizeMajor` / `categorizeMajors` / `isMajorNoise` / `splitMajorText` 四个工具函数。
+  - `src/lib/queries.ts` 新增 `getMajorCatalog()`：扫描所有未归档项目的 `major_text`，按 12 大类分组返回。供筛选页服务端预查询后传给客户端组件。
+  - 新建 `src/components/major-picker.tsx`（客户端 combobox）：文本输入 + 分组下拉面板 + 实时过滤。支持键盘导航（上下箭头/Enter/Esc），点击外部关闭，无结果提示。选中值通过受控 input 的 `name` 属性提交到 form GET，与原 input 完全兼容。
+  - `src/app/(workspace)/screening/page.tsx`：把原 `<input name="major">` 替换为 `<MajorPicker>`，服务端预查询 `majorCatalog` 并传入。
+  - CSS（`src/app/google-ui.css` 末尾新增 `.major-picker*` 系列类）：相对定位容器 + 浮动下拉面板 + 分组标题 + 选项 hover/active 高亮，最大高度 320px 可滚动。
+- 数据扫描结果：原始 7663 条 major_text 条目，过滤 275 条噪音，去重后净 1822 条；分布：工学 346 / 艺术学 319 / 文学语言 139 / 经济商科 128 / 法学政治 110 / 医学 107 / 理学 103 / 教育心理 92 / 管理学 85 / 农学 66 / 历史学 23 / 哲学 10 / 其他(未归类) 294。
+- 测试（`src/lib/major-categories.test.ts`，7 个）：常见专业归类正确性、工学不吞医学/农学专业（"生物医学工程"→医学，"森林工程"→农学）、噪音过滤、splitMajorText 切分、categorizeMajors 清洗+去重+按拼音排序+空分组过滤。
+- 涉及文件：`src/lib/major-categories.ts`、`src/lib/major-categories.test.ts`、`src/lib/queries.ts`、`src/components/major-picker.tsx`、`src/app/(workspace)/screening/page.tsx`、`src/app/google-ui.css`、`docs/PROJECT_STATE.md`。
+- 验证结果：`npx tsc --noEmit` 通过；`npm run lint` 通过（修了 1 个 a11y warning：input role="combobox"）；`npm run build` 通过；`npx vitest run` 87 通过 / 5 失败（全部为预存问题：matcher 2 个 SAT/竞赛 evidence 未实现 + soft-requirements 3 个解析问题，经 `git stash` 基线比对确认与本次改动无关）。
+- 已知风险与未指定：
+  - 未归类 294 条（含一些非专业噪音未过滤掉，如"城乡人类聚落的生态环境"等长句）会出现在"其他"分组里，用户也能搜到。如要进一步清洗可加更多噪音规则。
+  - 归类用关键词匹配，存在边界 case：如"法学研究方法"会归到法学（含"法学"），但实际可能是其他类的课程名。当前数据未触发严重误归类。
+  - MajorPicker 是受控组件（`value={query}`），用户输入但未选中下拉项时，按"开始筛查"会以输入文本提交，行为正确。
+  - 下拉面板 z-index=50，在筛选卡片内绝对定位；如未来页面有更高 z-index 的浮层，需检查是否被遮挡。
+  - 未做浏览器人工回归，建议重点验证：输入搜索、键盘导航、点击选中、外部点击关闭、与 form GET 提交联动、移动端面板是否溢出屏幕。
+
+## 筛选模块修复：专业匹配分层 + evidence 透明化（2026-07-06）
+
+- 问题：用户筛选"本科/英文/土木工程/CSCA 没有/有其他奖学金/申请时间只看开发中"，结果出现"对外经济贸易大学 · 本科 · 英文授课"项目，但该项目没有土木工程专业。evidence 仅显示"专业名称或同义词匹配"，无法识破是误匹配。
+- 根因：`majorMatches`（`src/lib/matcher.ts`）的同义词组 `工程: ["工程","机械","土木","自动化","材料","电气","电子"]` 里有"工程"这个超通用词；query"土木工程"包含"工程"→ 命中"工程"组；该项目 major_text 里有"经济发展合作与多元材料与工程2+2（UIBE+BUCT）"包含"工程"→ 也命中 → 返回 true。同样的隐患存在于"医学""经济""教育"等单字大类词上。
+- 修复方案（用户拍板）：分两层展示
+  1. 第一层精确包含匹配：query 作为完整字串在 majorText 中出现 → evidence `PASS "专业名称匹配：包含\"xxx\""`
+  2. 第二层同类方向匹配：精确未命中但同义词组命中 → 项目仍保留显示，evidence `NEED "未找到\"xxx\"本专业，但有同类方向：yyy（命中关键词\"zzz\"）"`，列出该学校实际命中的专业条目（最多 3 个，超过显示"等 N 个"）。
+  3. 完全无匹配 → evidence `FAIL "未找到相关专业"`，进入"明确不符合"折叠区。
+- 实现：
+  - `majorMatches` 改为返回结构化 `MajorMatchResult`（`{ matched, matchType: "exact"|"synonym"|"none", synonymKeyword?, matchedMajors? }`）；新增 `extractMatchedMajorEntries` 工具函数把 majorText 按换行/分号/逗号分割后筛出命中条目。
+  - `evaluateProgram` 里 targetMajor 分支基于 matchType 生成不同 evidence：synonym 用 `NEED`（导致 fitLevel 进入 NEEDS_ACTION，排在精确匹配之后），符合用户"先精准配对，然后下面出来可能匹配"的语义。
+- 测试（`src/lib/matcher.test.ts`）：原"通过专业同义词匹配"测试改为结构化断言（检查 matchType/synonymKeyword/matchedMajors）；新增 3 个测试——"专业精确匹配返回 exact 类型"、"专业完全无匹配返回 none 类型"、"专业 evidence 区分精确与同类匹配"（含实际场景：majorText 含"经济发展合作与多元材料与工程2+2"时搜"土木工程"应给出 NEED evidence + 列出该专业名）。
+- 涉及文件：`src/lib/matcher.ts`、`src/lib/matcher.test.ts`、`docs/PROJECT_STATE.md`。
+- 验证结果：`npx tsc --noEmit` 通过；`npm run build` 通过；`npx vitest run src/lib/matcher.test.ts` 32 通过 / 2 失败（与上次会话一致的预存问题：SAT/竞赛 evidence 未实现，与本次改动无关）。
+- 已知风险：
+  - 同义词组里"工程""医学""经济"等通用词仍未移除，理论上同类匹配仍可能误命中（但 evidence 已透明化，用户能从"命中关键词'工程'"识破）。
+  - 同类专业现在会以 NEED 状态进入 NEEDS_ACTION 区，结果列表可能比之前更长；用户可手动跳过。
+  - `extractMatchedMajorEntries` 按换行/分号/逗号分割，若 majorText 使用其他分隔符（如"/"）会拿到较长条目；当前数据未触发此情况。
+
+## 筛选模块修复：学校搜索页内化 + 院校层次 evidence（2026-07-06）
+
+- 问题1：筛选页顶部"搜索学校"输入框点击后跳转到 `/schools`，用户期望在筛选模块下方看到结果。
+- 问题2：新增"院校层次"筛选时，卡片底部 evidence 条缺少对应提醒（其他所有筛选条件都有 evidence）。
+- 修复1（`src/app/(workspace)/screening/page.tsx`）：删除 `HeaderSearch` 客户端组件（`router.push('/schools')`），替换为 `<form>` 内原生 `<input name="q">`，作为筛选条件的一部分提交；`searchKeys` 新增 `"q"`，`toCriteria` 新增 `schoolQuery`。
+- 修复1（`src/lib/matcher.ts`）：新增 `schoolNameMatches`（normalizeKeyword 模糊匹配）作为硬过滤；`ScreeningCriteria` 新增 `schoolQuery` 字段。
+- 修复2（`src/lib/matcher.ts`）：新增 `schoolTierEvidence` 函数（PASS/FAIL）；`evaluateProgram` 在 `criteria.schoolTier` 存在时 push evidence；移除 `rankPrograms` 中的 `matchesSchoolTier` 硬过滤——不符合院校层次的学校改入"明确不符合"折叠区（与 `programType` 一致），用户可展开查看原因。
+- CSS（`src/app/globals.css`）：移除 `.header-search{display:none}` 和 `.screening-filter-card .card-header{flex-direction:column...}` 两条误全局规则（原意是 mobile-only 但未包裹 `@media`，导致桌面端 header 也变纵向且搜索框被隐藏）；`google-ui.css` 已有正确的 `@media(max-width:760px)` 处理。
+- 删除 `src/components/header-search.tsx`（无引用死代码）。
+- 测试（`src/lib/matcher.test.ts`）：更新 2 个 schoolTier 硬过滤测试为 evidence 行为（检查 fitLevel 而非过滤）；新增 2 个测试——"院校层次生成 evidence 提醒"、"学校名称搜索做页内过滤"。
+- 涉及文件：`src/lib/matcher.ts`、`src/lib/matcher.test.ts`、`src/app/(workspace)/screening/page.tsx`、`src/app/globals.css`、`src/components/header-search.tsx`（删除）、`docs/PROJECT_STATE.md`。
+- 验证结果：`npx tsc --noEmit` 通过；`npm run lint` 通过；`npm run build` 通过；`npx vitest run src/lib/matcher.test.ts` 29 通过 / 2 失败（经 `git stash` 基线比对确认为预存问题：SAT/竞赛 evidence 未实现，与本次改动无关）。
+- 已知风险：
+  - 移除 schoolTier 硬过滤后，不符合院校层次的学校会出现在"明确不符合"折叠区（默认收起），结果总数可能增加；如用户反馈噪音过大可恢复硬过滤。
+  - 学校名称搜索为 normalizeKeyword 模糊匹配（忽略大小写/标点/空格），不支持拼音或英文别名。
+
+## 本轮详情页排版重构（2026-07-06）
+
+- 目标：解决三个详情页（客户/学校/申请）信息杂乱、留白过大、重点不突出、需长时间下滑的问题。
+- 设计原则：通过视觉层次（label 小字灰色 + value 加粗）+ 紧凑布局（减小 padding/min-height）+ 主次分离（信息卡 vs 操作卡）让重点一眼可见；申请材料类不折叠。
+- CSS（`src/app/google-ui.css` 末尾新增）：新增独立类 `.card-compact` / `.detail-status-bar` / `.detail-field-grid` / `.detail-field` / `.detail-list` / `.detail-timeline` / `.detail-action-card` / `.program-core-grid` / `.program-material-section` / `.program-long-section`，不改动全局 `.card`，避免影响筛选页 / 列表页 / 工作台。同步压缩 `.school-overview-card` / `.school-programs-section` / `.school-program-card` / `.knowledge-field` 的留白。
+- 客户详情页（`src/app/(workspace)/customers/[id]/page.tsx`）：
+  - 顶部新增状态条：客户编号 / 国籍 / 负责老师 / 签约状态 Badge，一行展示。
+  - 合并"联系信息 / 申请目标 / 成绩条件"三张卡 → 一张"客户档案"卡，内部三组分组（detail-group-title）+ 3 列字段网格。
+  - "客户管理状态" + "新建申请"合并为一张操作卡（dashed 边框，视觉权重低），inline 表单。
+  - 跟进 / 材料两列并排，列表优先，新建表单用 `.detail-action-card` 包裹。
+  - 申请记录 / 已保存筛选方案改用 `.detail-list` 紧凑列表行。
+- 学校详情页（`src/app/(workspace)/schools/[id]/page.tsx`）：
+  - 项目卡字段拆分三组：`PROGRAM_CORE_FIELDS`（12 个短字段，4 列网格 always 显示）/ `PROGRAM_MATERIAL_FIELD`（"申请要求及材料"，不折叠，重点信息）/ `PROGRAM_LONG_FIELDS`（8 个长字段，用原生 `<details>` 折叠，避免多项目时下滑过长）。
+  - 折叠区内 `knowledge-field-grid` 改为单列紧凑展示。
+  - 学校知识卡 / 合作卡加 `.card-compact`。
+- 申请详情页（`src/app/(workspace)/applications/[id]/page.tsx`）：
+  - 顶部新增状态条：当前状态 / 申请截止 / 客户 / 项目，一眼定位。
+  - "项目要求及材料"提到主位，不折叠。
+  - "调整状态"改为操作卡（dashed 边框，视觉权重低），inline 表单。
+  - 状态时间线改用 `.detail-timeline` 紧凑展示。
+- 涉及文件：`src/app/google-ui.css`、`src/app/(workspace)/customers/[id]/page.tsx`、`src/app/(workspace)/schools/[id]/page.tsx`、`src/app/(workspace)/applications/[id]/page.tsx`、`docs/PROJECT_STATE.md`。
+- 验证结果：`npm run typecheck` 通过；`npm run lint` 通过；`npm run build` 通过（仅有既有 Turbopack NFT warning 与 node:sqlite ExperimentalWarning）。
+- 已知风险与未指定：
+  - 项目长字段默认折叠，需用户点击展开。如果实际使用中发现某字段（如"专业列表"）需要默认可见，可从 `PROGRAM_LONG_FIELDS` 移到 `PROGRAM_CORE_FIELDS` 或单独不折叠。
+  - 未做浏览器人工回归，建议重点验证：客户管理状态更新、添加跟进、上传材料、新建申请、调整申请状态、学校项目折叠展开。
+  - CSS 类为新增，与全局 `.card` 隔离；如后续详情页样式异常，优先检查 `.card-compact` / `.detail-*` 类是否被覆盖。
+
+## 本轮学校合作字段与项目身份重构（2026-07-06）
+
+- 目标：支持新 Excel（117 所学校、474 条项目、含 12 个学校级合作字段）安全导入，避免同校同类型同语言项目互相覆盖。
+- 数据库：`schools` 表新增 12 个可空 TEXT 合作字段（团体申请账号、奖学金发放形式、是否可代收、合作截止日期、公司招生名额、学校招生计划、招生偏向、语言生/学历生考核、合作备注、特殊情况备注、申请更新频率）；为 `schools.external_id` 和 `programs.external_id` 建唯一索引（partial index，NULL 不参与）。
+- 迁移：新增 `drizzle/0002_school_cooperation_fields.sql`，并在 `src/lib/db/migration.ts` 注册；`src/lib/db/schema.ts` 同步字段定义。
+- Excel 导入（`src/lib/excel-import.ts`）：
+  - `toSchool` 解析 12 个合作列；新增 `toProgramSchool` 从高校项目表提取学校基础+合作信息，按学校聚合写入 `schools`。
+  - `mergeSchoolRows` 同校字段聚合：首个非空值生效，同字段多个非空值不一致直接抛错，避免静默选值。
+  - `normalizeTeachingLanguage` / `normalizeProgramType` 空值或非标准值统一为 `UNKNOWN`；`toProgram` 将"项目类型/授课语言待复核"写入 `parsed.reviewReasons`，`upsertProgram` 据此设置 `review_status = NEEDS_REVIEW`。
+  - 同校同类型同语言存在多个项目时，必须提供"项目ID"，否则在解析阶段抛错，防止业务键覆盖。
+- 导入服务（`src/lib/import-service.ts`）：
+  - `mergeSchoolSources` 合并高校汇总表与项目表学校信息，非空字段覆盖空字段。
+  - `upsertSchool` / `upsertProgram` 使用 `COALESCE(?, column)` 实现空白单元格不覆盖旧值；`manually_verified` 项目继续保护，不自动覆盖。
+  - 现有项目匹配优先 `external_id`，回退到"学校+类型+语言"legacy key，保证已有项目原 id 原位更新。
+- 详情页（`src/app/(workspace)/schools/[id]/page.tsx`）：新增"合作与招生信息"卡片，按"申请通道 / 招生计划 / 考核安排 / 合作说明"四组展示，仅显示非空字段；"招生偏向"仅 `ADMIN`/`DATA_MANAGER` 可见（`canEdit ? ... : null`），不参与筛选。
+- 筛选门槛（`src/lib/matcher.ts`）：`review_status = NEEDS_REVIEW` 或授课语言为 `UNKNOWN` 的项目不进入"可直接申请"，落入"待核实"。
+- 测试：`src/lib/import-service.test.ts` 新增 2 项——"从高校项目表新增学校并写入合作字段"、"同校同类型同语言多项目必须提供项目ID"。
+- 涉及文件：`drizzle/0002_school_cooperation_fields.sql`（新增）、`src/lib/db/schema.ts`、`src/lib/db/migration.ts`、`src/lib/excel-import.ts`、`src/lib/import-service.ts`、`src/lib/import-service.test.ts`、`src/lib/matcher.ts`、`src/lib/matcher.test.ts`、`src/app/(workspace)/schools/[id]/page.tsx`、`src/app/google-ui.css`、`src/components/import-panel.tsx`、`src/app/api/imports/preview/route.ts`、`scripts/import-excel.ts`、`vitest.config.ts`。
+- 验证结果：`npm run typecheck` 通过；`npm test` 80 项中 75 项通过，5 项失败经 `git stash` 基线比对确认为预存问题（`soft-requirements.test.ts` 3 项、`matcher.test.ts` 2 项，均为软性条件解析，与本次改动无关）；2 个新增测试通过。
+- 已知风险与未指定：
+  - 46 所"新学校"按中文名精确比对，未做更名/别名排查，正式导入前需人工确认冲突清单。
+  - 81 条授课语言为空的数据将标记 `UNKNOWN` + `NEEDS_REVIEW`，需人工复核。
+  - HS / SSS / Study Tour 等非标准项目类型映射为 `UNKNOWN`，不静默转换。
+  - 合作字段当前为自由 TEXT，不参与自动筛选；后续如需筛选应再增结构化字段（如 `collection_status`、`quota_status`）。
+  - "招生偏向"含敏感信息（国籍/肤色等），已做管理员可见隔离，但尚未加审计日志。
+  - 本轮仅改代码与迁移，未对生产数据库执行迁移和导入；正式导入前需先备份生产数据库及 WAL，并在副本验证。
+
+## 副本导入验证（2026-07-06）
+
+在 `./data/import-test-20260706.db`（生产副本）完成迁移 + 新 Excel 导入验证，验证后已清理临时副本。
+
+**导入前为支持新 Excel 格式做的 3 处设计调整：**
+- `createImportPreview` 的 `schoolBuffer` 改为可选：新 Excel 只有"高校项目"工作表，无"高校汇总"独立表；仅传 `programBuffer` 时，学校信息从项目表聚合（`toProgramSchool` + `mergeSchoolSources` 已支持）。
+- `mergeSchoolRows` 同校字段冲突由"抛错中止"改为"首个非空值胜出"：真实数据同校多行字段不一致常见（如黑龙江三江美术职业技术学院有"佳木斯校区"/"哈尔滨校区"），抛错会中止整个导入；原始值仍保留在 `rawJson` 供复核。
+- 同校同类型同语言多项目缺"项目ID"时，由"抛错中止"改为"自动生成合成 ID"：基于 `学校|类型|语言|项目介绍` 的 sha256 前 8 位，前缀 `auto:`；新 Excel 未填项目ID，抛错会阻塞导入。合成 ID 在内容不变时可重导入稳定匹配。
+
+**导入结果（与首次只读分析吻合）：**
+- 学校：NEW 47、MODIFIED 71、CONFLICT 0（原 88 所 → 135 所）
+- 项目：NEW 193、MODIFIED 275、CONFLICT 5、源内重复 1、待复核 182（原 283 个 → 476 个）
+- 迁移：0000/0001/0002 全部应用，12/12 合作字段建表成功
+- 合作字段抽样：武汉理工大学、西南财经大学、广西医科大学等 `group_application_account = "√"` 写入成功
+- 自动 ID：西安电子科技大学 2 个、华南师范大学 2 个 `auto:` ID，4 个项目全部保留未互相覆盖
+- 手工保护：5 个真实手工确认项目（中山大学 3 + 南京师范大学 2）保持 `VERIFIED` 未被覆盖；另有 2 个测试数据（"测试"/"测试大学"）
+- 待复核：AUTO_PARSED 286、NEEDS_REVIEW 185、VERIFIED 5
+- UNKNOWN 语言项目：84（含 81 条空值 + 非标准语言值）
+- 验证：`npm run typecheck` 通过；`src/lib/import-service.test.ts` 12 项全过（含改写的自动 ID 测试）
+
+**未指定 / 待确认：**
+- 合成 `auto:` ID 是临时方案，建议后续在 Excel 补充正式"项目ID"列替换。
+- 黑龙江三江美术职业技术学院等学校的 `所在城市` 实际是校区名，语义有偏差，但原始值在 `rawJson` 中保留。
+- 生产数据库尚未执行迁移和导入，需用户确认后再操作。
+
+## 本轮数据导入主次关系修复（2026-07-06）
+
+- Excel 导入主次关系对调：高校汇总表改必填（主表），高校项目汇总表改可选（补充）。仅上传高校汇总表也可导入学校基础信息，项目数据为空。
+- 涉及文件：`src/components/import-panel.tsx`、`src/app/api/imports/preview/route.ts`、`src/lib/import-service.ts`、`src/lib/import-service.test.ts`、`scripts/import-excel.ts`、`docs/需求规格说明书.md`。
+- 验证结果：`npm run typecheck` 通过；`npm run lint` 通过；`src/lib/import-service.test.ts` 12 项全过（含新增“仅上传高校汇总也可导入学校”测试）；`npm run build` 通过。build 仍有既有 Turbopack NFT warning 与 node:sqlite ExperimentalWarning。
+- 未指定：字段级合并优先级保留现状（项目表非空字段可覆盖高校汇总同名字段），未调整。如需“高校汇总字段优先、项目表只填空字段”，后续再改。
 
 ## 本轮筛选条件清空修复（2026-07-03）
 
@@ -316,3 +494,30 @@ http://127.0.0.1:3000/dashboard
 - 浏览器生产模式验证使用临时数据库副本：旧管理员密码失效，新密码可登录；创建测试账号后刷新仍存在，并可用该账号登录；临时数据库和测试进程已清理，真实数据库未写入测试账号。
 - `npm run typecheck` 通过；全量 lint 0 错误（保留 `src/lib/matcher.ts` 既有 1 条 warning）；`npm run build` 通过。构建仍有既有 Turbopack NFT warning 与 `node:sqlite` ExperimentalWarning。
 - 已更新 `README.md`、`docs/ARCHITECTURE.md` 和腾讯云部署教程，记录本地/宝塔改密方式及生产数据库路径检查命令。线上生效前需部署本次代码，并在宝塔终端针对永久数据库单独执行改密。
+
+## 首页统计修复：学校数按有效项目去重（2026-07-07）
+
+- 背景：游sir反馈首页学校数显示 135，但实际应为 117-119 左右，并要求复核是否存在学校名称重复。
+- 根因：`getDashboardData()` 原先直接统计 `schools.archived = 0` 的学校总数；当前库里有 16 所未归档学校没有任何未归档项目，因此首页展示为 135。按“至少有 1 个有效项目的未归档学校”统计为 119，符合预期范围。
+- 本次修复：`src/lib/queries.ts` 中首页学校数改为 `COUNT(DISTINCT s.id)`，并要求学校和项目都未归档；项目数、待复核项目数同步要求挂载学校未归档；30 天内截止项目列表也过滤已归档学校/项目。
+- 回归测试：新增 `src/lib/queries.test.ts`，覆盖空学校、归档学校、归档项目不进入首页统计；有效客户仍按未归档客户统计。
+- 数据复核结果：当前真实库严格口径为学校 119、项目 476、有效客户 1、待复核项目 185。
+- 疑似名称变体 5 组，共多 6 条：哈尔滨工业大学/哈尔滨工业大学（哈尔滨）/哈尔滨工业大学（深圳）；广西外国语大学/广西外国语学院；河南医药大学/河南医药大学（新乡医学院）；深圳职业技术大学/深圳职业技术学院；黄河水利职业技术大学/黄河水利职业技术学院。
+- 未合并原因：同时合并上述名称变体会把学校数降到 113，不符合本次 117-119 的业务预期；且部分可能是校区、升格前后名称或真实不同主体，物理合并会影响项目外键，需人工确认后再做数据治理。
+- 最近验证：`npm test -- src/lib/queries.test.ts` 通过；`npm run typecheck` 通过；`npm run lint` 通过；`npm run build` 通过（保留既有 Turbopack NFT warning 与 node:sqlite ExperimentalWarning）。
+- 后续建议：如要彻底清理数据，先在学校库增加“疑似重复/无有效项目”复核视图，再人工决定归档、合并或保留，避免误合并真实校区或升格前后学校。
+
+
+
+## 筛选模块联调修复：学校搜索、生源地与详情定位（2026-07-08）
+
+- 背景：筛选页学校搜索消失或结果不相关，生源地来源与标记缺失；筛选结果点开详情会进入无上下文学校库，不能直接看到对应项目；目标专业 evidence 需要恢复为两层。
+- 核心判断：筛选模块核心排序和结果分区不做重构；本轮只补齐筛选条件接入、数据源、专业 evidence 展示和详情页定位，避免扩大改动。
+- 学校搜索：src/app/(workspace)/screening/page.tsx 保留筛选模块内的 q 条件；src/lib/matcher.ts 使用 schoolNameMatches 做中文学校名子串过滤，避免跳到学校库后丢失筛选上下文。
+- 生源地来源：src/lib/queries.ts 的 getProgramsForScreening() 把 raw_json 与 schools.recruitment_preference_text 并入筛查文本；src/lib/matcher.ts 扩展生源地偏好识别词，恢复相关标记。
+- 专业 evidence：src/lib/matcher.ts 按用户指定语义展示：精准专业命中显示「有匹配的专业」；无精准专业但有同类方向显示「可能同类的专业」；完全无关才显示未找到相关专业。
+- 详情定位：src/components/screening-result-card.tsx 的详情链接始终带 programId；学校详情页优先按 programId 命中对应项目；src/components/scroll-to-program.tsx 进入详情后滚动到对应项目，目标专业 chip 用 major-chip.highlight 标红。
+- 涉及文件：src/lib/matcher.ts、src/lib/matcher.test.ts、src/lib/queries.ts、src/components/screening-result-card.tsx、src/components/scroll-to-program.tsx、src/app/(workspace)/schools/[id]/page.tsx、src/app/(workspace)/screening/page.tsx、src/app/google-ui.css、docs/PROJECT_STATE.md。
+- 最近验证：npm run typecheck 通过；npm run lint 通过；npx vitest run --no-color --exclude src/lib/import-service.test.ts 通过，15 个测试文件通过，82 passed / 1 skipped。
+- 已知风险：详情入口仍复用学校详情页路由，但会带 from=screening、programId 和 major 参数；如果页面仍看不到对应项目，优先检查实际 URL 是否包含 programId，以及筛选项目 id 是否存在于学校详情返回的 programs 中。
+- 下一步建议：重启本地项目后，用筛选页真实点击验证详情 URL、项目自动定位和搜索专业标红。

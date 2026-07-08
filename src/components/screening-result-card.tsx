@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
-import { getSupervisorAcceptanceStatus } from "@/lib/matcher";
+import { getEnrollmentRegionPreference, getSupervisorAcceptanceStatus } from "@/lib/matcher";
 import type { FitLevel, RankedProgram } from "@/lib/matcher";
 import { parseMajorItems } from "@/lib/screening-results";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -56,6 +56,11 @@ export function ScreeningResultCard({
       : supervisorStatus === "PARTIAL_REQUIRED"
         ? { label: "部分需导师接收函", tone: "amber" as const }
         : null;
+  const enrollmentRegionPreference = getEnrollmentRegionPreference(program);
+  const enrollmentRegionBadge =
+    enrollmentRegionPreference === "HAS_PREFERENCE"
+      ? { label: "有生源地偏好", tone: "amber" as const }
+      : null;
   const schoolDetailHref = buildSchoolDetailHref(result, detailParams);
   const majors = parseMajorItems(program.majorText);
   const visibleMajors = majors.slice(0, 8);
@@ -81,6 +86,9 @@ export function ScreeningResultCard({
                 </Link>
                 {supervisorBadge ? (
                   <Badge tone={supervisorBadge.tone}>{supervisorBadge.label}</Badge>
+                ) : null}
+                {enrollmentRegionBadge ? (
+                  <Badge tone={enrollmentRegionBadge.tone}>{enrollmentRegionBadge.label}</Badge>
                 ) : null}
               </div>
               <div className="result-program-name">{program.programName}</div>

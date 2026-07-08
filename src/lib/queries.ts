@@ -11,6 +11,7 @@ import {
 
 import { db, sqlite } from "@/lib/db";
 import { deriveAdmissionStatus } from "@/lib/customer-status";
+import { categorizeMajors, splitMajorText } from "@/lib/major-categories";
 import type { AdmissionStatus, ContractStatus } from "@/lib/constants";
 import {
   applications,
@@ -211,6 +212,24 @@ export async function listPrograms(filters: {
     .limit(300);
 }
 
+let majorCatalogCache: ReturnType<typeof categorizeMajors> | null = null;
+
+export function invalidateMajorCatalog() {
+  majorCatalogCache = null;
+}
+
+export async function getMajorCatalog() {
+  if (majorCatalogCache) return majorCatalogCache;
+
+  const rows = sqlite
+    .prepare(
+      "SELECT p.major_text AS majorText FROM programs p INNER JOIN schools s ON s.id = p.school_id WHERE p.archived = 0 AND s.archived = 0 AND p.major_text IS NOT NULL",
+    )
+    .all() as Array<{ majorText: string | null }>;
+
+  majorCatalogCache = categorizeMajors(rows.flatMap((row) => splitMajorText(row.majorText)));
+  return majorCatalogCache;
+}
 export async function getProgramsForScreening() {
   const rows = sqlite
     .prepare(
@@ -230,7 +249,9 @@ export async function getProgramsForScreening() {
           COALESCE(p.direction_text, '') || ' ' ||
           COALESCE(p.scholarship_content, '') || ' ' ||
           COALESCE(p.scholarship_note, '') || ' ' ||
-          COALESCE(p.fee_note, '')
+          COALESCE(p.fee_note, '') || ' ' ||
+          COALESCE(p.raw_json, '') || ' ' ||
+          COALESCE(s.recruitment_preference_text, '')
         ) AS sourceText,
         p.semester_text AS semesterText,
         p.application_time_text AS applicationTimeText,

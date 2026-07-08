@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import { parseProgramSoftRequirements } from "./soft-requirements";
 
@@ -19,6 +19,7 @@ describe("soft requirement parser", () => {
     );
     expect(result.competition).toEqual({
       status: "PREFERRED",
+      level: "national",
     });
   });
 
@@ -43,7 +44,7 @@ describe("soft requirement parser", () => {
       "成绩单（平均分 80 及以上；艺术特长生可适当放宽标准，需提供相关证书证明）",
     );
     expect(result.competition).toEqual({
-      status: "MENTIONED",
+      status: "PREFERRED",
     });
   });
 

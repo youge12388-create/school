@@ -1,4 +1,4 @@
-export type SoftRequirementStatus =
+﻿export type SoftRequirementStatus =
   | "REQUIRED"
   | "PREFERRED"
   | "MENTIONED"
@@ -7,6 +7,8 @@ export type SoftRequirementStatus =
 export type SoftRequirement = {
   status: SoftRequirementStatus;
   hasSCI?: boolean;
+  /** 竞赛/专利的级别要求：national / provincial / generic */
+  level?: "national" | "provincial" | "generic";
 };
 
 export type ProgramSoftRequirements = {
@@ -17,7 +19,7 @@ export type ProgramSoftRequirements = {
 const REQUIRED_CUE =
   /(必须|须|应当|应提供|应提交|要求提供|要求提交|需提供|需提交|不得少于|不低于|申请材料.{0,12}(包括|包含))/iu;
 const PREFERRED_CUE =
-  /(如有|可提供|可提交|建议提供|鼓励提供|优先|加分|有利|择优|参考|其他支撑材料|无法提供|可用.{0,20}替代)/iu;
+  /(如有|可提供|可提交|建议提供|鼓励提供|优先|加分|有利|择优|参考|其他支撑材料|无法提供|可用.{0,20}替代|放宽|可放宽|可适当|破格|不是必需|非必需|不强制|不是必须|非必须)/iu;
 const POST_ADMISSION_CUE =
   /(奖学金获得者|获奖者|入学后|在校期间|在读期间|上一学年|每学年|每年度|延长学习期间|修业期间)/iu;
 
@@ -36,6 +38,13 @@ const COMPETITION_TERMS = [
   /(业余爱好|个人特长)/iu,
 ];
 
+
+/** 解析需求的竞赛/专利层级 */
+function parseLevelFromText(text: string): "national" | "provincial" | "generic" | undefined {
+  if (/(国家|全国|国际)/u.test(text)) return "national";
+  if (/(省部|省级|省)/u.test(text)) return "provincial";
+  return undefined;
+}
 function hasTerm(text: string, patterns: RegExp[]): boolean {
   return patterns.some((p) => p.test(text));
 }
@@ -66,6 +75,8 @@ function classifySegment(segment: string, inMaterials: boolean): SoftRequirement
   if (PREFERRED_CUE.test(segment)) return "PREFERRED";
   if (REQUIRED_CUE.test(segment)) return "REQUIRED";
   if (inMaterials && /^[(（]?\d+[）).、\s]/u.test(segment)) return "REQUIRED";
+  // 在申请材料区且提到了相关术语，默认视为必须
+  if (inMaterials) return "REQUIRED";
   return "MENTIONED";
 }
 
@@ -90,9 +101,10 @@ function parseSoftRequirement(
   if (!matches.length) return { status: "UNKNOWN" };
 
   const status = highestStatus(matches.map((m) => classifySegment(m.context, inMaterials)));
+  const level = parseLevelFromText(text);
   const hasSCI = matches.some((m) => /\bSCI\b|\bEI\b/iu.test(m.segment));
 
-  return { status, ...(hasSCI ? { hasSCI: true } : {}) };
+  return { status, ...(hasSCI ? { hasSCI: true } : {}), ...(level ? { level } : {}) };
 }
 
 export function parseProgramSoftRequirements(

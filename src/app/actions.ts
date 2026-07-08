@@ -27,6 +27,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { parseProgram, splitMajors } from "@/lib/program-parser";
+import { invalidateMajorCatalog } from "@/lib/queries";
 import { asText, newId, normalizeKeyword, parseDateInput } from "@/lib/utils";
 
 export async function addFollowUpAction(formData: FormData) {
@@ -367,6 +368,7 @@ export async function updateProgramAction(formData: FormData) {
     entityId: id,
     details: { changed: changedFields(oldProgram, updates) },
   });
+  invalidateMajorCatalog();
   revalidatePath(`/schools/${oldProgram.schoolId}`);
 }
 export async function saveRecommendationAction(formData: FormData) {

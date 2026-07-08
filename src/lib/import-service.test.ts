@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import * as XLSX from "xlsx";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import { migrateDatabase } from "@/lib/db/migration";
 import { openRawDatabase } from "@/lib/db/raw";
@@ -20,6 +22,12 @@ import {
 const SCHOOL_HEADERS = [
   "学校中文名", "学校名称", "学校分类", "省份", "城市", "官网", "QS排名",
   "排名信息", "合作星级", "CSCA", "标签", "LogoID", "CoverID", "学校简介", "合作项目",
+];
+
+const SCHOOL_COOPERATION_HEADERS = [
+  "团体申请账号", "奖学金发放形式", "是否可代收", "合作截止日期", "公司招生名额",
+  "学校招生计划", "招生偏向", "语言生考核", "学历生考核", "合作备注", "特殊情况备注",
+  "申请更新频率",
 ];
 
 const PROGRAM_HEADERS = [
@@ -56,6 +64,58 @@ function programRow(schoolName = "测试大学", tuitionText = "30000 元/年") 
 
 function programWorkbook(rows = [programRow()]) {
   return workbookBuffer("高校项目", [["高校项目维护表"], PROGRAM_HEADERS, ...rows]);
+}
+
+const ENRICHED_PROGRAM_HEADERS = [
+  "学校ID",
+  "项目ID",
+  "院校分类",
+  "学校中文名",
+  "学校英文名",
+  "所在城市",
+  ...PROGRAM_HEADERS.filter((header) => header !== "学校中文名" && header !== "标签"),
+  ...SCHOOL_COOPERATION_HEADERS,
+];
+
+function enrichedProgramWorkbook(
+  overrides: Array<Record<string, unknown>> = [{}],
+) {
+  const base: Record<string, unknown> = {
+    学校ID: "school-1",
+    项目ID: "program-1",
+    院校分类: "综合类",
+    学校中文名: "新增大学",
+    学校英文名: "New University",
+    所在城市: "深圳市",
+    项目类型: "UG",
+    学费: "30000 元/年",
+    授课语言: "English",
+    项目介绍: "项目介绍",
+    学制: "4 年",
+    专业列表: "软件工程",
+    申请要求及材料: "要求 CSCA，雅思 6.0",
+    申请时间说明: "2099年5月31日截止",
+    团体申请账号: "√",
+    奖学金发放形式: "offer 标明",
+    是否可代收: "可代收",
+    合作截止日期: "2026-12-31",
+    公司招生名额: "20",
+    学校招生计划: "计划招收 50 人",
+    招生偏向: "优秀生源",
+    语言生考核: "面试",
+    学历生考核: "笔试",
+    合作备注: "可签署合作协议",
+    特殊情况备注: "无",
+    申请更新频率: "每月",
+  };
+  const rows = overrides.map((override) => {
+    const row = { ...base, ...override };
+    return ENRICHED_PROGRAM_HEADERS.map((header) => row[header] ?? "");
+  });
+  return workbookBuffer(
+    "高校项目",
+    [["高校项目汇总-中文版"], ENRICHED_PROGRAM_HEADERS, ...rows],
+  );
 }
 
 let testDir: string;
@@ -126,6 +186,160 @@ describe("Excel import", () => {
     expect(parsed.programs).toHaveLength(1);
     expect(parsed.duplicates).toBe(1);
   });
+
+  it("项目表可补充学校合作字段", () => {
+    const preview = createImportPreview(
+      {
+        schoolBuffer: schoolWorkbook("新增大学"),
+        schoolName: "schools.xlsx",
+        programBuffer: enrichedProgramWorkbook(),
+        programName: "enriched-programs.xlsx",
+      },
+      { databaseFile, importDir },
+    );
+
+    expect(preview.summary.schools.NEW).toBe(1);
+    expect(preview.summary.programs.NEW).toBe(1);
+    confirmImport(preview.batchId, null, { databaseFile });
+
+    const database = openRawDatabase(databaseFile);
+    const row = database
+      .prepare(
+        `SELECT s.external_id AS school_external_id,
+                s.name_zh AS school_name,
+                s.name AS school_english_name,
+                s.category,
+                s.city,
+                s.group_application_account,
+                s.scholarship_disbursement_text,
+                s.collection_service_text,
+                s.cooperation_deadline_text,
+                s.company_recruitment_quota_text,
+                s.school_recruitment_plan_text,
+                s.recruitment_preference_text,
+                s.language_student_assessment_text,
+                s.degree_student_assessment_text,
+                s.cooperation_note,
+                s.special_case_note,
+                s.application_update_frequency,
+                p.external_id AS program_external_id,
+                p.teaching_language,
+                p.review_status
+         FROM schools s
+         JOIN programs p ON p.school_id = s.id`,
+      )
+      .get() as Record<string, unknown>;
+    database.close();
+
+    expect(row).toMatchObject({
+      school_external_id: "school-1",
+      school_name: "新增大学",
+      school_english_name: "New University",
+      category: "综合类",
+      city: "深圳市",
+      group_application_account: "√",
+      scholarship_disbursement_text: "offer 标明",
+      collection_service_text: "可代收",
+      cooperation_deadline_text: "2026-12-31",
+      company_recruitment_quota_text: "20",
+      school_recruitment_plan_text: "计划招收 50 人",
+      recruitment_preference_text: "优秀生源",
+      language_student_assessment_text: "面试",
+      degree_student_assessment_text: "笔试",
+      cooperation_note: "可签署合作协议",
+      special_case_note: "无",
+      application_update_frequency: "每月",
+      program_external_id: "program-1",
+      teaching_language: "ENGLISH",
+      review_status: "AUTO_PARSED",
+    });
+  });
+
+  it("同校同类型同语言的多个项目缺项目ID时自动生成合成ID", () => {
+    const workbook = enrichedProgramWorkbook([
+      { 项目ID: "", 项目介绍: "预科项目" },
+      { 项目ID: "", 项目介绍: "汉语进修项目" },
+    ]);
+    const parsed = parseProgramWorkbook(workbook);
+    expect(parsed.programs).toHaveLength(2);
+    expect(parsed.programs.every((program) => program.externalId?.startsWith("auto:"))).toBe(true);
+    expect(parsed.programs[0]?.externalId).not.toBe(parsed.programs[1]?.externalId);
+  });
+
+  it("仅上传高校汇总也可导入学校", () => {
+    const preview = createImportPreview(
+      {
+        schoolBuffer: schoolWorkbook("独立大学"),
+        schoolName: "schools.xlsx",
+      },
+      { databaseFile, importDir },
+    );
+
+    expect(preview.summary.schools.NEW).toBe(1);
+    expect(preview.summary.programs.NEW).toBe(0);
+    expect(preview.summary.sourceDuplicates).toBe(0);
+    confirmImport(preview.batchId, null, { databaseFile });
+
+    const database = openRawDatabase(databaseFile);
+    const school = database
+      .prepare("SELECT name_zh, category FROM schools WHERE name_zh = ?")
+      .get("独立大学") as { name_zh: string; category: string };
+    const programCount = database
+      .prepare("SELECT COUNT(*) AS count FROM programs")
+      .get() as { count: number };
+    database.close();
+
+    expect(school).toEqual({ name_zh: "独立大学", category: "综合类" });
+    expect(programCount.count).toBe(0);
+  });
+
+  it("高校汇总表可直接导入全部 12 个合作字段", () => {
+    const headers = [...SCHOOL_HEADERS, ...SCHOOL_COOPERATION_HEADERS];
+    const values = [
+      "合作字段大学", "Cooperation University", "综合类", "广东省", "深圳市",
+      "https://coop.edu", 200, "QS 200", 5, "是", "985,211", "", "",
+      "学校简介", "本科项目",
+      "√", "offer 标明", "可代收", "2026-12-31", "30", "计划招收 100 人",
+      "优秀生源", "面试", "笔试", "可签署合作协议", "无", "每月",
+    ];
+    const buffer = workbookBuffer("高校汇总", [headers, values]);
+    const preview = createImportPreview(
+      { schoolBuffer: buffer, schoolName: "coop-schools.xlsx" },
+      { databaseFile, importDir },
+    );
+
+    expect(preview.summary.schools.NEW).toBe(1);
+    confirmImport(preview.batchId, null, { databaseFile });
+
+    const database = openRawDatabase(databaseFile);
+    const school = database
+      .prepare(
+        `SELECT group_application_account, scholarship_disbursement_text,
+                collection_service_text, cooperation_deadline_text,
+                company_recruitment_quota_text, school_recruitment_plan_text,
+                recruitment_preference_text, language_student_assessment_text,
+                degree_student_assessment_text, cooperation_note,
+                special_case_note, application_update_frequency
+         FROM schools WHERE name_zh = ?`,
+      )
+      .get("合作字段大学") as Record<string, unknown>;
+    database.close();
+
+    expect(school).toEqual({
+      group_application_account: "√",
+      scholarship_disbursement_text: "offer 标明",
+      collection_service_text: "可代收",
+      cooperation_deadline_text: "2026-12-31",
+      company_recruitment_quota_text: "30",
+      school_recruitment_plan_text: "计划招收 100 人",
+      recruitment_preference_text: "优秀生源",
+      language_student_assessment_text: "面试",
+      degree_student_assessment_text: "笔试",
+      cooperation_note: "可签署合作协议",
+      special_case_note: "无",
+      application_update_frequency: "每月",
+    });
+  });
 });
 
 describe("manual entry", () => {
@@ -143,13 +357,32 @@ describe("manual entry", () => {
     requirementsText: "要求 CSCA，雅思 6.5，GPA 80/100",
     applicationTimeText: "2099年5月31日截止",
     accommodationText: "9000 元/年",
+    groupApplicationAccount: "√",
+    scholarshipDisbursementText: "offer 标明",
+    collectionServiceText: "可代收",
+    cooperationDeadlineText: "2026-12-31",
+    companyRecruitmentQuotaText: "30",
+    schoolRecruitmentPlanText: "计划招收 100 人",
+    recruitmentPreferenceText: "优秀生源",
+    languageStudentAssessmentText: "面试",
+    degreeStudentAssessmentText: "笔试",
+    cooperationNote: "可签署合作协议",
+    specialCaseNote: "无",
+    applicationUpdateFrequency: "每月",
   };
 
   it("写入可搜索字段、专业索引、人工保护标记和审计日志", () => {
     const result = createManualEntry(input, null, databaseFile);
     const database = openRawDatabase(databaseFile);
     const row = database.prepare(
-      `SELECT s.name_zh AS school_name, p.name, p.major_text, p.tuition_max,
+      `SELECT s.name_zh AS school_name,
+              s.group_application_account, s.scholarship_disbursement_text,
+              s.collection_service_text, s.cooperation_deadline_text,
+              s.company_recruitment_quota_text, s.school_recruitment_plan_text,
+              s.recruitment_preference_text, s.language_student_assessment_text,
+              s.degree_student_assessment_text, s.cooperation_note,
+              s.special_case_note, s.application_update_frequency,
+              p.name, p.major_text, p.tuition_max,
               p.ielts_min, p.manually_verified, p.review_status
        FROM programs p JOIN schools s ON s.id = p.school_id`,
     ).get() as Record<string, unknown>;
@@ -164,6 +397,18 @@ describe("manual entry", () => {
     expect(result.createdSchool).toBe(true);
     expect(row).toMatchObject({
       school_name: "手工录入大学",
+      group_application_account: "√",
+      scholarship_disbursement_text: "offer 标明",
+      collection_service_text: "可代收",
+      cooperation_deadline_text: "2026-12-31",
+      company_recruitment_quota_text: "30",
+      school_recruitment_plan_text: "计划招收 100 人",
+      recruitment_preference_text: "优秀生源",
+      language_student_assessment_text: "面试",
+      degree_student_assessment_text: "笔试",
+      cooperation_note: "可签署合作协议",
+      special_case_note: "无",
+      application_update_frequency: "每月",
       name: "手工录入大学 · 本科 · 英文授课",
       major_text: "软件工程；人工智能",
       tuition_max: 32000,

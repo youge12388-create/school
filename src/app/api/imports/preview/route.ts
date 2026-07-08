@@ -7,14 +7,17 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const schoolFile = formData.get("schoolFile");
     const programFile = formData.get("programFile");
-    if (!(schoolFile instanceof File) || !(programFile instanceof File)) {
-      return Response.json({ error: "请同时选择两份 Excel 文件" }, { status: 400 });
+    if (!(schoolFile instanceof File)) {
+      return Response.json({ error: "请选择高校汇总 Excel" }, { status: 400 });
     }
     const preview = createImportPreview({
       schoolBuffer: Buffer.from(await schoolFile.arrayBuffer()),
       schoolName: schoolFile.name,
-      programBuffer: Buffer.from(await programFile.arrayBuffer()),
-      programName: programFile.name,
+      programBuffer:
+        programFile instanceof File
+          ? Buffer.from(await programFile.arrayBuffer())
+          : undefined,
+      programName: programFile instanceof File ? programFile.name : undefined,
       userId: user.id,
     });
     return Response.json({

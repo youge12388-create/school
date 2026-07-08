@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ScrollToProgram } from "@/components/scroll-to-program";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { getSchoolDetails } from "@/lib/queries";
 import { parseMajorItems } from "@/lib/screening-results";
-import { formatDate, formatMoney, safeJson } from "@/lib/utils";
+import { formatDate, formatMoney, normalizeKeyword, safeJson } from "@/lib/utils";
 
 const UNKNOWN_TEXT = "数据库未有相关信息";
 
@@ -28,28 +29,53 @@ const SCHOOL_FIELDS = [
   "合作项目",
 ] as const;
 
-const PROGRAM_FIELDS = [
-  "学校中文名",
+const COOPERATION_FIELD_GROUPS = [
+  {
+    title: "申请通道",
+    fields: ["团体申请账号", "是否可代收", "奖学金发放形式", "合作截止日期"],
+  },
+  {
+    title: "招生计划",
+    fields: ["公司招生名额", "学校招生计划", "学校申请更新频率"],
+  },
+  {
+    title: "考核安排",
+    fields: ["语言生面试、笔试", "学历生面试、笔试"],
+  },
+  {
+    title: "合作说明",
+    fields: ["招生偏向", "合作备注", "特殊情况备注"],
+  },
+] as const;
+
+// 项目核心字段：4 列紧凑网格 always 显示（短文本，决策时一眼可见）
+const PROGRAM_CORE_FIELDS = [
   "项目类型",
-  "学费",
   "授课语言",
-  "标签",
-  "项目介绍",
+  "学费",
   "学制",
   "学制备注",
-  "专业列表",
-  "专业方向",
-  "申请要求及材料",
-  "学期安排",
-  "申请时间说明",
+  "标签",
   "奖学金类别",
-  "奖学金内容",
-  "奖学金备注",
   "奖学金截止日期",
   "住宿费",
   "保险费",
   "自费生申请费",
   "奖学金申请费",
+] as const;
+
+// 申请要求及材料：不折叠，重点信息
+const PROGRAM_MATERIAL_FIELD = "申请要求及材料";
+
+// 项目长字段：折叠区，避免多项目时下滑过长
+const PROGRAM_LONG_FIELDS = [
+  "项目介绍",
+  "专业列表",
+  "专业方向",
+  "学期安排",
+  "申请时间说明",
+  "奖学金内容",
+  "奖学金备注",
   "费用备注",
 ] as const;
 
@@ -129,13 +155,18 @@ function isLongField(label: string, value: unknown) {
 function KnowledgeFieldGrid({
   fields,
   data,
+  hideEmpty = false,
 }: {
   fields: readonly string[];
   data: Record<string, unknown>;
+  hideEmpty?: boolean;
 }) {
+  const visibleFields = hideEmpty
+    ? fields.filter((label) => displayValue(data[label]) !== UNKNOWN_TEXT)
+    : fields;
   return (
     <div className="knowledge-field-grid">
-      {fields.map((label) => {
+      {visibleFields.map((label) => {
         const value = data[label];
         const text = displayValue(value);
         const majorItems =
@@ -150,9 +181,12 @@ function KnowledgeFieldGrid({
             <span>{label}</span>
             {majorItems.length ? (
               <ul className="major-chip-list" aria-label={`${label}，共 ${majorItems.length} 个`}>
-                {majorItems.map((major) => (
-                  <li className="major-chip" key={major}>{major}</li>
-                ))}
+                {majorItems.map((major) => {
+                  const majorMatch = targetMajor && normalizeKeyword(major).includes(normalizeKeyword(targetMajor));
+                  return (
+                    <li className={`major-chip${majorMatch ? " highlight" : ""}`} key={major}>{major}</li>
+                  );
+                })}
               </ul>
             ) : label === "官网" && text !== UNKNOWN_TEXT ? (
               <a href={externalUrl(text)} target="_blank" rel="noreferrer">
@@ -202,6 +236,7 @@ export default async function SchoolDetailsPage({
   const activeContextLabel = contextLabel(screeningContext);
   const schoolRaw = safeJson<Record<string, unknown>>(school.rawJson, {});
   const schoolKnowledge: Record<string, unknown> = {
+    ...schoolRaw,
     学校中文名: school.nameZh,
     学校名称: school.name,
     学校分类: school.category,
@@ -222,8 +257,29 @@ export default async function SchoolDetailsPage({
     CoverID: null,
     学校简介: school.description,
     合作项目: school.cooperationPrograms,
-    ...schoolRaw,
   };
+  const cooperationKnowledge: Record<string, unknown> = {
+    团体申请账号: school.groupApplicationAccount,
+    是否可代收: school.collectionServiceText,
+    奖学金发放形式: school.scholarshipDisbursementText,
+    合作截止日期: school.cooperationDeadlineText,
+    公司招生名额: school.companyRecruitmentQuotaText,
+    学校招生计划: school.schoolRecruitmentPlanText,
+    学校申请更新频率: school.applicationUpdateFrequency,
+    "语言生面试、笔试": school.languageStudentAssessmentText,
+    "学历生面试、笔试": school.degreeStudentAssessmentText,
+    招生偏向: canEdit ? school.recruitmentPreferenceText : null,
+    合作备注: school.cooperationNote,
+    特殊情况备注: school.specialCaseNote,
+  };
+  const visibleCooperationGroups = COOPERATION_FIELD_GROUPS
+    .map((group) => ({
+      ...group,
+      fields: group.fields.filter(
+        (field) => displayValue(cooperationKnowledge[field]) !== UNKNOWN_TEXT,
+      ),
+    }))
+    .filter((group) => group.fields.length);
 
   return (
     <>
@@ -248,7 +304,7 @@ export default async function SchoolDetailsPage({
         </div>
       </section>
 
-      <section className="card school-knowledge-card">
+      <section className="card card-compact school-knowledge-card">
         <div className="card-header school-knowledge-header">
           <div>
             <h3>高校汇总表 · 全部字段</h3>
@@ -259,11 +315,38 @@ export default async function SchoolDetailsPage({
           </Badge>
         </div>
         <div className="card-body">
-          <KnowledgeFieldGrid fields={SCHOOL_FIELDS} data={schoolKnowledge} />
+          <KnowledgeFieldGrid targetMajor={targetMajor || undefined} fields={SCHOOL_FIELDS} data={schoolKnowledge} />
         </div>
       </section>
 
+      {visibleCooperationGroups.length ? (
+        <section className="card card-compact school-cooperation-card">
+          <div className="card-header school-knowledge-header">
+            <div>
+              <h3>合作与招生信息</h3>
+              <p className="small muted">
+                来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。
+              </p>
+            </div>
+            <Badge tone="blue">学校级信息</Badge>
+          </div>
+          <div className="card-body cooperation-field-groups">
+            {visibleCooperationGroups.map((group) => (
+              <section className="cooperation-field-group" key={group.title}>
+                <h4>{group.title}</h4>
+                <KnowledgeFieldGrid
+                  data={cooperationKnowledge}
+                  fields={group.fields}
+                  hideEmpty
+                />
+              </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="school-programs-section">
+        {targetProgramId ? <ScrollToProgram programId={targetProgramId} /> : null}
         <div className="school-programs-heading">
           <div>
             <h2>{hasScreeningContext ? "筛选相关项目" : "高校项目表 · 全部项目与字段"}</h2>
@@ -310,7 +393,7 @@ export default async function SchoolDetailsPage({
               ...raw,
             };
             return (
-              <article className="card school-program-card" key={program.id}>
+              <article id={`program-${program.id}`} className="card card-compact school-program-card" key={program.id}>
                 <div className="card-header school-program-header">
                   <div>
                     <span className="small muted">项目 {index + 1}</span>
@@ -328,9 +411,34 @@ export default async function SchoolDetailsPage({
                     </Badge>
                   </div>
                 </div>
-                <div className="card-body">
-                  <KnowledgeFieldGrid fields={PROGRAM_FIELDS} data={programKnowledge} />
+                {/* 核心字段：4 列紧凑网格，决策时一眼可见（空字段不渲染） */}
+                <div className="program-core-grid">
+                  {PROGRAM_CORE_FIELDS.filter(
+                    (label) => displayValue(programKnowledge[label]) !== UNKNOWN_TEXT,
+                  ).map((label) => {
+                    const text = displayValue(programKnowledge[label]);
+                    return (
+                      <div className="detail-field" key={label}>
+                        <span className="label">{label}</span>
+                        <p className="value">{text}</p>
+                      </div>
+                    );
+                  })}
                 </div>
+                {/* 申请要求及材料：不折叠，重点信息（空时不渲染） */}
+                {displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD]) !== UNKNOWN_TEXT ? (
+                  <div className="program-material-section">
+                    <h4>申请要求及材料</h4>
+                    <p className="program-material-body">{displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD])}</p>
+                  </div>
+                ) : null}
+                {/* 其他长字段：折叠区，避免多项目时下滑过长 */}
+                <details className="program-long-section">
+                  <summary>展开项目详情（项目介绍 / 专业 / 学期 / 奖学金 / 费用备注）</summary>
+                  <div className="program-long-body">
+                    <KnowledgeFieldGrid fields={PROGRAM_LONG_FIELDS} data={programKnowledge} hideEmpty targetMajor={targetMajor} />
+                  </div>
+                </details>
               </article>
             );
           })
