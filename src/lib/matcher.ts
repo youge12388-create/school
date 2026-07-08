@@ -1,4 +1,4 @@
-﻿import type { RuleStatus } from "@/lib/constants";
+import type { RuleStatus } from "@/lib/constants";
 import { DEFAULT_MAJOR_SYNONYMS } from "@/lib/constants";
 import { parseAgeRequirement } from "@/lib/program-parser";
 import {
@@ -605,6 +605,30 @@ export function evaluateProgram(
               level: "FAIL",
               detail: `项目位于 ${[program.province, program.city].filter(Boolean).join(" · ") || "未知地区"}`,
             },
+    );
+  }
+
+  if (criteria.schoolTier) {
+    const tierLabels: Record<SchoolTier, string> = {
+      "985": "985",
+      "211": "211",
+      double_first_class_only: "双一流",
+      double_non: "双非普通院校",
+    };
+    const matches = matchesSchoolTier(program.schoolTags, criteria.schoolTier);
+    evidence.push(
+      matches
+        ? { label: "院校层次", level: "PASS" as const, detail: `学校属于 ${tierLabels[criteria.schoolTier]}` }
+        : { label: "院校层次", level: "FAIL" as const, detail: `学校不属于 ${tierLabels[criteria.schoolTier]}` },
+    );
+  }
+
+  if (criteria.enrollmentRegion === "no_preference") {
+    const pref = getEnrollmentRegionPreference(program);
+    evidence.push(
+      pref === "NO_PREFERENCE"
+        ? { label: "生源地偏好", level: "PASS" as const, detail: "项目无生源地招生偏好" }
+        : { label: "生源地偏好", level: "FAIL" as const, detail: "项目有生源地招生偏好" },
     );
   }
 
