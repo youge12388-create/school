@@ -25,3 +25,4 @@ tmp_patch.js
 # editor and OS
 .DS_Store
 .vercel
+.trae/

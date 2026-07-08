@@ -1,4 +1,4 @@
-import type { RuleStatus } from "@/lib/constants";
+﻿import type { RuleStatus } from "@/lib/constants";
 import { DEFAULT_MAJOR_SYNONYMS } from "@/lib/constants";
 import { parseAgeRequirement } from "@/lib/program-parser";
 import {
@@ -19,6 +19,7 @@ export type ScreeningCriteria = {
   teachingLanguage?: string;
   targetMajor?: string;
   schoolTier?: SchoolTier;
+  schoolQuery?: string;
   intakeYear?: number | null;
   budget?: number | null;
   hasCsca?: boolean | null;
@@ -38,6 +39,7 @@ export type ScreeningCriteria = {
   scholarshipType?: string; // "full" | "any" | "none"
   accommodationRequired?: boolean;
   supervisorAcceptance?: SupervisorAcceptanceMode | null;
+  enrollmentRegion?: string;
   deadlineFrom?: Date | null;
   deadlineTo?: Date | null;
   deadlineMode?: DeadlineMode;
@@ -129,6 +131,26 @@ export function matchesSchoolTier(
   return !has985 && !has211 && !hasDoubleFirstClass;
 }
 
+
+
+/** 检测生源地招生偏好 */
+const ENROLLMENT_REGIONS = /非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲|缅甸|菲律宾|委内瑞拉|塔吉克|土库曼|阿富汗|朝鲜|韩国|越南|泰国|马来西亚|印度尼西亚|印巴|斯坦|尼日利亚/u;
+export function getEnrollmentRegionPreference(program: MatchProgram): "HAS_PREFERENCE" | "NO_PREFERENCE" {
+  const text = (program.requirementsText ?? "") + (program.sourceText ?? "");
+  if (!ENROLLMENT_REGIONS.test(text)) return "NO_PREFERENCE";
+  // 明确招生偏好：招/不招/开放/限制 + 地区（跨行匹配）
+  if (/(不?招|不?开放|考虑|限制|倾向|侧重|偏向|可招|已招|推荐|鼓励)[\s\S]{0,200}(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)/u.test(text)) return "HAS_PREFERENCE";
+  if (/(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)[\s\S]{0,50}(不?招|不?开放|考虑|限制|不对|不予)/u.test(text)) return "HAS_PREFERENCE";
+  // 招生对象 + 地区
+  if (/(面向|针对|优先|招生对象|国别|生源|生源地)[\s\S]{0,100}(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达)/u.test(text)) return "HAS_PREFERENCE";
+  // 重点面向留学生
+  if (/(主要|重点)[\s\S]{0,30}(招收|面向)[\s\S]{0,30}(留学生|国际学生)/u.test(text)) return "HAS_PREFERENCE";
+  return "NO_PREFERENCE";
+}export function schoolNameMatches(schoolName: string, query?: string) {
+  if (!query) return true;
+  return normalizeKeyword(schoolName).includes(normalizeKeyword(query));
+}
+
 function compareThreshold(
   label: string,
   actual: number | null | undefined,
@@ -162,22 +184,34 @@ function locationMatches(expected: string, actual: string | null) {
   return normalizedActual.includes(normalizedExpected) || normalizedExpected.includes(normalizedActual);
 }
 
+export type MajorMatchResult = {
+  matched: boolean;
+  matchType: "exact" | "synonym" | "none";
+  synonymKeyword?: string;
+};
+
 export function majorMatches(
   query: string,
   majorText: string | null,
   groups = DEFAULT_MAJOR_SYNONYMS,
-) {
-  if (!query) return true;
-  if (!majorText) return false;
+): MajorMatchResult {
+  if (!query) return { matched: true, matchType: "exact" };
+  if (!majorText) return { matched: false, matchType: "none" };
   const normalizedQuery = normalizeKeyword(query);
   const normalizedText = normalizeKeyword(majorText);
-  if (normalizedText.includes(normalizedQuery)) return true;
-  const related = Object.values(groups).find((keywords) =>
-    keywords.some((keyword) => normalizedQuery.includes(normalizeKeyword(keyword))),
-  );
-  return related
-    ? related.some((keyword) => normalizedText.includes(normalizeKeyword(keyword)))
-    : false;
+  if (normalizedText.includes(normalizedQuery)) {
+    return { matched: true, matchType: "exact" };
+  }
+  for (const keywords of Object.values(groups)) {
+    const queryHit = keywords.find((k) => normalizedQuery.includes(normalizeKeyword(k)));
+    if (queryHit) {
+      const textHit = keywords.find((k) => normalizedText.includes(normalizeKeyword(k)));
+      if (textHit) {
+        return { matched: true, matchType: "synonym", synonymKeyword: textHit };
+      }
+    }
+  }
+  return { matched: false, matchType: "none" };
 }
 
 export function getEffectiveDeadlineStatus(program: MatchProgram, now = new Date()) {
@@ -426,7 +460,6 @@ function paperPatentEvidence(
     return { label: "论文/专利成果", level: "PASS", detail: "知识库未提及论文/专利要求，不影响申报" };
   }
   const isRequired = requirement.status === "REQUIRED";
-  const isPreferred = requirement.status === "PREFERRED";
   if (isRequired && actual === "general") {
     if (requirement.hasSCI) {
       return { label: "论文/专利成果", level: "PASS", detail: "学校要求SCI/EI论文，客户有普通论文可尝试申报" };
@@ -452,6 +485,13 @@ function competitionEvidence(
   }
   const isRequired = requirement.status === "REQUIRED";
   const isPreferred = requirement.status === "PREFERRED";
+  // 客户只有通用竞赛经历，但项目要求特定级别
+  if (isRequired && actual === "competition" && requirement.level === "national") {
+    return { label: "竞赛经历", level: "FAIL", detail: "项目要求至少达到国家级竞赛" };
+  }
+  if (isRequired && actual === "competition" && requirement.level === "provincial") {
+    return { label: "竞赛经历", level: "FAIL", detail: "项目要求至少达到省级竞赛" };
+  }
   if (isRequired) {
     return { label: "竞赛/突出表现", level: "PASS", detail: "学校要求/认可竞赛或突出表现，客户符合条件竞争力更强" };
   }
@@ -474,13 +514,16 @@ export function evaluateProgram(
   if (teachingLanguage) evidence.push(teachingLanguage);
 
   if (criteria.targetMajor) {
-    evidence.push(
-      majorMatches(criteria.targetMajor, program.majorText)
-        ? { label: "专业", level: "PASS", detail: "专业名称或同义词匹配" }
-        : program.majorText
-          ? { label: "专业", level: "FAIL", detail: "未找到相关专业" }
-          : { label: "专业", level: "UNKNOWN", detail: "数据库未有相关信息" },
-    );
+    const match = majorMatches(criteria.targetMajor, program.majorText);
+    if (match.matchType === "exact") {
+      evidence.push({ label: "专业", level: "PASS", detail: "有匹配的专业" });
+    } else if (match.matchType === "synonym") {
+      evidence.push({ label: "专业", level: "NEED", detail: "可能同类的专业" + (match.synonymKeyword ? "（命中\"" + match.synonymKeyword + "\"）" : "") });
+    } else if (program.majorText) {
+      evidence.push({ label: "专业", level: "FAIL", detail: "未找到相关专业" });
+    } else {
+      evidence.push({ label: "专业", level: "UNKNOWN", detail: "数据库未有相关信息" });
+    }
   }
 
   if (criteria.budget != null) {
@@ -629,8 +672,14 @@ export function rankPrograms(
   now = new Date(),
 ): RankedProgram[] {
   return programs
+    .filter((program) => schoolNameMatches(program.schoolName, criteria.schoolQuery))
     .filter((program) => matchesSchoolTier(program.schoolTags, criteria.schoolTier))
     .map((program) => ({ program, ...evaluateProgram(program, criteria, now) }))
+    .filter((result) =>
+      criteria.enrollmentRegion === "no_preference"
+        ? getEnrollmentRegionPreference(result.program) === "NO_PREFERENCE"
+        : true,
+    )
     .filter((result) => deadlineMatchesMode(result.effectiveDeadlineStatus, criteria.deadlineMode))
     .sort((a, b) => {
       if (a.effectiveDeadlineStatus === "EXPIRED" && b.effectiveDeadlineStatus !== "EXPIRED") return 1;

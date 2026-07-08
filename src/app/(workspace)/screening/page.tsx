@@ -1,10 +1,7 @@
-import Link from "next/link";
-
-import { Search } from "lucide-react";
 import { saveRecommendationAction } from "@/app/actions";
 import { ClearScreeningFilters } from "@/components/clear-screening-filters";
+import { MajorPicker, type MajorCatalog } from "@/components/major-picker";
 import { ScreeningResultCard } from "@/components/screening-result-card";
-import { HeaderSearch } from "@/components/header-search";
 import { EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import {
@@ -14,7 +11,7 @@ import {
   type RankedProgram,
   type ScreeningCriteria,
 } from "@/lib/matcher";
-import { getProgramsForScreening, listCustomerOptions } from "@/lib/queries";
+import { getMajorCatalog, getProgramsForScreening, listCustomerOptions } from "@/lib/queries";
 import { partitionScreeningResults } from "@/lib/screening-results";
 import { asNumber } from "@/lib/utils";
 
@@ -41,6 +38,7 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     teachingLanguage: params.language,
     targetMajor: params.major,
     schoolTier: parseSchoolTier(params.schoolTier),
+    schoolQuery: params.q,
     budget: asNumber(params.budget),
     hasCsca: params.csca === "yes" ? true : params.csca === "no" ? false : null,
     gpa: asNumber(params.gpa),
@@ -59,6 +57,7 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     scholarshipType: params.scholarshipType || "",
     accommodationRequired: params.accommodation === "yes",
     supervisorAcceptance: parseSupervisorAcceptance(params.supervisorAcceptance),
+    enrollmentRegion: params.enrollmentRegion,
     deadlineFrom: parseDateParam(params.deadlineFrom),
     deadlineTo: parseDateParam(params.deadlineTo),
     deadlineMode:
@@ -70,6 +69,7 @@ const searchKeys = [
   "type",
   "language",
   "major",
+  "q",
   "budget",
   "csca",
   "age",
@@ -88,6 +88,7 @@ const searchKeys = [
   "scholarshipType",
   "accommodation",
   "supervisorAcceptance",
+  "enrollmentRegion",
   "deadlineFrom",
   "deadlineTo",
 ] as const;
@@ -128,6 +129,7 @@ const preferenceFilterKeys = [
   "province",
   "city",
   "accommodation",
+  "enrollmentRegion",
 ] as const;
 const fitSection: Record<
   Exclude<FitLevel, "NOT_MATCHED">,
@@ -192,9 +194,10 @@ export default async function ScreeningPage({
   const showAcademicFilters = hasAnyParam(params, academicFilterKeys);
   const showSoftFilters = hasAnyParam(params, softFilterKeys);
   const showPreferenceFilters = hasAnyParam(params, preferenceFilterKeys);
-  const [programs, customers] = await Promise.all([
+  const [programs, customers, majorCatalog] = await Promise.all([
     hasSearch ? getProgramsForScreening() : Promise.resolve([]),
     listCustomerOptions(),
+    getMajorCatalog(),
   ]);
   const results = hasSearch ? rankPrograms(programs, criteria) : [];
   const ranks = new Map(results.map((result, index) => [result.program.id, index + 1]));
@@ -214,11 +217,6 @@ export default async function ScreeningPage({
       <PageHeading
         title="学校项目筛查"
         description="明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。"
-        action={
-          <Link className="button mobile-header-icon-only" href="/schools" aria-label="搜索学校">
-            <Search aria-hidden="true" />
-          </Link>
-        }
       />
       <form className="card screening-filter-card" method="get">
         <div className="card-header">
@@ -226,7 +224,14 @@ export default async function ScreeningPage({
             <h3>客户筛选条件</h3>
             <p className="small muted">空缺信息不参与判断，可按需展开更多条件。</p>
           </div>
-          <HeaderSearch />
+          <div className="header-search">
+            <input
+              name="q"
+              defaultValue={params.q}
+              placeholder="搜索学校名称..."
+              aria-label="搜索学校"
+            />
+          </div>
         </div>
         <div className="card-body screening-filter-body">
           <section className="screening-filter-section screening-filter-primary">
@@ -251,7 +256,15 @@ export default async function ScreeningPage({
                     ))}
                   </select>
                 </label>
-                <label>目标专业<input name="major" defaultValue={params.major} /></label>
+                <label>
+                  目标专业
+                  <MajorPicker
+                    name="major"
+                    defaultValue={params.major ?? ""}
+                    catalog={majorCatalog as MajorCatalog}
+                    placeholder="输入或选择专业..."
+                  />
+                </label>
                 <label>
                   CSCA 当前状态
                   <select name="csca" defaultValue={params.csca}>
@@ -381,6 +394,13 @@ export default async function ScreeningPage({
                 <select name="accommodation" defaultValue={params.accommodation}>
                   <option value="">不限</option>
                   <option value="yes">需要住宿信息</option>
+                </select>
+              </label>
+              <label>
+                生源地（招生）偏好
+                <select name="enrollmentRegion" defaultValue={params.enrollmentRegion || ""}>
+                  <option value="">不限</option>
+                  <option value="no_preference">没有生源地偏好</option>
                 </select>
               </label>
             </div>

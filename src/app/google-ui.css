@@ -1,3 +1,20 @@
+﻿
+/* 筛选结果专业标红 */
+.major-chip.highlight {
+  background: #fde8e8;
+  color: #c41e3a;
+  font-weight: 600;
+  border-color: #f5c6cb;
+}
+/* 从筛选跳转后高亮闪烁 */
+.program-highlight-flash {
+  animation: program-flash 1.5s ease-out;
+}
+@keyframes program-flash {
+  0% { box-shadow: 0 0 0 3px #f59e0b; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 :root {
   --bg: #f8fafd;
   --bg-line: #edf1f7;
@@ -1253,6 +1270,40 @@ tbody tr:hover {
   margin-top: 16px;
 }
 
+.school-cooperation-card {
+  margin-top: 16px;
+}
+
+.cooperation-field-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.cooperation-field-group {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+  border-top: 2px solid var(--primary);
+  padding-top: 10px;
+}
+
+.cooperation-field-group h4 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.cooperation-field-group .knowledge-field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: 8px;
+}
+
+.cooperation-field-group .knowledge-field-wide {
+  grid-column: 1 / -1;
+}
+
 .school-knowledge-header {
   align-items: flex-start;
 }
@@ -1264,25 +1315,28 @@ tbody tr:hover {
 
 .knowledge-field-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
   overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 14px;
-  background: var(--border-soft);
+  background: transparent;
 }
 
 .knowledge-field {
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 8px;
-  padding: 15px 16px;
+  gap: 4px;
+  padding: 10px 12px;
   background: #fff;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .knowledge-field-wide {
   grid-column: 1 / -1;
+  border-right: 0;
 }
 
 .knowledge-field span {
@@ -1344,6 +1398,10 @@ tbody tr:hover {
   }
 
   .school-program-details {
+    grid-template-columns: 1fr;
+  }
+  .cooperation-field-groups,
+  .cooperation-field-group .knowledge-field-grid {
     grid-template-columns: 1fr;
   }
   .knowledge-field-grid {
@@ -1549,4 +1607,618 @@ tbody tr:hover {
   .result-meta > span {
     white-space: normal;
   }
+}
+
+/* ===== 详情页紧凑排版 =====
+   独立于全局 .card，通过 .card-compact 修饰类减小留白，
+   避免影响筛选页 / 列表页 / 工作台。 */
+
+.card-compact > .card-header {
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
+.card-compact > .card-body {
+  padding: 12px 16px;
+}
+
+.detail-section + .detail-section {
+  margin-top: 14px;
+}
+
+/* 状态条：一行展示客户关键状态，避免分散在多张卡 */
+.detail-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  margin-bottom: 14px;
+}
+
+.detail-status-bar .status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detail-status-bar .status-item > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detail-status-bar .status-item > strong {
+  font-weight: 650;
+  font-size: 14px;
+}
+
+/* 紧凑字段网格：3 列默认，修饰类切列数 */
+.detail-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 22px;
+}
+
+.detail-field-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.detail-field-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.detail-field {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.detail-field > .label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.detail-field > .value {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.detail-field > .value.muted {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.detail-field-wide { grid-column: 1 / -1; }
+
+.detail-group-title {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding-bottom: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* 紧凑列表行 */
+.detail-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.detail-list-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.detail-list-row .small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 紧凑时间线 */
+.detail-timeline {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-timeline-item {
+  padding: 6px 0 6px 12px;
+  border-left: 2px solid var(--border-soft);
+}
+
+.detail-timeline-item > strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.detail-timeline-item .small {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.detail-timeline-item > p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* 操作卡：dashed 边框 + 浅底，视觉权重低于信息卡 */
+.detail-action-card {
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: #fafafa;
+  box-shadow: none;
+}
+
+.detail-action-card > .card-header {
+  min-height: 36px;
+  padding: 6px 14px;
+  background: transparent;
+  border-bottom: 1px dashed var(--border-soft);
+}
+
+.detail-action-card > .card-header h3 {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-action-card > .card-body {
+  padding: 10px 14px;
+}
+
+.detail-action-card .form-grid {
+  gap: 10px;
+}
+
+.detail-action-card .form-actions {
+  margin-top: 8px;
+}
+
+/* 客户管理 inline 表单：单行 */
+.customer-management-fields {
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) auto;
+  gap: 12px;
+}
+
+/* ===== 学校详情页紧凑调整 ===== */
+.school-overview-grid {
+  margin-bottom: 12px;
+}
+
+.school-overview-card {
+  min-height: 72px;
+  padding: 12px 16px;
+  align-content: center;
+}
+
+.school-overview-card strong {
+  font-size: 18px;
+}
+
+.school-overview-card span {
+  font-size: 11px;
+}
+
+.school-programs-section {
+  margin-top: 16px;
+}
+
+.school-programs-heading h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.school-programs-heading p {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.school-program-card {
+  margin-bottom: 12px;
+}
+
+.school-program-header {
+  padding: 12px 16px;
+}
+
+.school-program-header h3 {
+  font-size: 14px;
+  margin: 2px 0 0;
+}
+
+.school-program-header .result-meta {
+  margin-top: 4px;
+}
+
+.school-program-header .result-meta > span {
+  font-size: 12px;
+}
+
+/* 项目卡核心字段网格：4 列 + 圆角外框 + 单元格分隔 */
+.program-core-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  margin: 12px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.program-core-grid > .detail-field {
+  background: #fff;
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.program-core-grid > .detail-field > .label {
+  font-size: 11px;
+}
+
+.program-core-grid > .detail-field > .value {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 项目"申请要求及材料"：圆角外框包裹，重点信息不折叠 */
+.program-material-section {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fffef7;
+}
+
+.program-material-section > h4 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.program-material-section > .program-material-body {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+/* 项目其他长字段：圆角外框包裹的折叠区 */
+.program-long-section {
+  margin: 12px 16px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.program-long-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  list-style: none;
+  background: #f5f7ff;
+  transition: background 0.15s;
+}
+
+.program-long-section > summary:hover {
+  background: #eef2ff;
+}
+
+.program-long-section[open] > summary {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.program-long-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.program-long-section > summary::before {
+  content: '▶';
+  font-size: 12px;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+.program-long-section[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.program-long-body {
+  padding: 4px 16px 14px;
+}
+
+/* 折叠区内长字段：单列紧凑，字段间用细分隔线 */
+.program-long-body .knowledge-field-grid {
+  grid-template-columns: 1fr;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+.program-long-body .knowledge-field {
+  padding: 10px 0;
+  background: transparent;
+  border-right: 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.program-long-body .knowledge-field:last-child {
+  border-bottom: 0;
+}
+
+.program-long-body .detail-field {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.program-long-body .detail-field:last-child {
+  border-bottom: 0;
+}
+
+.program-long-body .detail-field > .value {
+  font-weight: 400;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* 学校详情知识字段网格：紧凑 */
+.school-knowledge-card > .card-body {
+  padding: 12px 16px;
+}
+
+.knowledge-field {
+  padding: 10px 12px;
+  gap: 4px;
+}
+
+.knowledge-field span {
+  font-size: 11px;
+}
+
+.knowledge-field p,
+.knowledge-field a {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ===== 申请详情页 ===== */
+.application-status-form {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.application-status-form > .wide {
+  grid-column: 1 / -1;
+}
+
+.application-status-form .form-actions {
+  margin-top: 0;
+}
+
+/* 响应式 */
+@media (max-width: 1160px) {
+  .detail-field-grid,
+  .program-core-grid,
+  .customer-management-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .detail-field-grid,
+  .detail-field-grid.cols-2,
+  .detail-field-grid.cols-4,
+  .program-core-grid,
+  .customer-management-fields,
+  .application-status-form {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .program-core-grid,
+  .program-material-section,
+  .program-long-section {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+}
+
+/* ===== MajorPicker 专业选择器（combobox） ===== */
+.major-picker {
+  position: relative;
+  display: block;
+}
+
+.major-picker-input-wrapper {
+  position: relative;
+  display: block;
+}
+
+.major-picker-input-wrapper > input {
+  width: 100%;
+  padding-right: 32px;
+}
+
+.major-picker-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted, #5f6368);
+  pointer-events: none;
+  transition: transform 0.18s ease;
+}
+
+.major-picker-chevron.is-open {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.major-picker-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-height: auto;
+  padding: 0;
+  background: var(--surface-2, #f1f3f4);
+  border: none;
+  border-radius: 50%;
+  color: var(--muted, #5f6368);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.major-picker-clear svg,
+.major-picker-clear svg * {
+  pointer-events: none !important;
+}
+
+.major-picker-clear:hover {
+  background: var(--border, #dadce0);
+  color: var(--text, #202124);
+}
+
+.major-picker-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #dadce0);
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+}
+
+.major-picker-group {
+  padding: 2px 0;
+}
+
+.major-picker-group + .major-picker-group {
+  border-top: 1px solid var(--border, #ecedef);
+}
+
+.major-picker-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 4px;
+  font-size: 12px;
+  color: var(--muted, #5f6368);
+  font-weight: 500;
+  text-transform: none;
+}
+
+.major-picker-group-count {
+  font-size: 11px;
+  background: var(--surface-2, #f1f3f4);
+  padding: 1px 6px;
+  border-radius: 10px;
+  color: var(--muted, #5f6368);
+}
+
+.major-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text, #202124);
+  min-height: 36px;
+  line-height: 1.4;
+  gap: 8px;
+}
+
+.major-picker-option.is-category {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.major-picker-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.major-picker-option-hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted, #5f6368);
+  background: var(--surface-2, #f1f3f4);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
+.major-picker-option:hover,
+.major-picker-option.is-active {
+  background: var(--surface-2, #f1f3f4);
+  color: var(--primary, #1a73e8);
+}
+
+.major-picker-empty {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--muted, #5f6368);
+  text-align: center;
 }
