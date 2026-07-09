@@ -12,6 +12,7 @@ import {
 import { db, sqlite } from "@/lib/db";
 import { deriveAdmissionStatus } from "@/lib/customer-status";
 import { categorizeMajors, splitMajorText } from "@/lib/major-categories";
+import { parseDeadline } from "@/lib/program-parser";
 import type { AdmissionStatus, ContractStatus } from "@/lib/constants";
 import {
   applications,
@@ -316,14 +317,29 @@ export async function getProgramsForScreening() {
       reviewStatus: string;
     }>;
 
-  return rows.map((row) => ({
-    ...row,
-    costIncomplete: Boolean(row.costIncomplete),
-    deadlineDate:
-      row.deadlineDate == null || !Number.isFinite(row.deadlineDate)
-        ? null
-        : new Date(row.deadlineDate),
-  }));
+  return rows.map((row) => {
+    // 从 applicationTimeText 实时解析 deadline，处理无年份日期的自动翻年
+    let deadlineDate: Date | null = null;
+    let deadlineStatus = row.deadlineStatus;
+    if (row.applicationTimeText) {
+      const parsed = parseDeadline(row.applicationTimeText);
+      if (parsed.date) {
+        deadlineDate = parsed.date;
+        deadlineStatus = parsed.status;
+      }
+    }
+    // 回退：实时解析失败时使用存储值
+    if (!deadlineDate && row.deadlineDate != null && Number.isFinite(row.deadlineDate)) {
+      deadlineDate = new Date(row.deadlineDate);
+    }
+
+    return {
+      ...row,
+      costIncomplete: Boolean(row.costIncomplete),
+      deadlineDate,
+      deadlineStatus,
+    };
+  });
 }
 export async function getSchoolDetails(id: string) {
   const [school] = await db
