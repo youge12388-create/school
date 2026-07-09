@@ -251,12 +251,16 @@ function deadlineEvidence(
     return { label: "申请截止", level: "UNKNOWN" as const, detail: "数据库未有相关信息" };
   }
   const dateText = program.deadlineDate.toLocaleDateString("zh-CN");
+  // 优先展示原始文本，范围格式（X月X日-X月X日）比解析日期更直观
+  const rawText = program.applicationTimeText?.trim();
+  const detailSuffix = rawText ? ` (${rawText})` : "";
+
   if (status === "EXPIRED") {
     const hasDeadlineFilter = criteria.deadlineFrom != null || criteria.deadlineTo != null || (criteria.deadlineMode && criteria.deadlineMode !== "all");
     if (!hasDeadlineFilter) {
-      return { label: "申请截止", level: "NEED" as const, detail: `已截止 ${dateText}，需确认是否仍可申请` };
+      return { label: "申请截止", level: "NEED" as const, detail: `已截止 ${dateText}，需确认是否仍可申请${detailSuffix}` };
     }
-    return { label: "申请截止", level: "FAIL" as const, detail: `已截止 ${dateText}` };
+    return { label: "申请截止", level: "FAIL" as const, detail: `已截止 ${dateText}${detailSuffix}` };
   }
   const time = program.deadlineDate.getTime();
   const from = criteria.deadlineFrom?.getTime();
@@ -264,12 +268,12 @@ function deadlineEvidence(
     ? new Date(criteria.deadlineTo).setHours(23, 59, 59, 999)
     : null;
   if (from != null && time < from) {
-    return { label: "申请截止", level: "FAIL" as const, detail: `截止 ${dateText}，早于筛选范围` };
+    return { label: "申请截止", level: "FAIL" as const, detail: `截止 ${dateText}，早于筛选范围${detailSuffix}` };
   }
   if (to != null && time > to) {
-    return { label: "申请截止", level: "FAIL" as const, detail: `截止 ${dateText}，晚于筛选范围` };
+    return { label: "申请截止", level: "FAIL" as const, detail: `截止 ${dateText}，晚于筛选范围${detailSuffix}` };
   }
-  return { label: "申请截止", level: "PASS" as const, detail: `截止 ${dateText}` };
+  return { label: "申请截止", level: "PASS" as const, detail: `截止 ${dateText}${detailSuffix}` };
 }
 
 function ageEvidence(program: MatchProgram, age: number | null | undefined): MatchEvidence | null {

@@ -74,28 +74,47 @@ function firstNumber(text: string, pattern: RegExp) {
 
 export function parseDeadline(text: string, now = new Date()) {
   const matches: Date[] = [];
+  const year = now.getFullYear();
+
+  // Step 1: full dates with year (e.g. 2026年3月20日)
   const fullDate = /(20\d{2})[年./-](\d{1,2})[月./-](\d{1,2})日?/g;
   for (const match of text.matchAll(fullDate)) {
     const date = new Date(
       Number(match[1]),
       Number(match[2]) - 1,
       Number(match[3]),
-      23,
-      59,
-      59,
+      23, 59, 59,
     );
     if (!Number.isNaN(date.getTime())) matches.push(date);
   }
 
   if (!matches.length) {
-    const year = now.getFullYear();
-    const monthDay = /(\d{1,2})月(\d{1,2})日/g;
-    for (const match of text.matchAll(monthDay)) {
-      const candidate = new Date(year, Number(match[1]) - 1, Number(match[2]), 23, 59, 59);
+    const makeDate = (month: number, day: number, forceYear?: number) => {
+      const y = forceYear ?? year;
+      const candidate = new Date(y, month - 1, day, 23, 59, 59);
       if (candidate < now && candidate.getTime() + 180 * 86400000 < now.getTime()) {
-        candidate.setFullYear(year + 1);
+        candidate.setFullYear(y + 1);
       }
-      matches.push(candidate);
+      return candidate;
+    };
+
+    // Step 2: match ranges (X月X日-X月X日), take end dates as deadlines
+    const rangePattern = /(\d{1,2})月(\d{1,2})日\s*[-—–~至到]\s*(\d{1,2})月(\d{1,2})日/g;
+    let remaining = text;
+    for (const match of text.matchAll(rangePattern)) {
+      const startMonth = Number(match[1]);
+      const endMonth = Number(match[3]);
+      const endDay = Number(match[4]);
+      // cross-year range: end month < start month (e.g. 10月-1月 → next year)
+      const forceYear = endMonth < startMonth ? year + 1 : undefined;
+      matches.push(makeDate(endMonth, endDay, forceYear));
+      remaining = remaining.replace(match[0], "");
+    }
+
+    // Step 3: match standalone month-day dates (not part of ranges)
+    const monthDay = /(\d{1,2})月(\d{1,2})日/g;
+    for (const match of remaining.matchAll(monthDay)) {
+      matches.push(makeDate(Number(match[1]), Number(match[2])));
     }
   }
 
