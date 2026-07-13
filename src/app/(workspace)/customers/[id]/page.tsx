@@ -32,6 +32,7 @@ export default async function CustomerDetailPage({
     Promise.resolve(listCustomerOwners()),
   ]);
   const customer = data.customer;
+  const contractLabel = CONTRACT_STATUS_LABELS[customer.contractStatus] ?? customer.contractStatus;
   return (
     <>
       <PageHeading
@@ -44,91 +45,127 @@ export default async function CustomerDetailPage({
           </form>
         }
       />
-      <section className="card customer-management-card">
-        <div className="card-header"><h3>客户管理状态</h3></div>
+
+      {/* 状态条：一行展示客户关键状态，便于一眼定位 */}
+      <div className="detail-status-bar">
+        <div className="status-item">
+          <span>客户编号</span>
+          <strong>{customer.customerNo}</strong>
+        </div>
+        <div className="status-item">
+          <span>国籍</span>
+          <strong>{customer.nationality || "未录入"}</strong>
+        </div>
+        <div className="status-item">
+          <span>负责老师</span>
+          <strong>{customer.ownerName || "未分配"}</strong>
+        </div>
+        <div className="status-item">
+          <span>签约状态</span>
+          <Badge tone={customer.contractStatus === "SIGNED" ? "green" : "amber"}>{contractLabel}</Badge>
+        </div>
+      </div>
+
+      {/* 客户档案：合并联系信息 / 申请目标 / 成绩条件三组，紧凑字段网格 */}
+      <section className="card card-compact detail-section">
+        <div className="card-header"><h3>客户档案</h3></div>
         <div className="card-body">
-          <form action={updateCustomerManagementAction}>
-            <input type="hidden" name="customerId" value={id} />
-            <div className="customer-management-fields">
-              <label>
-                负责老师
-                <select name="ownerId" defaultValue={customer.ownerId || ""} required>
-                  {owners.map((owner) => (
-                    <option value={owner.id} key={owner.id}>{owner.displayName}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                签约状态
-                <select name="contractStatus" defaultValue={customer.contractStatus}>
-                  {CONTRACT_STATUSES.map((status) => (
-                    <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
-                  ))}
-                </select>
-              </label>
-              <button className="primary" type="submit">更新管理状态</button>
+          <div className="detail-field-grid cols-3">
+            <div className="detail-group-title">联系信息</div>
+            <div className="detail-field">
+              <span className="label">电话</span>
+              <p className={`value${customer.phone ? "" : " muted"}`}>{customer.phone || "—"}</p>
             </div>
-          </form>
-        </div>
-      </section>
-      <section className="grid cols-3">
-        <div className="card">
-          <div className="card-header"><h3>联系信息</h3></div>
-          <div className="card-body">
-            <p>电话：{customer.phone || "—"}</p>
-            <p>邮箱：{customer.email || "—"}</p>
-            <p>微信：{customer.wechat || "—"}</p>
-            <p>负责老师：{customer.ownerName || "未分配"}</p>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-header"><h3>申请目标</h3></div>
-          <div className="card-body">
-            <p>学历：{PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "—"}</p>
-            <p>专业：{customer.targetMajor || "—"}</p>
-            <p>语言：{LANGUAGE_LABELS[customer.teachingLanguage || ""] || "不限"}</p>
-            <p>首年预算：{formatMoney(customer.firstYearBudget)}</p>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-header"><h3>成绩条件</h3></div>
-          <div className="card-body">
-            <p>GPA：{customer.gpa ?? "—"} / {customer.gpaScale ?? "—"}</p>
-            <p>HSK：{customer.hskLevel ? `${customer.hskLevel}级 ${customer.hskScore ?? ""}` : "—"}</p>
-            <p>雅思 / 托福 / 多邻国：{customer.ielts ?? "—"} / {customer.toefl ?? "—"} / {customer.duolingo ?? "—"}</p>
-            <p>CSCA：{customer.hasCsca == null ? "未确认" : customer.hasCsca ? "已有" : "目前没有"}</p>
+            <div className="detail-field">
+              <span className="label">邮箱</span>
+              <p className={`value${customer.email ? "" : " muted"}`}>{customer.email || "—"}</p>
+            </div>
+            <div className="detail-field">
+              <span className="label">微信</span>
+              <p className={`value${customer.wechat ? "" : " muted"}`}>{customer.wechat || "—"}</p>
+            </div>
+
+            <div className="detail-group-title">申请目标</div>
+            <div className="detail-field">
+              <span className="label">学历</span>
+              <p className={`value${customer.targetDegree ? "" : " muted"}`}>
+                {PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "—"}
+              </p>
+            </div>
+            <div className="detail-field">
+              <span className="label">专业</span>
+              <p className={`value${customer.targetMajor ? "" : " muted"}`}>{customer.targetMajor || "—"}</p>
+            </div>
+            <div className="detail-field">
+              <span className="label">语言</span>
+              <p className={`value${customer.teachingLanguage ? "" : " muted"}`}>
+                {LANGUAGE_LABELS[customer.teachingLanguage || ""] || "不限"}
+              </p>
+            </div>
+            <div className="detail-field">
+              <span className="label">首年预算</span>
+              <p className="value">{formatMoney(customer.firstYearBudget)}</p>
+            </div>
+
+            <div className="detail-group-title">成绩条件</div>
+            <div className="detail-field">
+              <span className="label">GPA</span>
+              <p className="value">{customer.gpa ?? "—"} / {customer.gpaScale ?? "—"}</p>
+            </div>
+            <div className="detail-field">
+              <span className="label">HSK</span>
+              <p className={`value${customer.hskLevel ? "" : " muted"}`}>
+                {customer.hskLevel ? `${customer.hskLevel}级 ${customer.hskScore ?? ""}` : "—"}
+              </p>
+            </div>
+            <div className="detail-field">
+              <span className="label">雅思 / 托福 / 多邻国</span>
+              <p className="value">{customer.ielts ?? "—"} / {customer.toefl ?? "—"} / {customer.duolingo ?? "—"}</p>
+            </div>
+            <div className="detail-field">
+              <span className="label">CSCA</span>
+              <p className="value">
+                {customer.hasCsca == null ? "未确认" : customer.hasCsca ? "已有" : "目前没有"}
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="grid cols-2" style={{ marginTop: 16 }}>
-        <div className="card">
-          <div className="card-header"><h3>后续跟进情况</h3></div>
+      {/* 跟进 + 材料：两列并排，已有列表优先，新建表单视觉权重低 */}
+      <section className="grid cols-2 detail-section">
+        <div className="card card-compact">
+          <div className="card-header">
+            <h3>后续跟进情况</h3>
+            <span className="small muted">{data.followUps.length} 条记录</span>
+          </div>
           <div className="card-body">
-            <form action={addFollowUpAction}>
-              <input type="hidden" name="customerId" value={id} />
-              <div className="form-grid">
-                <label>
-                  渠道
-                  <select name="channel">
-                    <option>企业微信</option>
-                    <option>微信</option>
-                    <option>电话</option>
-                    <option>邮件</option>
-                    <option>面谈</option>
-                    <option>其他</option>
-                  </select>
-                </label>
-                <label>计划跟进日期<input name="nextFollowUpAt" type="date" /></label>
-                <label className="wide">沟通内容<textarea name="content" required /></label>
-              </div>
-              <div className="form-actions"><button type="submit">添加记录</button></div>
-            </form>
-            <div className="timeline" style={{ marginTop: 22 }}>
+            <div className="detail-action-card">
+              <form action={addFollowUpAction}>
+                <input type="hidden" name="customerId" value={id} />
+                <div className="form-grid">
+                  <label>
+                    渠道
+                    <select name="channel">
+                      <option>企业微信</option>
+                      <option>微信</option>
+                      <option>电话</option>
+                      <option>邮件</option>
+                      <option>面谈</option>
+                      <option>其他</option>
+                    </select>
+                  </label>
+                  <label>计划跟进日期<input name="nextFollowUpAt" type="date" /></label>
+                  <label className="wide">沟通内容<textarea name="content" required /></label>
+                </div>
+                <div className="form-actions"><button type="submit">添加记录</button></div>
+              </form>
+            </div>
+            <div className="detail-timeline" style={{ marginTop: 14 }}>
               {data.followUps.map((item) => (
-                <div className="timeline-item" key={item.id}>
+                <div className="detail-timeline-item" key={item.id}>
                   <strong>{item.channel} · {item.authorName}</strong>
-                  <div className="small muted">{formatDate(item.createdAt)}</div>
+                  <div className="small">{formatDate(item.createdAt)}</div>
                   <p>{item.content}</p>
                   {item.nextFollowUpAt ? <p className="small">计划跟进：{formatDate(item.nextFollowUpAt)}</p> : null}
                 </div>
@@ -137,89 +174,111 @@ export default async function CustomerDetailPage({
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-header"><h3>客户材料</h3></div>
+        <div className="card card-compact">
+          <div className="card-header">
+            <h3>客户材料</h3>
+            <span className="small muted">{data.documents.length} 份</span>
+          </div>
           <div className="card-body">
-            <form action="/api/documents/upload" method="post" encType="multipart/form-data">
-              <input type="hidden" name="customerId" value={id} />
-              <div className="form-grid">
-                <label>
-                  材料类别
-                  <select name="category">
-                    <option>护照</option>
-                    <option>成绩单</option>
-                    <option>毕业证</option>
-                    <option>语言证书</option>
-                    <option>体检表</option>
-                    <option>无犯罪记录</option>
-                    <option>其他</option>
-                  </select>
-                </label>
-                <label>选择文件
-                  <input
-                    name="file"
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
-                    capture="environment"
-                    required
-                  />
-                </label>
-              </div>
-              <p className="small muted">支持 PDF、JPG、PNG、DOCX、XLSX；单文件不超过 20 MB，落盘前加密。</p>
-              <div className="form-actions"><button type="submit">加密上传</button></div>
-            </form>
-            <div style={{ marginTop: 18 }}>
+            <div className="detail-action-card">
+              <form action="/api/documents/upload" method="post" encType="multipart/form-data">
+                <input type="hidden" name="customerId" value={id} />
+                <div className="form-grid">
+                  <label>
+                    材料类别
+                    <select name="category">
+                      <option>护照</option>
+                      <option>成绩单</option>
+                      <option>毕业证</option>
+                      <option>语言证书</option>
+                      <option>体检表</option>
+                      <option>无犯罪记录</option>
+                      <option>其他</option>
+                    </select>
+                  </label>
+                  <label>选择文件
+                    <input
+                      name="file"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
+                      capture="environment"
+                      required
+                    />
+                  </label>
+                </div>
+                <p className="small muted">支持 PDF / JPG / PNG / DOCX / XLSX，单文件 ≤ 20 MB，落盘前加密。</p>
+                <div className="form-actions"><button type="submit">加密上传</button></div>
+              </form>
+            </div>
+            <div style={{ marginTop: 12 }}>
               {data.documents.length ? (
-                <table>
-                  <tbody>
-                    {data.documents.map((document) => (
-                      <tr key={document.id}>
-                        <td>
-                          <strong>{document.category}</strong>
-                          <div className="small muted">{document.originalName}</div>
-                        </td>
-                        <td>{Math.ceil(document.size / 1024)} KB</td>
-                        <td><a className="button" href={`/api/documents/${document.id}`}>下载</a></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ul className="detail-list">
+                  {data.documents.map((document) => (
+                    <li className="detail-list-row" key={document.id}>
+                      <div>
+                        <strong>{document.category}</strong>
+                        <div className="small muted">{document.originalName} · {Math.ceil(document.size / 1024)} KB</div>
+                      </div>
+                      <a className="button" href={`/api/documents/${document.id}`}>下载</a>
+                    </li>
+                  ))}
+                </ul>
               ) : <EmptyState>尚未上传材料</EmptyState>}
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid cols-2" style={{ marginTop: 16 }}>
-        <div className="card">
-          <div className="card-header"><h3>申请记录</h3></div>
+      {/* 申请记录 + 新建申请：信息卡 + 操作卡 */}
+      <section className="grid cols-2 detail-section">
+        <div className="card card-compact">
+          <div className="card-header">
+            <h3>申请记录</h3>
+            <span className="small muted">{data.applications.length} 条</span>
+          </div>
           <div className="card-body">
             {data.applications.length ? (
-              <table>
-                <tbody>
-                  {data.applications.map((application) => (
-                    <tr key={application.id}>
-                      <td>
-                        <Link href={`/applications/${application.id}`}>
-                          <strong>{application.schoolName}</strong>
-                          <div className="small muted">{application.programName}</div>
-                        </Link>
-                      </td>
-                      <td>
-                        <Badge tone="blue">
-                          {APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ul className="detail-list">
+                {data.applications.map((application) => (
+                  <li className="detail-list-row" key={application.id}>
+                    <Link href={`/applications/${application.id}`}>
+                      <strong>{application.schoolName}</strong>
+                      <div className="small muted">{application.programName}</div>
+                    </Link>
+                    <Badge tone="blue">
+                      {APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
             ) : <EmptyState>尚未创建申请</EmptyState>}
           </div>
         </div>
-        <div className="card">
-          <div className="card-header"><h3>新建申请</h3></div>
+        <div className="detail-action-card">
+          <div className="card-header"><h3>调整管理状态 / 新建申请</h3></div>
           <div className="card-body">
+            <form action={updateCustomerManagementAction} style={{ marginBottom: 14 }}>
+              <input type="hidden" name="customerId" value={id} />
+              <div className="customer-management-fields">
+                <label>
+                  负责老师
+                  <select name="ownerId" defaultValue={customer.ownerId || ""} required>
+                    {owners.map((owner) => (
+                      <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  签约状态
+                  <select name="contractStatus" defaultValue={customer.contractStatus}>
+                    {CONTRACT_STATUSES.map((status) => (
+                      <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
+                    ))}
+                  </select>
+                </label>
+                <button className="primary" type="submit">更新</button>
+              </div>
+            </form>
             <form action={createApplicationAction}>
               <input type="hidden" name="customerId" value={id} />
               <label>
@@ -233,28 +292,29 @@ export default async function CustomerDetailPage({
                   ))}
                 </select>
               </label>
-              <label style={{ marginTop: 12 }}>备注<textarea name="notes" /></label>
+              <label style={{ marginTop: 10 }}>备注<textarea name="notes" /></label>
               <div className="form-actions"><button type="submit">创建申请</button></div>
             </form>
           </div>
         </div>
       </section>
-      <section className="card" style={{ marginTop: 16 }}>
-        <div className="card-header"><h3>已保存筛选方案</h3></div>
+
+      <section className="card card-compact detail-section">
+        <div className="card-header">
+          <h3>已保存筛选方案</h3>
+          <span className="small muted">{data.recommendations.length} 个</span>
+        </div>
         <div className="card-body">
           {data.recommendations.length ? (
-            <table>
-              <tbody>
-                {data.recommendations.map((recommendation) => (
-                  <tr key={recommendation.id}>
-                    <td><strong>{recommendation.title}</strong></td>
-                    <td>{recommendation.itemCount} 个项目</td>
-                    <td>{formatDate(recommendation.createdAt)}</td>
-                    <td><Link href={`/recommendations/${recommendation.id}/print`}>查看与打印</Link></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ul className="detail-list">
+              {data.recommendations.map((recommendation) => (
+                <li className="detail-list-row" key={recommendation.id}>
+                  <strong>{recommendation.title}</strong>
+                  <span className="small muted">{recommendation.itemCount} 个项目 · {formatDate(recommendation.createdAt)}</span>
+                  <Link className="button" href={`/recommendations/${recommendation.id}/print`}>查看与打印</Link>
+                </li>
+              ))}
+            </ul>
           ) : <EmptyState>尚未保存筛选方案</EmptyState>}
         </div>
       </section>

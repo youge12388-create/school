@@ -19,9 +19,26 @@ tmp_patch.js
 .env*
 !.env.example
 /data/
+!/data/app.db
+!/data/school-syt.db
+!/data/dump.sql
+!/data/school-syt-mysql-dump.sql
+!/data/imports/
+/data/backups/
+/data/deploy/
+/data/temp/
+/data/.service.pid
+/data/initial-admin.txt
+/data/app.db-shm
+/data/app.db-wal
+/data/app-recovered.db
+/data/*.log
+/data/service-*
+/data/codex-screening-dev.*
 /backups/
 *.pem
 
 # editor and OS
 .DS_Store
 .vercel
+.trae/

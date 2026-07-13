@@ -13,7 +13,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        {children}
+        <script
+          src="https://canhuo.site/widget.js"
+          data-site-id="cmrexwgio0000by7f3izi80v5"
+          data-api-host="https://canhuo.site"
+        ></script>
+      </body>
     </html>
   );
 }

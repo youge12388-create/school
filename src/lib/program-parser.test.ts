@@ -81,6 +81,37 @@ describe("program parser", () => {
     expect(result.date?.getDate()).toBe(31);
   });
 
+  it("月日范围取结束日期为截止日期（深圳大学）", () => {
+    const result = parseDeadline(
+      "1月1日-3月20日（第一批）；3月20日-5月31日（第二批）",
+      new Date("2026-01-01"),
+    );
+    expect(result.date?.getMonth()).toBe(4); // 5月
+    expect(result.date?.getDate()).toBe(31);
+    expect(result.status).toBe("OPEN");
+  });
+
+  it("跨年范围结束日期推到次年（沈阳化工大学）", () => {
+    const result = parseDeadline(
+      "秋季学期：3月15日-7月15日；春季学期：10月15日-1月15日",
+      new Date("2026-01-01"),
+    );
+    expect(result.date?.getFullYear()).toBe(2027);
+    expect(result.date?.getMonth()).toBe(0); // 1月
+    expect(result.date?.getDate()).toBe(15);
+    expect(result.status).toBe("OPEN");
+  });
+
+  it("独立月日日期保持原有逻辑", () => {
+    const result = parseDeadline(
+      "截止日期：8月15日",
+      new Date("2026-01-01"),
+    );
+    expect(result.date?.getMonth()).toBe(7); // 8月
+    expect(result.date?.getDate()).toBe(15);
+    expect(result.status).toBe("OPEN");
+  });
+
   it("拆分并去重专业", () => {
     expect(splitMajors("计算机科学\n工商管理\n计算机科学")).toEqual([
       "计算机科学",

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import { USER_ROLES, type UserRole } from "@/lib/constants";
-import { writeAuditRecord } from "@/lib/audit-record";
+import { writeAudit as writeAuditRecord } from "@/lib/audit";
 import { hashPassword } from "@/lib/password";
 import { newId } from "@/lib/utils";
 

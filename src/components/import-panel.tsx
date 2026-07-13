@@ -75,15 +75,11 @@ function ExcelImportPanel() {
         <div className="card-header"><h3>选择 Excel 文件</h3></div>
         <div className="card-body">
           <label>
-            高校汇总
-            <input name="schoolFile" type="file" accept=".xlsx" required />
-          </label>
-          <label style={{ marginTop: 12 }}>
-            高校项目汇总
-            <input name="programFile" type="file" accept=".xlsx" required />
+            {"高校项目汇总（支持单表\u201C高校项目\u201D，或双表\u201C高校汇总\u201D+\u201C高校项目\u201D）"}
+            <input name="file" type="file" accept=".xlsx,.xls" required />
           </label>
           <p className="small muted" style={{ marginTop: 10 }}>
-            系统先生成新增、修改、重复和冲突预览；确认前不会更改知识库。
+            与导出的格式一致即可直接维护；确认前不会更改知识库。
           </p>
           <div className="form-actions">
             <button className="primary" disabled={loading} type="submit">
@@ -97,7 +93,7 @@ function ExcelImportPanel() {
         <div className="card-header"><h3>预览结果</h3></div>
         <div className="card-body">
           {!preview ? (
-            <div className="empty">选择两份表格并生成预览</div>
+            <div className="empty">选择高校汇总并生成预览</div>
           ) : (
             <>
               <div className="grid cols-2">

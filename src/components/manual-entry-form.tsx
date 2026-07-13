@@ -172,6 +172,29 @@ export function ManualEntryForm() {
               <TextArea label="费用备注" name="feeNote" />
             </div>
           </div>
+
+          <div className="manual-entry-section optional">
+            <div className="manual-entry-section-title">
+              <span>03</span>
+              <div><h4>学校合作与招生信息</h4><p>仅作为顾问操作参考，不参与学生资格自动判断。</p></div>
+            </div>
+            <div className="grid cols-2">
+              <TextInput label="团体申请账号" name="groupApplicationAccount" />
+              <TextInput label="奖学金发放形式" name="scholarshipDisbursementText" />
+              <TextInput label="是否可代收" name="collectionServiceText" />
+              <TextInput label="合作截止日期" name="cooperationDeadlineText" />
+              <TextInput label="公司招生名额" name="companyRecruitmentQuotaText" />
+              <TextInput label="学校招生计划" name="schoolRecruitmentPlanText" />
+              <TextInput label="语言生考核" name="languageStudentAssessmentText" />
+              <TextInput label="学历生考核" name="degreeStudentAssessmentText" />
+              <TextInput label="申请更新频率" name="applicationUpdateFrequency" />
+            </div>
+            <div className="manual-entry-stack">
+              <TextArea label="招生偏向" name="recruitmentPreferenceText" />
+              <TextArea label="合作备注" name="cooperationNote" />
+              <TextArea label="特殊情况备注" name="specialCaseNote" />
+            </div>
+          </div>
         </details>
 
         <div className="form-actions">

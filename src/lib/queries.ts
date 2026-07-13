@@ -11,6 +11,8 @@ import {
 
 import { db, sqlite } from "@/lib/db";
 import { deriveAdmissionStatus } from "@/lib/customer-status";
+import { categorizeMajors, splitMajorText } from "@/lib/major-categories";
+import { parseDeadline } from "@/lib/program-parser";
 import type { AdmissionStatus, ContractStatus } from "@/lib/constants";
 import {
   applications,
@@ -30,7 +32,7 @@ import {
 export async function getDashboardData() {
   const today = new Date();
   const thirtyDays = new Date(today.getTime() + 30 * 86400000);
-  const [schoolCount] = await db.select({ value: count() }).from(schools).where(eq(schools.archived, false));
+  const schoolCountRow = sqlite.prepare(`SELECT COUNT(DISTINCT s.id) as cnt FROM schools s INNER JOIN programs p ON p.school_id = s.id WHERE s.archived = 0 AND p.archived = 0`).get() as { cnt: number };
   const [programCount] = await db.select({ value: count() }).from(programs).where(eq(programs.archived, false));
   const [customerCount] = await db.select({ value: count() }).from(customers).where(eq(customers.archived, false));
   const [reviewCount] = await db
@@ -101,7 +103,7 @@ export async function getDashboardData() {
 
   return {
     counts: {
-      schools: schoolCount.value,
+      schools: schoolCountRow.cnt,
       programs: programCount.value,
       customers: customerCount.value,
       needsReview: reviewCount.value,
@@ -211,6 +213,24 @@ export async function listPrograms(filters: {
     .limit(300);
 }
 
+let majorCatalogCache: ReturnType<typeof categorizeMajors> | null = null;
+
+export function invalidateMajorCatalog() {
+  majorCatalogCache = null;
+}
+
+export async function getMajorCatalog() {
+  if (majorCatalogCache) return majorCatalogCache;
+
+  const rows = sqlite
+    .prepare(
+      "SELECT p.major_text AS majorText FROM programs p INNER JOIN schools s ON s.id = p.school_id WHERE p.archived = 0 AND s.archived = 0 AND p.major_text IS NOT NULL",
+    )
+    .all() as Array<{ majorText: string | null }>;
+
+  majorCatalogCache = categorizeMajors(rows.flatMap((row) => splitMajorText(row.majorText)));
+  return majorCatalogCache;
+}
 export async function getProgramsForScreening() {
   const rows = sqlite
     .prepare(
@@ -230,7 +250,9 @@ export async function getProgramsForScreening() {
           COALESCE(p.direction_text, '') || ' ' ||
           COALESCE(p.scholarship_content, '') || ' ' ||
           COALESCE(p.scholarship_note, '') || ' ' ||
-          COALESCE(p.fee_note, '')
+          COALESCE(p.fee_note, '') || ' ' ||
+          COALESCE(p.raw_json, '') || ' ' ||
+          COALESCE(s.recruitment_preference_text, '')
         ) AS sourceText,
         p.semester_text AS semesterText,
         p.application_time_text AS applicationTimeText,
@@ -295,14 +317,29 @@ export async function getProgramsForScreening() {
       reviewStatus: string;
     }>;
 
-  return rows.map((row) => ({
-    ...row,
-    costIncomplete: Boolean(row.costIncomplete),
-    deadlineDate:
-      row.deadlineDate == null || !Number.isFinite(row.deadlineDate)
-        ? null
-        : new Date(row.deadlineDate),
-  }));
+  return rows.map((row) => {
+    // 从 applicationTimeText 实时解析 deadline，处理无年份日期的自动翻年
+    let deadlineDate: Date | null = null;
+    let deadlineStatus = row.deadlineStatus;
+    if (row.applicationTimeText) {
+      const parsed = parseDeadline(row.applicationTimeText);
+      if (parsed.date) {
+        deadlineDate = parsed.date;
+        deadlineStatus = parsed.status;
+      }
+    }
+    // 回退：实时解析失败时使用存储值
+    if (!deadlineDate && row.deadlineDate != null && Number.isFinite(row.deadlineDate)) {
+      deadlineDate = new Date(row.deadlineDate);
+    }
+
+    return {
+      ...row,
+      costIncomplete: Boolean(row.costIncomplete),
+      deadlineDate,
+      deadlineStatus,
+    };
+  });
 }
 export async function getSchoolDetails(id: string) {
   const [school] = await db

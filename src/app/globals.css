@@ -152,8 +152,6 @@ tr td:last-child{border-bottom:0}
 .mobile-header-icon-only svg{width:22px;height:22px}
 
 /* mobile screening */
-.screening-filter-card .card-header{flex-direction:column;align-items:flex-start;gap:8px}
-.header-search{display:none}
 .screening-filter-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
 .screening-filter-actions button.primary,.screening-filter-actions .button.primary{flex:1;justify-content:center}
 .screening-filter-actions>.button{background:transparent;border:none;color:var(--primary)}

@@ -10,6 +10,7 @@ import {
   PROGRAM_TYPE_LABELS,
 } from "@/lib/constants";
 import {
+  parseImportFile,
   parseProgramWorkbook,
   parseSchoolWorkbook,
   type ProgramImportRow,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/excel-import";
 import { openRawDatabase } from "@/lib/db/raw";
 import { findMajorCategory, parseProgram } from "@/lib/program-parser";
+import { invalidateMajorCatalog } from "@/lib/queries";
 import { asNumber, newId, normalizeKeyword } from "@/lib/utils";
 
 type PreviewEntry = {
@@ -86,6 +88,18 @@ export const manualEntrySchema = z.object({
   scholarshipApplicationFeeText: manualText(1000),
   feeNote: manualText(2000),
   tuitionText: manualText(2000),
+  groupApplicationAccount: manualText(100),
+  scholarshipDisbursementText: manualText(500),
+  collectionServiceText: manualText(500),
+  cooperationDeadlineText: manualText(500),
+  companyRecruitmentQuotaText: manualText(500),
+  schoolRecruitmentPlanText: manualText(1000),
+  recruitmentPreferenceText: manualText(2000),
+  languageStudentAssessmentText: manualText(500),
+  degreeStudentAssessmentText: manualText(500),
+  cooperationNote: manualText(2000),
+  specialCaseNote: manualText(2000),
+  applicationUpdateFrequency: manualText(500),
 });
 
 export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
@@ -95,18 +109,85 @@ type ImportServiceOptions = {
   importDir?: string;
 };
 
+function mergeSchoolSources(
+  baseSchools: SchoolImportRow[],
+  programSchools: SchoolImportRow[],
+) {
+  const schools = new Map(baseSchools.map((school) => [school.nameZh, school]));
+  for (const incoming of programSchools) {
+    const existing = schools.get(incoming.nameZh);
+    if (!existing) {
+      schools.set(incoming.nameZh, incoming);
+      continue;
+    }
+    const nonEmptyIncoming = Object.fromEntries(
+      Object.entries(incoming).filter(([key, value]) => {
+        if (key === "rawJson" || value == null) return false;
+        return typeof value !== "string" || value.trim().length > 0;
+      }),
+    );
+    schools.set(incoming.nameZh, {
+      ...existing,
+      ...nonEmptyIncoming,
+      nameZh: existing.nameZh,
+      rawJson: JSON.stringify({
+        ...safeRawJson(existing.rawJson),
+        ...safeRawJson(incoming.rawJson),
+      }),
+    });
+  }
+  return [...schools.values()];
+}
+
+function safeRawJson(value: string | null) {
+  try {
+    return value ? (JSON.parse(value) as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function createImportPreview(
   input: {
-    schoolBuffer: Buffer;
-    schoolName: string;
-    programBuffer: Buffer;
-    programName: string;
+    schoolBuffer?: Buffer;
+    schoolName?: string;
+    programBuffer?: Buffer;
+    programName?: string;
+    fileBuffer?: Buffer;
+    fileName?: string;
     userId?: string | null;
   },
   options: ImportServiceOptions = {},
 ) {
-  const schoolResult = parseSchoolWorkbook(input.schoolBuffer);
-  const programResult = parseProgramWorkbook(input.programBuffer);
+  let schoolResult: { schools: SchoolImportRow[]; sourceHash: string };
+  let programResult: ReturnType<typeof parseProgramWorkbook> | null;
+
+  if (input.fileBuffer) {
+    const parsed = parseImportFile(input.fileBuffer);
+    schoolResult = parsed.schoolResult;
+    programResult = parsed.programResult;
+  } else if (input.schoolBuffer || input.programBuffer) {
+    schoolResult = input.schoolBuffer
+      ? parseSchoolWorkbook(input.schoolBuffer)
+      : { schools: [], sourceHash: "" };
+    programResult = input.programBuffer
+      ? parseProgramWorkbook(input.programBuffer)
+      : null;
+  } else {
+    throw new Error("请至少提供一个 Excel 文件");
+  }
+
+  const importedSchools = mergeSchoolSources(
+    schoolResult.schools,
+    programResult?.schools ?? [],
+  );
+
+  const sourceHash = (() => {
+    const builder = createHash("sha256");
+    builder.update(schoolResult.sourceHash);
+    if (programResult) builder.update(programResult.sourceHash);
+    return builder.digest("hex");
+  })();
   const database = openRawDatabase(options.databaseFile);
   const schoolRows = database.prepare("SELECT name_zh, raw_json, review_status FROM schools").all() as Array<{
     name_zh: string;
@@ -115,12 +196,13 @@ export function createImportPreview(
   }>;
   const programRows = database
     .prepare(
-      `SELECT s.name_zh, p.program_type, p.teaching_language, p.raw_json,
+      `SELECT p.external_id, s.name_zh, p.program_type, p.teaching_language, p.raw_json,
               p.manually_verified
        FROM programs p JOIN schools s ON s.id = p.school_id
        WHERE p.archived = 0`,
     )
     .all() as Array<{
+    external_id: string | null;
     name_zh: string;
     program_type: string;
     teaching_language: string;
@@ -130,21 +212,23 @@ export function createImportPreview(
   database.close();
 
   const existingSchools = new Map(schoolRows.map((row) => [row.name_zh, row]));
-  const existingPrograms = new Map(
-    programRows.map((row) => [
-      `${row.name_zh}|${row.program_type}|${row.teaching_language}`,
-      row,
-    ]),
+  const existingPrograms = new Map<string, (typeof programRows)[number]>(
+    programRows.flatMap((row) => {
+      const legacyKey = `${row.name_zh}|${row.program_type}|${row.teaching_language}`;
+      return row.external_id
+        ? [[`id:${row.external_id}`, row] as const, [`legacy:${legacyKey}`, row] as const]
+        : [[`legacy:${legacyKey}`, row] as const];
+    }),
   );
   const summary = {
     schools: emptyCounts(),
     programs: emptyCounts(),
-    sourceDuplicates: programResult.duplicates,
+    sourceDuplicates: programResult?.duplicates ?? 0,
     needsReview: 0,
   };
   const entries: PreviewEntry[] = [];
 
-  for (const school of schoolResult.schools) {
+  for (const school of importedSchools) {
     const existing = existingSchools.get(school.nameZh);
     const action = !existing
       ? "NEW"
@@ -157,8 +241,10 @@ export function createImportPreview(
     entries.push({ key: school.nameZh, action, details: "学校主数据" });
   }
 
-  for (const program of programResult.programs) {
-    const key = `${program.schoolName}|${program.programType}|${program.teachingLanguage}`;
+  for (const program of programResult?.programs ?? []) {
+    const legacyKey =
+      `${program.schoolName}|${program.programType}|${program.teachingLanguage}`;
+    const key = program.externalId ? `id:${program.externalId}` : `legacy:${legacyKey}`;
     const existing = existingPrograms.get(key);
     const action = !existing
       ? "NEW"
@@ -179,9 +265,13 @@ export function createImportPreview(
   const batchId = newId();
   const preview: ImportPreview = {
     batchId,
-    sourceNames: [input.schoolName, input.programName],
-    schools: schoolResult.schools,
-    programs: programResult.programs,
+    sourceNames: input.fileName
+      ? [input.fileName]
+      : [input.schoolName, input.programName].filter(
+          (name): name is string => Boolean(name),
+        ),
+    schools: importedSchools,
+    programs: programResult?.programs ?? [],
     summary,
     entries,
   };
@@ -193,10 +283,6 @@ export function createImportPreview(
   const previewPath = resolve(importDir, `${batchId}.json`);
   writeFileSync(previewPath, JSON.stringify(preview), "utf8");
 
-  const sourceHash = createHash("sha256")
-    .update(schoolResult.sourceHash)
-    .update(programResult.sourceHash)
-    .digest("hex");
   const db = openRawDatabase(options.databaseFile);
   db.prepare(
     `INSERT INTO import_batches
@@ -246,72 +332,177 @@ function upsertSchool(
   school: SchoolImportRow,
   manuallyEntered = false,
 ) {
-  const existing = database
-    .prepare("SELECT id, review_status FROM schools WHERE name_zh = ?")
-    .get(school.nameZh) as { id: string; review_status: string } | undefined;
-  if (!existing) {
-    const id = newId();
+  const byExternalId = school.externalId
+    ? database
+        .prepare(
+          "SELECT id, review_status, raw_json FROM schools WHERE external_id = ?",
+        )
+        .get(school.externalId)
+    : undefined;
+  const existing = (byExternalId ??
     database
       .prepare(
-        `INSERT INTO schools
-        (id, name_zh, name, category, province, city, website, qs_ranking,
-         ranking_info, partnership_rating, csca_status, tags, description,
-         cooperation_programs, raw_json, source_batch_id, review_status,
-         archived, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        "SELECT id, review_status, raw_json FROM schools WHERE name_zh = ?",
       )
-      .run(
-        id,
-        school.nameZh,
-        school.name,
-        school.category,
-        school.province,
-        school.city,
-        school.website,
-        school.qsRanking,
-        school.rankingInfo,
-        school.partnershipRating,
-        school.cscaStatus,
-        school.tags,
-        school.description,
-        school.cooperationPrograms,
-        school.rawJson,
-        batchId,
-        manuallyEntered ? "VERIFIED" : "AUTO_PARSED",
-        Date.now(),
-        Date.now(),
-      );
+      .get(school.nameZh)) as
+    | { id: string; review_status: string; raw_json: string | null }
+    | undefined;
+  const operationalColumns = [
+    "group_application_account",
+    "scholarship_disbursement_text",
+    "collection_service_text",
+    "cooperation_deadline_text",
+    "company_recruitment_quota_text",
+    "school_recruitment_plan_text",
+    "recruitment_preference_text",
+    "language_student_assessment_text",
+    "degree_student_assessment_text",
+    "cooperation_note",
+    "special_case_note",
+    "application_update_frequency",
+  ];
+  const operationalValues = [
+    school.groupApplicationAccount,
+    school.scholarshipDisbursementText,
+    school.collectionServiceText,
+    school.cooperationDeadlineText,
+    school.companyRecruitmentQuotaText,
+    school.schoolRecruitmentPlanText,
+    school.recruitmentPreferenceText,
+    school.languageStudentAssessmentText,
+    school.degreeStudentAssessmentText,
+    school.cooperationNote,
+    school.specialCaseNote,
+    school.applicationUpdateFrequency,
+  ];
+
+  if (!existing) {
+    const id = newId();
+    const columns = [
+      "id",
+      "external_id",
+      "name_zh",
+      "name",
+      "category",
+      "province",
+      "city",
+      "website",
+      "qs_ranking",
+      "ranking_info",
+      "partnership_rating",
+      "csca_status",
+      "tags",
+      "description",
+      "cooperation_programs",
+      ...operationalColumns,
+      "raw_json",
+      "source_batch_id",
+      "review_status",
+      "archived",
+      "created_at",
+      "updated_at",
+    ];
+    const now = Date.now();
+    const values = [
+      id,
+      school.externalId,
+      school.nameZh,
+      school.name ?? school.nameZh,
+      school.category,
+      school.province,
+      school.city,
+      school.website,
+      school.qsRanking,
+      school.rankingInfo,
+      school.partnershipRating ?? 0,
+      school.cscaStatus ?? "UNKNOWN",
+      school.tags,
+      school.description,
+      school.cooperationPrograms,
+      ...operationalValues,
+      school.rawJson,
+      batchId,
+      manuallyEntered ? "VERIFIED" : "AUTO_PARSED",
+      0,
+      now,
+      now,
+    ];
+    database
+      .prepare(
+        `INSERT INTO schools (${columns.join(", ")})
+         VALUES (${values.map(() => "?").join(", ")})`,
+      )
+      .run(...values);
     return id;
   }
 
   if (!manuallyEntered && existing.review_status !== "VERIFIED") {
+    const coreColumns = [
+      "external_id",
+      "name",
+      "category",
+      "province",
+      "city",
+      "website",
+      "qs_ranking",
+      "ranking_info",
+      "partnership_rating",
+      "csca_status",
+      "tags",
+      "description",
+      "cooperation_programs",
+    ];
+    const coreValues = [
+      school.externalId,
+      school.name,
+      school.category,
+      school.province,
+      school.city,
+      school.website,
+      school.qsRanking,
+      school.rankingInfo,
+      school.partnershipRating,
+      school.cscaStatus,
+      school.tags,
+      school.description,
+      school.cooperationPrograms,
+    ];
     database
       .prepare(
-        `UPDATE schools SET name = ?, category = ?, province = ?, city = ?,
-         website = ?, qs_ranking = ?, ranking_info = ?, partnership_rating = ?,
-         csca_status = ?, tags = ?, description = ?, cooperation_programs = ?,
-         raw_json = ?, source_batch_id = ?, review_status = 'AUTO_PARSED',
-         updated_at = ? WHERE id = ?`,
+        `UPDATE schools SET
+         ${coreColumns.map((column) => `${column} = COALESCE(?, ${column})`).join(", ")},
+         review_status = 'AUTO_PARSED' WHERE id = ?`,
       )
-      .run(
-        school.name,
-        school.category,
-        school.province,
-        school.city,
-        school.website,
-        school.qsRanking,
-        school.rankingInfo,
-        school.partnershipRating,
-        school.cscaStatus,
-        school.tags,
-        school.description,
-        school.cooperationPrograms,
-        school.rawJson,
-        batchId,
-        Date.now(),
-        existing.id,
-      );
+      .run(...coreValues, existing.id);
   }
+
+  const mergedRawJson = JSON.stringify({
+    ...safeRawJson(existing.raw_json),
+    ...Object.fromEntries(
+      Object.entries(safeRawJson(school.rawJson)).filter(([, value]) => {
+        if (value == null) return false;
+        return typeof value !== "string" || value.trim().length > 0;
+      }),
+    ),
+  });
+  database
+    .prepare(
+      `UPDATE schools SET
+       external_id = COALESCE(?, external_id),
+       ${operationalColumns
+         .map((column) => `${column} = COALESCE(?, ${column})`)
+         .join(", ")},
+       raw_json = ?, source_batch_id = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(
+      school.externalId,
+      ...operationalValues,
+      mergedRawJson,
+      batchId,
+      Date.now(),
+      existing.id,
+    );
   return existing.id;
 }
 
@@ -322,13 +513,24 @@ function upsertProgram(
   program: ProgramImportRow,
   manuallyEntered = false,
 ) {
-  const existing = database
-    .prepare(
-      `SELECT id, manually_verified FROM programs
+  const byExternalId = program.externalId
+    ? database
+        .prepare(
+          "SELECT id, manually_verified FROM programs WHERE external_id = ? AND archived = 0",
+        )
+        .get(program.externalId)
+    : undefined;
+  const legacySql = program.externalId
+    ? `SELECT id, manually_verified FROM programs
        WHERE school_id = ? AND program_type = ? AND teaching_language = ?
-       AND archived = 0 LIMIT 1`,
-    )
-    .get(schoolId, program.programType, program.teachingLanguage) as
+       AND external_id IS NULL AND archived = 0 LIMIT 1`
+    : `SELECT id, manually_verified FROM programs
+       WHERE school_id = ? AND program_type = ? AND teaching_language = ?
+       AND archived = 0 LIMIT 1`;
+  const existing = (byExternalId ??
+    database
+      .prepare(legacySql)
+      .get(schoolId, program.programType, program.teachingLanguage)) as
     | { id: string; manually_verified: number }
     | undefined;
   const parsed = program.parsed;
@@ -394,7 +596,8 @@ function upsertProgram(
   if (existing) {
     database
       .prepare(
-        `UPDATE programs SET name=?, tags=?, introduction=?, duration=?,
+        `UPDATE programs SET external_id=COALESCE(?, external_id),
+        name=?, tags=?, introduction=?, duration=?,
         duration_note=?, major_text=?, direction_text=?, requirements_text=?,
         semester_text=?, application_time_text=?, scholarship_category=?,
         scholarship_content=?, scholarship_note=?, scholarship_deadline_text=?,
@@ -408,12 +611,13 @@ function upsertProgram(
         parsed_json=?, raw_json=?, source_batch_id=?, review_status=?,
         updated_at=? WHERE id=?`,
       )
-      .run(...values, Date.now(), programId);
+      .run(program.externalId, ...values, Date.now(), programId);
   } else {
     database
       .prepare(
         `INSERT INTO programs
-        (id, school_id, program_type, teaching_language, name, tags, introduction,
+        (id, external_id, school_id, program_type, teaching_language, name,
+        tags, introduction,
         duration, duration_note, major_text, direction_text, requirements_text,
         semester_text, application_time_text, scholarship_category,
         scholarship_content, scholarship_note, scholarship_deadline_text,
@@ -425,11 +629,12 @@ function upsertProgram(
         duolingo_min, gpa_min, gpa_scale, min_age, max_age, deadline_date,
         deadline_status, parsed_json, raw_json, source_batch_id, review_status,
         manually_verified, archived, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ${Array(values.length).fill("?").join(", ")},
+        VALUES (?, ?, ?, ?, ?, ${Array(values.length).fill("?").join(", ")},
         ?, 0, ?, ?)`,
       )
       .run(
         programId,
+        program.externalId,
         schoolId,
         program.programType,
         program.teachingLanguage,
@@ -445,6 +650,7 @@ function upsertProgram(
 
 function buildManualSchool(input: ManualEntryInput): SchoolImportRow {
   return {
+    externalId: null,
     nameZh: input.schoolNameZh,
     name: input.schoolName || input.schoolNameZh,
     category: input.schoolCategory || null,
@@ -458,6 +664,18 @@ function buildManualSchool(input: ManualEntryInput): SchoolImportRow {
     tags: input.schoolTags || null,
     description: input.schoolDescription || null,
     cooperationPrograms: input.cooperationPrograms || null,
+    groupApplicationAccount: input.groupApplicationAccount || null,
+    scholarshipDisbursementText: input.scholarshipDisbursementText || null,
+    collectionServiceText: input.collectionServiceText || null,
+    cooperationDeadlineText: input.cooperationDeadlineText || null,
+    companyRecruitmentQuotaText: input.companyRecruitmentQuotaText || null,
+    schoolRecruitmentPlanText: input.schoolRecruitmentPlanText || null,
+    recruitmentPreferenceText: input.recruitmentPreferenceText || null,
+    languageStudentAssessmentText: input.languageStudentAssessmentText || null,
+    degreeStudentAssessmentText: input.degreeStudentAssessmentText || null,
+    cooperationNote: input.cooperationNote || null,
+    specialCaseNote: input.specialCaseNote || null,
+    applicationUpdateFrequency: input.applicationUpdateFrequency || null,
     rawJson: JSON.stringify(input),
   };
 }
@@ -475,7 +693,10 @@ function buildManualProgram(input: ManualEntryInput): ProgramImportRow {
   });
   const rawJson = JSON.stringify(input);
   return {
+    externalId: null,
+    schoolExternalId: null,
     schoolName: input.schoolNameZh,
+    rawProgramType: input.programType,
     name: [
       input.schoolNameZh,
       input.programType === "UNKNOWN"
@@ -549,6 +770,7 @@ export function createManualEntry(
       Date.now(),
     );
     database.exec("COMMIT");
+    invalidateMajorCatalog();
     return { schoolId, programId, createdSchool: !existingSchool, reviewStatus };
   } catch (error) {
     database.exec("ROLLBACK");
@@ -614,5 +836,6 @@ export function confirmImport(
   } finally {
     database.close();
   }
+  invalidateMajorCatalog();
   return preview.summary;
 }
