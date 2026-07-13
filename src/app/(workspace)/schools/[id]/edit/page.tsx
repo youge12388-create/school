@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { updateSchoolAction } from "@/app/actions";
 import { PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireRole } from "@/lib/auth";
@@ -9,11 +8,15 @@ import { getSchoolDetails } from "@/lib/queries";
 
 export default async function SchoolEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   await requireRole(["ADMIN", "DATA_MANAGER"]);
   const { id } = await params;
+  const query = await searchParams;
+  const errorMessage = query.error;
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs: schoolPrograms } = data;
@@ -25,7 +28,13 @@ export default async function SchoolEditPage({
         description="修改学校基本信息和项目数据，一键保存全部修改。"
       />
 
-      <form action={updateSchoolAction} className="card" style={{ marginBottom: 24 }}>
+      {errorMessage ? (
+        <div className="alert-error" style={{ marginBottom: 16, padding: "10px 14px", background: "#fff0f0", border: "1px solid #fcc", borderRadius: 8, color: "#c00", fontSize: 13 }}>
+          {errorMessage}
+        </div>
+      ) : null}
+
+      <form action="/api/schools/update" method="POST" className="card" style={{ marginBottom: 24 }}>
         <input type="hidden" name="id" value={school.id} />
 
         <div className="card-header">
