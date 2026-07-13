@@ -1,8 +1,9 @@
 import { Pagination } from "@/components/pagination";
 import { PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { AUDIT_ACTION_LABELS, formatAuditDetails, formatAuditObject } from "@/lib/audit";
 import { listAuditLogs } from "@/lib/queries";
-import { formatDate, safeJson } from "@/lib/utils";
+import { formatDateTime, safeJson } from "@/lib/utils";
 
 export default async function AuditPage({
   searchParams,
@@ -26,11 +27,11 @@ export default async function AuditPage({
           <tbody>
             {rows.map((log) => (
               <tr key={log.id}>
-                <td className="nowrap">{formatDate(log.createdAt)}</td>
+                <td className="nowrap">{formatDateTime(log.createdAt)}</td>
                 <td>{log.displayName || "系统/匿名"}</td>
-                <td><strong>{log.action}</strong></td>
-                <td>{log.entityType}<div className="small muted">{log.entityId || "—"}</div></td>
-                <td className="small">{JSON.stringify(safeJson(log.detailsJson, {}))}</td>
+                <td><strong>{AUDIT_ACTION_LABELS[log.action] || log.action}</strong></td>
+                <td>{formatAuditObject(log.entityType, safeJson(log.detailsJson, null))}</td>
+                <td className="small">{formatAuditDetails(log.action, safeJson(log.detailsJson, null))}</td>
                 <td>{log.ipAddress || "—"}</td>
               </tr>
             ))}

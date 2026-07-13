@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { updateProgramAction, updateSchoolAction } from "@/app/actions";
+import { updateSchoolAction } from "@/app/actions";
 import { PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireRole } from "@/lib/auth";
@@ -22,15 +22,16 @@ export default async function SchoolEditPage({
     <>
       <PageHeading
         title={`编辑：${school.nameZh}`}
-        description="修改学校基本信息和项目数据，保存后立即生效。"
+        description="修改学校基本信息和项目数据，一键保存全部修改。"
       />
 
       <form action={updateSchoolAction} className="card" style={{ marginBottom: 24 }}>
+        <input type="hidden" name="id" value={school.id} />
+
         <div className="card-header">
           <h3>学校基本信息</h3>
         </div>
         <div className="card-body">
-          <input type="hidden" name="id" value={school.id} />
           <div className="form-grid">
             <label>
               学校中文名
@@ -89,19 +90,12 @@ export default async function SchoolEditPage({
             合作项目
             <textarea name="cooperationPrograms" defaultValue={school.cooperationPrograms ?? ""} rows={2} placeholder="列出已合作的项目" />
           </label>
-          <div className="form-actions">
-            <button className="primary" type="submit">保存学校信息</button>
-            <Link className="button" href={`/schools/${school.id}`}>取消</Link>
-          </div>
         </div>
-      </form>
 
-      <form action={updateSchoolAction} className="card" style={{ marginBottom: 24 }}>
-        <input type="hidden" name="id" value={school.id} />
-        <details className="card-header" style={{ cursor: "pointer" }}>
-          <summary style={{ listStyle: "none" }}>
-            <h3>合作与招生信息</h3>
-            <p className="small muted">仅作为顾问操作参考，不参与学生资格自动判断。点击展开编辑。</p>
+        <details className="card-header" style={{ cursor: "pointer" }} open>
+          <summary style={{ listStyle: "none", fontWeight: 600, fontSize: 15 }}>
+            <h3 style={{ display: "inline" }}>合作与招生信息</h3>
+            <span className="small muted" style={{ marginLeft: 8 }}>仅作为顾问操作参考，不参与学生资格自动判断</span>
           </summary>
         </details>
         <div className="card-body">
@@ -171,14 +165,9 @@ export default async function SchoolEditPage({
               <textarea name="specialCaseNote" defaultValue={school.specialCaseNote ?? ""} rows={2} />
             </label>
           </div>
-          <div className="form-actions">
-            <button className="primary" type="submit">保存合作与招生信息</button>
-          </div>
         </div>
-      </form>
 
-      <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ borderTop: "1px solid var(--border-soft)" }}>
           <h3>项目信息（{schoolPrograms.length} 个）</h3>
         </div>
         <div className="card-body">
@@ -186,27 +175,26 @@ export default async function SchoolEditPage({
             <p className="small muted">该校暂无项目数据。</p>
           ) : (
             schoolPrograms.map((program, index) => (
-              <form
-                action={updateProgramAction}
+              <div
                 key={program.id}
                 style={{
-                  borderTop: index > 0 ? "1px solid #edf0f2" : "none",
+                  borderTop: index > 0 ? "1px solid var(--border-soft)" : "none",
                   paddingTop: index > 0 ? 16 : 0,
                   marginBottom: 16,
                 }}
               >
-                <input type="hidden" name="id" value={program.id} />
+                <input type="hidden" name={`program_${index}_id`} value={program.id} />
                 <h4 style={{ marginBottom: 12, fontWeight: 600 }}>
                   {program.name}
                 </h4>
                 <div className="form-grid">
                   <label>
                     项目名称
-                    <input name="name" defaultValue={program.name} />
+                    <input name={`program_${index}_name`} defaultValue={program.name} />
                   </label>
                   <label>
                     申请学历
-                    <select name="programType" defaultValue={program.programType}>
+                    <select name={`program_${index}_programType`} defaultValue={program.programType}>
                       {Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
                         <option value={value} key={value}>{label}</option>
                       ))}
@@ -214,7 +202,7 @@ export default async function SchoolEditPage({
                   </label>
                   <label>
                     授课语言
-                    <select name="teachingLanguage" defaultValue={program.teachingLanguage}>
+                    <select name={`program_${index}_teachingLanguage`} defaultValue={program.teachingLanguage}>
                       {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
                         <option value={value} key={value}>{label}</option>
                       ))}
@@ -222,20 +210,20 @@ export default async function SchoolEditPage({
                   </label>
                   <label>
                     学制
-                    <input name="duration" defaultValue={program.duration ?? ""} />
+                    <input name={`program_${index}_duration`} defaultValue={program.duration ?? ""} />
                   </label>
                   <label>
                     学费说明
-                    <input name="tuitionText" defaultValue={program.tuitionText ?? ""} />
+                    <input name={`program_${index}_tuitionText`} defaultValue={program.tuitionText ?? ""} />
                   </label>
                   <label>
                     首年费用上限（元）
-                    <input name="firstYearCostMax" type="number" defaultValue={program.firstYearCostMax ?? ""} />
+                    <input name={`program_${index}_firstYearCostMax`} type="number" defaultValue={program.firstYearCostMax ?? ""} />
                   </label>
                   <label>
                     截止日期
                     <input
-                      name="deadlineDate"
+                      name={`program_${index}_deadlineDate`}
                       type="date"
                       defaultValue={
                         program.deadlineDate && !isNaN(new Date(program.deadlineDate).getTime())
@@ -246,33 +234,35 @@ export default async function SchoolEditPage({
                   </label>
                   <label>
                     申请时间说明
-                    <input name="applicationTimeText" defaultValue={program.applicationTimeText ?? ""} />
+                    <input name={`program_${index}_applicationTimeText`} defaultValue={program.applicationTimeText ?? ""} />
                   </label>
                 </div>
                 <label style={{ marginTop: 10 }}>
                   专业列表
-                  <textarea name="majorText" defaultValue={program.majorText ?? ""} rows={3} />
+                  <textarea name={`program_${index}_majorText`} defaultValue={program.majorText ?? ""} rows={3} />
                 </label>
                 <label style={{ marginTop: 10 }}>
                   申请要求及材料
-                  <textarea name="requirementsText" defaultValue={program.requirementsText ?? ""} rows={3} />
+                  <textarea name={`program_${index}_requirementsText`} defaultValue={program.requirementsText ?? ""} rows={3} />
                 </label>
                 <label style={{ marginTop: 10 }}>
                   项目介绍
-                  <textarea name="introduction" defaultValue={program.introduction ?? ""} rows={2} />
+                  <textarea name={`program_${index}_introduction`} defaultValue={program.introduction ?? ""} rows={2} />
                 </label>
                 <label style={{ marginTop: 10 }}>
                   奖学金内容
-                  <textarea name="scholarshipContent" defaultValue={program.scholarshipContent ?? ""} rows={2} />
+                  <textarea name={`program_${index}_scholarshipContent`} defaultValue={program.scholarshipContent ?? ""} rows={2} />
                 </label>
-                <div className="form-actions">
-                  <button className="primary" type="submit">保存此项目</button>
-                </div>
-              </form>
+              </div>
             ))
           )}
         </div>
-      </div>
+
+        <div className="card-header form-actions" style={{ justifyContent: "flex-end", gap: 10, borderTop: "1px solid var(--border-soft)" }}>
+          <Link className="button" href={`/schools/${school.id}`}>取消</Link>
+          <button className="button primary" type="submit" style={{ fontWeight: 700, padding: "10px 28px" }}>一键保存全部修改</button>
+        </div>
+      </form>
     </>
   );
 }

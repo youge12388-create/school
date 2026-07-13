@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BackButton } from "@/components/back-button";
 import { ScrollToProgram } from "@/components/scroll-to-program";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
@@ -282,7 +283,10 @@ export default async function SchoolDetailsPage({
       <PageHeading
         title={school.nameZh}
         description={school.name && school.name !== school.nameZh ? school.name : "学校知识库完整档案"}
-        action={<>{canEdit ? <Link className="button primary" href={`/schools/${school.id}/edit`}>编辑学校</Link> : null} <Link className="button" href="/screening">返回学校筛查</Link></>}
+        action={<>
+          {canEdit ? <Link className="button primary" href={`/schools/${school.id}/edit`}>编辑学校</Link> : null}
+          <BackButton text="返回筛选结果" />
+        </>}
       />
 
       <section className="grid cols-3 school-overview-grid">
@@ -353,7 +357,7 @@ export default async function SchoolDetailsPage({
             {hasScreeningContext ? (
               <Link className="button" href={`/schools/${school.id}`}>查看该校全部项目</Link>
             ) : null}
-            <Link className="button primary" href="/screening">返回筛选</Link>
+            <BackButton text="返回筛选" className="button primary" />
           </div>
         </div>
 

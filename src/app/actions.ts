@@ -285,11 +285,110 @@ export async function updateSchoolAction(formData: FormData) {
     action: "SCHOOL_UPDATED",
     entityType: "SCHOOL",
     entityId: id,
-    details: { changed: changedFields(oldSchool, updates) },
+    details: { nameZh: oldSchool.nameZh, changed: changedFields(oldSchool, updates) },
   });
+
+  // 保存项目数据（同一表单一并提交）
+  for (let i = 0; ; i++) {
+    const programId = asText(formData.get(`program_${i}_id`));
+    if (!programId) break;
+    await updateSingleProgram(user.id, formData, i, programId);
+  }
+
   revalidatePath(`/schools/${id}`);
   revalidatePath("/schools");
   redirect(`/schools/${id}`);
+}
+
+async function updateSingleProgram(userId: string, formData: FormData, index: number, programId: string) {
+  const name = asText(formData.get(`program_${index}_name`));
+  const programType = asText(formData.get(`program_${index}_programType`));
+  const teachingLanguage = asText(formData.get(`program_${index}_teachingLanguage`));
+  if (!name || !programType || !teachingLanguage) {
+    throw new Error(`项目 "${name || programId}"：项目名称、申请学历和授课语言不能为空`);
+  }
+
+  const majorText = asText(formData.get(`program_${index}_majorText`));
+  const requirementsText = asText(formData.get(`program_${index}_requirementsText`));
+  const applicationTimeText = asText(formData.get(`program_${index}_applicationTimeText`));
+  const tuitionText = asText(formData.get(`program_${index}_tuitionText`));
+  const deadlineDateText = asText(formData.get(`program_${index}_deadlineDate`));
+  const firstYearCostMax = optionalFormNumber(formData, `program_${index}_firstYearCostMax`);
+  const parsed = parseProgram({
+    tuitionText,
+    accommodationText: asText(formData.get(`program_${index}_accommodationText`)),
+    insuranceText: asText(formData.get(`program_${index}_insuranceText`)),
+    applicationFeeText: asText(formData.get(`program_${index}_applicationFeeText`)),
+    requirementsText,
+    applicationTimeText,
+    majorText,
+    programType,
+  });
+  const deadlineDate = deadlineDateText
+    ? new Date(`${deadlineDateText}T23:59:59+08:00`)
+    : parsed.deadlineDate;
+  const validDeadlineDate = deadlineDate && Number.isFinite(deadlineDate.getTime())
+    ? deadlineDate
+    : null;
+
+  const updates = {
+    name,
+    programType,
+    teachingLanguage,
+    majorText: majorText || null,
+    requirementsText: requirementsText || null,
+    tuitionText,
+    tuitionMin: parsed.tuition.min,
+    tuitionMax: parsed.tuition.max,
+    tuitionPeriod: parsed.tuition.period,
+    firstYearCostMax: firstYearCostMax ?? parsed.firstYearCostMax,
+    costIncomplete: firstYearCostMax == null ? parsed.costIncomplete : false,
+    cscaStatus: parsed.cscaStatus,
+    hskLevelMin: parsed.hskLevelMin,
+    hskScoreMin: parsed.hskScoreMin,
+    ieltsMin: parsed.ieltsMin,
+    toeflMin: parsed.toeflMin,
+    duolingoMin: parsed.duolingoMin,
+    gpaMin: parsed.gpaMin,
+    gpaScale: parsed.gpaScale,
+    minAge: parsed.minAge,
+    maxAge: parsed.maxAge,
+    deadlineDate: validDeadlineDate,
+    deadlineStatus: validDeadlineDate
+      ? validDeadlineDate.getTime() >= Date.now() ? "OPEN" : "EXPIRED"
+      : parsed.deadlineStatus,
+    introduction: optionalFormText(formData, `program_${index}_introduction`),
+    duration: optionalFormText(formData, `program_${index}_duration`),
+    applicationTimeText: applicationTimeText || null,
+    scholarshipContent: optionalFormText(formData, `program_${index}_scholarshipContent`),
+    parsedJson: JSON.stringify(parsed),
+    reviewStatus: "VERIFIED" as const,
+    manuallyVerified: true,
+    updatedAt: new Date(),
+  };
+
+  const [oldProgram] = await db.select().from(programs).where(eq(programs.id, programId));
+  if (!oldProgram) throw new Error(`项目 ${name} 不存在`);
+  await db.update(programs).set(updates).where(eq(programs.id, programId));
+  await db.delete(programMajors).where(eq(programMajors.programId, programId));
+  const majorValues = splitMajors(majorText).map((major) => ({
+    id: newId(),
+    programId,
+    name: major,
+    normalizedName: normalizeKeyword(major),
+    category: null,
+  }));
+  if (majorValues.length) {
+    await db.insert(programMajors).values(majorValues);
+  }
+  await writeAudit({
+    userId,
+    action: "PROGRAM_UPDATED",
+    entityType: "PROGRAM",
+    entityId: programId,
+    details: { name: oldProgram.name, changed: changedFields(oldProgram, updates) },
+  });
+  invalidateMajorCatalog();
 }
 
 export async function updateProgramAction(formData: FormData) {
@@ -382,7 +481,7 @@ export async function updateProgramAction(formData: FormData) {
     action: "PROGRAM_UPDATED",
     entityType: "PROGRAM",
     entityId: id,
-    details: { changed: changedFields(oldProgram, updates) },
+    details: { name: oldProgram.name, changed: changedFields(oldProgram, updates) },
   });
   invalidateMajorCatalog();
   revalidatePath(`/schools/${oldProgram.schoolId}`);
