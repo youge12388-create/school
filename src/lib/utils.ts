@@ -36,6 +36,19 @@ export function formatDate(value: Date | number | null | undefined) {
   }).format(date);
 }
 
+export function formatDateTime(value: Date | number | null | undefined) {
+  if (value == null) return "—";
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "数据库未有相关信息";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function formatMoney(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) return "数据库未有相关信息";
   return new Intl.NumberFormat("zh-CN", {
