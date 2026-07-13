@@ -231,73 +231,85 @@ function optionalFormNumber(formData: FormData, key: string) {
 }
 
 export async function updateSchoolAction(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
-  const id = asText(formData.get("id"));
-  if (!id) throw new Error("缺少学校ID");
+  let schoolId: string | undefined;
+  try {
+    const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+    const id = asText(formData.get("id"));
+    if (!id) throw new Error("缺少学校ID");
+    schoolId = id;
 
-  const nameZh = asText(formData.get("nameZh"));
-  if (!nameZh) throw new Error("学校中文名不能为空");
+    const nameZh = asText(formData.get("nameZh"));
+    if (!nameZh) throw new Error("学校中文名不能为空");
 
-  const partnershipRating = optionalFormNumber(formData, "partnershipRating") ?? 0;
-  const cscaStatus = asText(formData.get("cscaStatus"));
-  if (!RULE_STATUSES.includes(cscaStatus as never)) {
-    throw new Error("CSCA 状态无效");
+    const partnershipRating = optionalFormNumber(formData, "partnershipRating") ?? 0;
+    const cscaStatus = asText(formData.get("cscaStatus"));
+    if (!RULE_STATUSES.includes(cscaStatus as never)) {
+      throw new Error("CSCA 状态无效");
+    }
+    if (partnershipRating < 0 || partnershipRating > 5) {
+      throw new Error("合作星级必须在 0 到 5 之间");
+    }
+
+    const updates = {
+      nameZh,
+      name: optionalFormText(formData, "name") || nameZh,
+      category: optionalFormText(formData, "category"),
+      province: optionalFormText(formData, "province"),
+      city: optionalFormText(formData, "city"),
+      website: optionalFormText(formData, "website"),
+      partnershipRating,
+      cscaStatus: cscaStatus as (typeof RULE_STATUSES)[number],
+      qsRanking: optionalFormNumber(formData, "qsRanking"),
+      rankingInfo: optionalFormText(formData, "rankingInfo"),
+      description: optionalFormText(formData, "description"),
+      tags: optionalFormText(formData, "tags"),
+      cooperationPrograms: optionalFormText(formData, "cooperationPrograms"),
+      groupApplicationAccount: optionalFormText(formData, "groupApplicationAccount"),
+      scholarshipDisbursementText: optionalFormText(formData, "scholarshipDisbursementText"),
+      collectionServiceText: optionalFormText(formData, "collectionServiceText"),
+      cooperationDeadlineText: optionalFormText(formData, "cooperationDeadlineText"),
+      companyRecruitmentQuotaText: optionalFormText(formData, "companyRecruitmentQuotaText"),
+      schoolRecruitmentPlanText: optionalFormText(formData, "schoolRecruitmentPlanText"),
+      recruitmentPreferenceText: optionalFormText(formData, "recruitmentPreferenceText"),
+      languageStudentAssessmentText: optionalFormText(formData, "languageStudentAssessmentText"),
+      degreeStudentAssessmentText: optionalFormText(formData, "degreeStudentAssessmentText"),
+      cooperationNote: optionalFormText(formData, "cooperationNote"),
+      specialCaseNote: optionalFormText(formData, "specialCaseNote"),
+      applicationUpdateFrequency: optionalFormText(formData, "applicationUpdateFrequency"),
+      reviewStatus: "VERIFIED" as const,
+      updatedAt: new Date(),
+    };
+
+    const [oldSchool] = await db.select().from(schools).where(eq(schools.id, id));
+    if (!oldSchool) throw new Error("学校不存在");
+    await db.update(schools).set(updates).where(eq(schools.id, id));
+    await writeAudit({
+      userId: user.id,
+      action: "SCHOOL_UPDATED",
+      entityType: "SCHOOL",
+      entityId: id,
+      details: { nameZh: oldSchool.nameZh, changed: changedFields(oldSchool, updates) },
+    });
+
+    // 保存项目数据（同一表单一并提交）
+    for (let i = 0; ; i++) {
+      const programId = asText(formData.get(`program_${i}_id`));
+      if (!programId) break;
+      await updateSingleProgram(user.id, formData, i, programId);
+    }
+  } catch (e) {
+    // redirect/notFound 错误让框架处理
+    if (typeof e === "object" && e !== null && "digest" in e) throw e;
+    const message = e instanceof Error ? e.message : "未知错误";
+    console.error("updateSchoolAction error:", message, e);
+    throw new Error(message);
   }
-  if (partnershipRating < 0 || partnershipRating > 5) {
-    throw new Error("合作星级必须在 0 到 5 之间");
+
+  if (schoolId) {
+    revalidatePath(`/schools/${schoolId}`);
+    revalidatePath("/schools");
+    redirect(`/schools/${schoolId}`);
   }
-
-  const updates = {
-    nameZh,
-    name: optionalFormText(formData, "name") || nameZh,
-    category: optionalFormText(formData, "category"),
-    province: optionalFormText(formData, "province"),
-    city: optionalFormText(formData, "city"),
-    website: optionalFormText(formData, "website"),
-    partnershipRating,
-    cscaStatus: cscaStatus as (typeof RULE_STATUSES)[number],
-    qsRanking: optionalFormNumber(formData, "qsRanking"),
-    rankingInfo: optionalFormText(formData, "rankingInfo"),
-    description: optionalFormText(formData, "description"),
-    tags: optionalFormText(formData, "tags"),
-    cooperationPrograms: optionalFormText(formData, "cooperationPrograms"),
-    groupApplicationAccount: optionalFormText(formData, "groupApplicationAccount"),
-    scholarshipDisbursementText: optionalFormText(formData, "scholarshipDisbursementText"),
-    collectionServiceText: optionalFormText(formData, "collectionServiceText"),
-    cooperationDeadlineText: optionalFormText(formData, "cooperationDeadlineText"),
-    companyRecruitmentQuotaText: optionalFormText(formData, "companyRecruitmentQuotaText"),
-    schoolRecruitmentPlanText: optionalFormText(formData, "schoolRecruitmentPlanText"),
-    recruitmentPreferenceText: optionalFormText(formData, "recruitmentPreferenceText"),
-    languageStudentAssessmentText: optionalFormText(formData, "languageStudentAssessmentText"),
-    degreeStudentAssessmentText: optionalFormText(formData, "degreeStudentAssessmentText"),
-    cooperationNote: optionalFormText(formData, "cooperationNote"),
-    specialCaseNote: optionalFormText(formData, "specialCaseNote"),
-    applicationUpdateFrequency: optionalFormText(formData, "applicationUpdateFrequency"),
-    reviewStatus: "VERIFIED" as const,
-    updatedAt: new Date(),
-  };
-
-  const [oldSchool] = await db.select().from(schools).where(eq(schools.id, id));
-  if (!oldSchool) throw new Error("学校不存在");
-  await db.update(schools).set(updates).where(eq(schools.id, id));
-  await writeAudit({
-    userId: user.id,
-    action: "SCHOOL_UPDATED",
-    entityType: "SCHOOL",
-    entityId: id,
-    details: { nameZh: oldSchool.nameZh, changed: changedFields(oldSchool, updates) },
-  });
-
-  // 保存项目数据（同一表单一并提交）
-  for (let i = 0; ; i++) {
-    const programId = asText(formData.get(`program_${i}_id`));
-    if (!programId) break;
-    await updateSingleProgram(user.id, formData, i, programId);
-  }
-
-  revalidatePath(`/schools/${id}`);
-  revalidatePath("/schools");
-  redirect(`/schools/${id}`);
 }
 
 async function updateSingleProgram(userId: string, formData: FormData, index: number, programId: string) {
