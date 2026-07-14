@@ -19,11 +19,6 @@ tmp_patch.js
 .env*
 !.env.example
 /data/
-!/data/app.db
-!/data/school-syt.db
-!/data/dump.sql
-!/data/school-syt-mysql-dump.sql
-!/data/imports/
 /data/backups/
 /data/deploy/
 /data/temp/
