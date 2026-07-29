@@ -318,7 +318,8 @@ export async function getProgramsForScreening() {
     }>;
 
   return rows.map((row) => {
-    // 浠?applicationTimeText 瀹炴椂瑙ｆ瀽 deadline锛屽鐞嗘棤骞翠唤鏃ユ湡鐨勮嚜鍔ㄧ炕骞?    let deadlineDate: Date | null = null;
+    // 从 applicationTimeText 实时解析 deadline，处理无年份日期的自动翻年
+    let deadlineDate: Date | null = null;
     let deadlineStatus = row.deadlineStatus;
     if (row.applicationTimeText) {
       const parsed = parseDeadline(row.applicationTimeText);
@@ -327,7 +328,8 @@ export async function getProgramsForScreening() {
         deadlineStatus = parsed.status;
       }
     }
-    // 鍥為€€锛氬疄鏃惰В鏋愬け璐ユ椂浣跨敤瀛樺偍鍊?    if (!deadlineDate && row.deadlineDate != null && Number.isFinite(row.deadlineDate)) {
+    // 回退：实时解析失败时使用存储值
+    if (!deadlineDate && row.deadlineDate != null && Number.isFinite(row.deadlineDate)) {
       deadlineDate = new Date(row.deadlineDate);
     }
 
