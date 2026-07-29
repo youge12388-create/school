@@ -22,7 +22,7 @@ export type ScreeningCriteria = {
   schoolQuery?: string;
   intakeYear?: number | null;
   budget?: number | null;
-  hasCsca?: boolean | null;
+  cscaStatus?: RuleStatus | null;
   gpa?: number | null;
   gpaScale?: number | null;
   hskLevel?: number | null;
@@ -115,13 +115,13 @@ export function matchesSchoolTier(
 
   const schoolTags = new Set(
     (tags ?? "")
-      .split(/[，,、；;\s]+/)
+      .split(/[锛?銆侊紱;\s]+/)
       .map((tag) => tag.trim())
       .filter(Boolean),
   );
   const has985 = schoolTags.has("985");
   const has211 = schoolTags.has("211");
-  const hasDoubleFirstClass = schoolTags.has("双一流");
+  const hasDoubleFirstClass = schoolTags.has("鍙屼竴娴?);
 
   if (tier === "985") return has985;
   if (tier === "211") return has211 && !has985;
@@ -133,18 +133,17 @@ export function matchesSchoolTier(
 
 
 
-/** 检测生源地招生偏好 */
-const ENROLLMENT_REGIONS = /非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲|缅甸|菲律宾|委内瑞拉|塔吉克|土库曼|阿富汗|朝鲜|韩国|越南|泰国|马来西亚|印度尼西亚|印巴|斯坦|尼日利亚/u;
+/** 妫€娴嬬敓婧愬湴鎷涚敓鍋忓ソ */
+const ENROLLMENT_REGIONS = /闈炲窞|涓滃崡浜殀涓簹|鍗椾簹|闈炴床|鎷夌編|涓笢|涓滄|涓€甯︿竴璺瘄娆犲彂杈緗宸村熀鏂潶|鍗板害|瀛熷姞鎷墊淇勭綏鏂瘄澶ф磱娲瞸缂呯敻|鑿插緥瀹緗濮斿唴鐟炴媺|濉斿悏鍏媩鍦熷簱鏇紎闃垮瘜姹梶鏈濋矞|闊╁浗|瓒婂崡|娉板浗|椹潵瑗夸簹|鍗板害灏艰タ浜殀鍗板反|鏂潶|灏兼棩鍒╀簹/u;
 export function getEnrollmentRegionPreference(program: MatchProgram): "HAS_PREFERENCE" | "NO_PREFERENCE" {
   const text = (program.requirementsText ?? "") + (program.sourceText ?? "");
   if (!ENROLLMENT_REGIONS.test(text)) return "NO_PREFERENCE";
-  // 明确招生偏好：招/不招/开放/限制 + 地区（跨行匹配）
-  if (/(不?招|不?开放|考虑|限制|倾向|侧重|偏向|可招|已招|推荐|鼓励)[\s\S]{0,200}(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)/u.test(text)) return "HAS_PREFERENCE";
-  if (/(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)[\s\S]{0,50}(不?招|不?开放|考虑|限制|不对|不予)/u.test(text)) return "HAS_PREFERENCE";
-  // 招生对象 + 地区
-  if (/(面向|针对|优先|招生对象|国别|生源|生源地)[\s\S]{0,100}(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达)/u.test(text)) return "HAS_PREFERENCE";
-  // 重点面向留学生
-  if (/(主要|重点)[\s\S]{0,30}(招收|面向)[\s\S]{0,30}(留学生|国际学生)/u.test(text)) return "HAS_PREFERENCE";
+  // 鏄庣‘鎷涚敓鍋忓ソ锛氭嫑/涓嶆嫑/寮€鏀?闄愬埗 + 鍦板尯锛堣法琛屽尮閰嶏級
+  if (/(涓?鎷泑涓?寮€鏀緗鑰冭檻|闄愬埗|鍊惧悜|渚ч噸|鍋忓悜|鍙嫑|宸叉嫑|鎺ㄨ崘|榧撳姳)[\s\S]{0,200}(闈炲窞|涓滃崡浜殀涓簹|鍗椾簹|闈炴床|鎷夌編|涓笢|涓滄|涓€甯︿竴璺瘄娆犲彂杈緗宸村熀鏂潶|鍗板害|瀛熷姞鎷墊淇勭綏鏂瘄澶ф磱娲?/u.test(text)) return "HAS_PREFERENCE";
+  if (/(闈炲窞|涓滃崡浜殀涓簹|鍗椾簹|闈炴床|鎷夌編|涓笢|涓滄|涓€甯︿竴璺瘄娆犲彂杈緗宸村熀鏂潶|鍗板害|瀛熷姞鎷墊淇勭綏鏂瘄澶ф磱娲?[\s\S]{0,50}(涓?鎷泑涓?寮€鏀緗鑰冭檻|闄愬埗|涓嶅|涓嶄簣)/u.test(text)) return "HAS_PREFERENCE";
+  // 鎷涚敓瀵硅薄 + 鍦板尯
+  if (/(闈㈠悜|閽堝|浼樺厛|鎷涚敓瀵硅薄|鍥藉埆|鐢熸簮|鐢熸簮鍦?[\s\S]{0,100}(闈炲窞|涓滃崡浜殀涓簹|鍗椾簹|闈炴床|鎷夌編|涓笢|涓滄|涓€甯︿竴璺瘄娆犲彂杈?/u.test(text)) return "HAS_PREFERENCE";
+  // 閲嶇偣闈㈠悜鐣欏鐢?  if (/(涓昏|閲嶇偣)[\s\S]{0,30}(鎷涙敹|闈㈠悜)[\s\S]{0,30}(鐣欏鐢焲鍥介檯瀛︾敓)/u.test(text)) return "HAS_PREFERENCE";
   return "NO_PREFERENCE";
 }export function schoolNameMatches(schoolName: string, query?: string) {
   if (!query) return true;
@@ -156,23 +155,23 @@ function compareThreshold(
   actual: number | null | undefined,
   required: number | null | undefined,
 ) {
-  if (required == null) return { label, level: "UNKNOWN" as const, detail: "数据库未有相关信息" };
-  if (actual == null) return { label, level: "NEED" as const, detail: `需要达到 ${required}` };
+  if (required == null) return { label, level: "UNKNOWN" as const, detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
+  if (actual == null) return { label, level: "NEED" as const, detail: `闇€瑕佽揪鍒?${required}` };
   return actual >= required
-    ? { label, level: "PASS" as const, detail: `${actual}，达到要求 ${required}` }
-    : { label, level: "FAIL" as const, detail: `${actual}，低于要求 ${required}` };
+    ? { label, level: "PASS" as const, detail: `${actual}锛岃揪鍒拌姹?${required}` }
+    : { label, level: "FAIL" as const, detail: `${actual}锛屼綆浜庤姹?${required}` };
 }
 
 function compareExact(label: string, actual: string, expected?: string): MatchEvidence | null {
   if (!expected) return null;
   return actual === expected
-    ? { label, level: "PASS", detail: "符合筛选条件" }
-    : { label, level: "FAIL", detail: "与筛选条件不一致" };
+    ? { label, level: "PASS", detail: "绗﹀悎绛涢€夋潯浠? }
+    : { label, level: "FAIL", detail: "涓庣瓫閫夋潯浠朵笉涓€鑷? };
 }
 
 function normalizeLocation(value: string) {
   return normalizeKeyword(value).replace(
-    /(壮族自治区|回族自治区|维吾尔自治区|自治区|特别行政区|省|市)$/u,
+    /(澹棌鑷不鍖簗鍥炴棌鑷不鍖簗缁村惥灏旇嚜娌诲尯|鑷不鍖簗鐗瑰埆琛屾斂鍖簗鐪亅甯?$/u,
     "",
   );
 }
@@ -248,19 +247,19 @@ function deadlineEvidence(
     !program.deadlineDate ||
     !Number.isFinite(program.deadlineDate.getTime())
   ) {
-    return { label: "申请截止", level: "UNKNOWN" as const, detail: "数据库未有相关信息" };
+    return { label: "鐢宠鎴", level: "UNKNOWN" as const, detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
   }
   const dateText = program.deadlineDate.toLocaleDateString("zh-CN");
-  // 优先展示原始文本，范围格式（X月X日-X月X日）比解析日期更直观
+  // 浼樺厛灞曠ず鍘熷鏂囨湰锛岃寖鍥存牸寮忥紙X鏈圶鏃?X鏈圶鏃ワ級姣旇В鏋愭棩鏈熸洿鐩磋
   const rawText = program.applicationTimeText?.trim();
   const detailSuffix = rawText ? ` (${rawText})` : "";
 
   if (status === "EXPIRED") {
     const hasDeadlineFilter = criteria.deadlineFrom != null || criteria.deadlineTo != null || (criteria.deadlineMode && criteria.deadlineMode !== "all");
     if (!hasDeadlineFilter) {
-      return { label: "申请截止", level: "NEED" as const, detail: `已截止 ${dateText}，需确认是否仍可申请${detailSuffix}` };
+      return { label: "鐢宠鎴", level: "NEED" as const, detail: `宸叉埅姝?${dateText}锛岄渶纭鏄惁浠嶅彲鐢宠${detailSuffix}` };
     }
-    return { label: "申请截止", level: "FAIL" as const, detail: `已截止 ${dateText}${detailSuffix}` };
+    return { label: "鐢宠鎴", level: "FAIL" as const, detail: `宸叉埅姝?${dateText}${detailSuffix}` };
   }
   const time = program.deadlineDate.getTime();
   const from = criteria.deadlineFrom?.getTime();
@@ -268,12 +267,12 @@ function deadlineEvidence(
     ? new Date(criteria.deadlineTo).setHours(23, 59, 59, 999)
     : null;
   if (from != null && time < from) {
-    return { label: "申请截止", level: "FAIL" as const, detail: `截止 ${dateText}，早于筛选范围${detailSuffix}` };
+    return { label: "鐢宠鎴", level: "FAIL" as const, detail: `鎴 ${dateText}锛屾棭浜庣瓫閫夎寖鍥?{detailSuffix}` };
   }
   if (to != null && time > to) {
-    return { label: "申请截止", level: "FAIL" as const, detail: `截止 ${dateText}，晚于筛选范围${detailSuffix}` };
+    return { label: "鐢宠鎴", level: "FAIL" as const, detail: `鎴 ${dateText}锛屾櫄浜庣瓫閫夎寖鍥?{detailSuffix}` };
   }
-  return { label: "申请截止", level: "PASS" as const, detail: `截止 ${dateText}${detailSuffix}` };
+  return { label: "鐢宠鎴", level: "PASS" as const, detail: `鎴 ${dateText}${detailSuffix}` };
 }
 
 function ageEvidence(program: MatchProgram, age: number | null | undefined): MatchEvidence | null {
@@ -283,32 +282,32 @@ function ageEvidence(program: MatchProgram, age: number | null | undefined): Mat
   const minAge = hasParsedAge ? parsedAge.minAge : program.minAge;
   const maxAge = hasParsedAge ? parsedAge.maxAge : program.maxAge;
   if (minAge == null && maxAge == null) {
-    return { label: "年龄", level: "UNKNOWN", detail: "数据库未有相关信息" };
+    return { label: "骞撮緞", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
   }
   if (minAge != null && age < minAge) {
-    return { label: "年龄", level: "FAIL", detail: `${age} 岁，低于最低年龄 ${minAge} 岁` };
+    return { label: "骞撮緞", level: "FAIL", detail: `${age} 宀侊紝浣庝簬鏈€浣庡勾榫?${minAge} 宀乣 };
   }
   if (maxAge != null && age > maxAge) {
-    return { label: "年龄", level: "FAIL", detail: `${age} 岁，超过最高年龄 ${maxAge} 岁` };
+    return { label: "骞撮緞", level: "FAIL", detail: `${age} 宀侊紝瓒呰繃鏈€楂樺勾榫?${maxAge} 宀乣 };
   }
   const range = [
-    minAge == null ? null : `最低 ${minAge} 岁`,
-    maxAge == null ? null : `最高 ${maxAge} 岁`,
-  ].filter(Boolean).join("，");
-  return { label: "年龄", level: "PASS", detail: `${age} 岁，符合${range}` };
+    minAge == null ? null : `鏈€浣?${minAge} 宀乣,
+    maxAge == null ? null : `鏈€楂?${maxAge} 宀乣,
+  ].filter(Boolean).join("锛?);
+  return { label: "骞撮緞", level: "PASS", detail: `${age} 宀侊紝绗﹀悎${range}` };
 }
 
 function nationalityEvidence(program: MatchProgram, nationality?: string): MatchEvidence | null {
   if (!nationality) return null;
   const requirement = program.requirementsText ?? "";
-  if (!requirement) return { label: "国籍", level: "UNKNOWN", detail: "数据库未有相关信息" };
-  const requiresForeignNationality = /非中国籍|外国公民|外籍人士|外籍申请人/u.test(requirement);
+  if (!requirement) return { label: "鍥界睄", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
+  const requiresForeignNationality = /闈炰腑鍥界睄|澶栧浗鍏皯|澶栫睄浜哄＋|澶栫睄鐢宠浜?u.test(requirement);
   if (!requiresForeignNationality) {
-    return { label: "国籍", level: "UNKNOWN", detail: "项目未结构化国籍限制，需要人工复核" };
+    return { label: "鍥界睄", level: "UNKNOWN", detail: "椤圭洰鏈粨鏋勫寲鍥界睄闄愬埗锛岄渶瑕佷汉宸ュ鏍? };
   }
-  return /中国/u.test(nationality)
-    ? { label: "国籍", level: "FAIL", detail: "项目明确要求非中国籍申请人" }
-    : { label: "国籍", level: "PASS", detail: "项目要求外国公民，客户国籍符合" };
+  return /涓浗/u.test(nationality)
+    ? { label: "鍥界睄", level: "FAIL", detail: "椤圭洰鏄庣‘瑕佹眰闈炰腑鍥界睄鐢宠浜? }
+    : { label: "鍥界睄", level: "PASS", detail: "椤圭洰瑕佹眰澶栧浗鍏皯锛屽鎴峰浗绫嶇鍚? };
 }
 
 function intakeYearEvidence(
@@ -317,43 +316,43 @@ function intakeYearEvidence(
 ): MatchEvidence | null {
   if (intakeYear == null) return null;
   const text = [program.semesterText, program.applicationTimeText].filter(Boolean).join(" ");
-  if (!text) return { label: "入学年份", level: "UNKNOWN", detail: "数据库未有相关信息" };
+  if (!text) return { label: "鍏ュ骞翠唤", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
   if (text.includes(String(intakeYear))) {
-    return { label: "入学年份", level: "PASS", detail: `项目文本包含 ${intakeYear} 年` };
+    return { label: "鍏ュ骞翠唤", level: "PASS", detail: `椤圭洰鏂囨湰鍖呭惈 ${intakeYear} 骞碻 };
   }
   return {
-    label: "入学年份",
+    label: "鍏ュ骞翠唤",
     level: "UNKNOWN",
-    detail: `未结构化确认 ${intakeYear} 年入学，需要人工复核`,
+    detail: `鏈粨鏋勫寲纭 ${intakeYear} 骞村叆瀛︼紝闇€瑕佷汉宸ュ鏍竊,
   };
 }
 
 function accommodationEvidence(program: MatchProgram, required?: boolean): MatchEvidence | null {
   if (!required) return null;
   const text = program.accommodationText?.trim();
-  if (!text) return { label: "住宿", level: "UNKNOWN", detail: "数据库未有相关信息" };
-  if (/不提供住宿|无住宿|校外自行解决/u.test(text)) {
-    return { label: "住宿", level: "FAIL", detail: "项目文本明确不提供住宿" };
+  if (!text) return { label: "浣忓", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
+  if (/涓嶆彁渚涗綇瀹縷鏃犱綇瀹縷鏍″鑷瑙ｅ喅/u.test(text)) {
+    return { label: "浣忓", level: "FAIL", detail: "椤圭洰鏂囨湰鏄庣‘涓嶆彁渚涗綇瀹? };
   }
   return {
-    label: "住宿",
+    label: "浣忓",
     level: "PASS",
-    detail: "数据库有住宿信息，具体房型和名额需确认",
+    detail: "鏁版嵁搴撴湁浣忓淇℃伅锛屽叿浣撴埧鍨嬪拰鍚嶉闇€纭",
   };
 }
 
 const supervisorAcceptanceRequiredPattern =
-  /(导师.{0,24}(接收函|接受函|同意函|接收意向函|接受意向函|邀请函|意向表|同意接收|同意接受|审核接收|审核通过|接收确认|接受确认)|接收导师|接受导师|选择导师.{0,20}审核通过|意向导师推荐信|supervisor.{0,30}(acceptance|approval|consent|invitation)|advisor.{0,30}(acceptance|approval|consent|invitation)|adviser.{0,30}(acceptance|approval|consent|invitation)|(acceptance|invitation) letter.{0,30}(supervisor|advisor|adviser)|pre[-\s]?(acceptance|approval).{0,30}(supervisor|advisor|adviser))/iu;
+  /(瀵煎笀.{0,24}(鎺ユ敹鍑絴鎺ュ彈鍑絴鍚屾剰鍑絴鎺ユ敹鎰忓悜鍑絴鎺ュ彈鎰忓悜鍑絴閭€璇峰嚱|鎰忓悜琛▅鍚屾剰鎺ユ敹|鍚屾剰鎺ュ彈|瀹℃牳鎺ユ敹|瀹℃牳閫氳繃|鎺ユ敹纭|鎺ュ彈纭)|鎺ユ敹瀵煎笀|鎺ュ彈瀵煎笀|閫夋嫨瀵煎笀.{0,20}瀹℃牳閫氳繃|鎰忓悜瀵煎笀鎺ㄨ崘淇supervisor.{0,30}(acceptance|approval|consent|invitation)|advisor.{0,30}(acceptance|approval|consent|invitation)|adviser.{0,30}(acceptance|approval|consent|invitation)|(acceptance|invitation) letter.{0,30}(supervisor|advisor|adviser)|pre[-\s]?(acceptance|approval).{0,30}(supervisor|advisor|adviser))/iu;
 
 const supervisorAcceptanceNotRequiredPattern =
-  /((不需要|无需|无须|不用|不要求|免).{0,12}(导师|接收函|接受函|同意函)|(导师|接收函|接受函|同意函).{0,12}(不需要|无需|无须|不用|不要求|非必需|非必须)|no need.{0,30}(supervisor|advisor|adviser|acceptance letter)|not required.{0,30}(supervisor|advisor|adviser|acceptance letter))/iu;
+  /((涓嶉渶瑕亅鏃犻渶|鏃犻』|涓嶇敤|涓嶈姹倈鍏?.{0,12}(瀵煎笀|鎺ユ敹鍑絴鎺ュ彈鍑絴鍚屾剰鍑?|(瀵煎笀|鎺ユ敹鍑絴鎺ュ彈鍑絴鍚屾剰鍑?.{0,12}(涓嶉渶瑕亅鏃犻渶|鏃犻』|涓嶇敤|涓嶈姹倈闈炲繀闇€|闈炲繀椤?|no need.{0,30}(supervisor|advisor|adviser|acceptance letter)|not required.{0,30}(supervisor|advisor|adviser|acceptance letter))/iu;
 
 const supervisorAcceptancePartialScopePattern =
-  /(部分|指定|个别|相关).{0,12}(学院|院系|专业|项目)|(以下|上述).{0,12}(学院|院系|专业|项目)|其他.{0,12}(学院|院系|专业|项目)|(学院|院系).{0,40}(必须|须|需要|要求).{0,40}(导师|接收函|接受函|同意函)/iu;
+  /(閮ㄥ垎|鎸囧畾|涓埆|鐩稿叧).{0,12}(瀛﹂櫌|闄㈢郴|涓撲笟|椤圭洰)|(浠ヤ笅|涓婅堪).{0,12}(瀛﹂櫌|闄㈢郴|涓撲笟|椤圭洰)|鍏朵粬.{0,12}(瀛﹂櫌|闄㈢郴|涓撲笟|椤圭洰)|(瀛﹂櫌|闄㈢郴).{0,40}(蹇呴』|椤粅闇€瑕亅瑕佹眰).{0,40}(瀵煎笀|鎺ユ敹鍑絴鎺ュ彈鍑絴鍚屾剰鍑?/iu;
 
 function splitRequirementSegments(text: string) {
   return text
-    .split(/[。；;\n\r]+/u)
+    .split(/[銆傦紱;\n\r]+/u)
     .map((segment) => segment.trim())
     .filter(Boolean);
 }
@@ -406,49 +405,49 @@ function supervisorAcceptanceEvidence(
   const status = getSupervisorAcceptanceStatus(program);
   if (mode === "required") {
     return status === "REQUIRED"
-      ? { label: "导师接收函", level: "PASS", detail: "学校申请条件明确要求导师接收函" }
+      ? { label: "瀵煎笀鎺ユ敹鍑?, level: "PASS", detail: "瀛︽牎鐢宠鏉′欢鏄庣‘瑕佹眰瀵煎笀鎺ユ敹鍑? }
       : status === "PARTIAL_REQUIRED"
-        ? { label: "导师接收函", level: "NEED", detail: "部分学院或专业要求导师接收函，需确认目标专业" }
+        ? { label: "瀵煎笀鎺ユ敹鍑?, level: "NEED", detail: "閮ㄥ垎瀛﹂櫌鎴栦笓涓氳姹傚甯堟帴鏀跺嚱锛岄渶纭鐩爣涓撲笟" }
         : status === "NOT_REQUIRED"
-        ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" }
-        : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
+        ? { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "瀛︽牎鐢宠鏉′欢鏄庣‘涓嶈姹傚甯堟帴鏀跺嚱" }
+        : { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
   }
 
   if (mode === "not_required") {
     return status === "NOT_REQUIRED"
-      ? { label: "导师接收函", level: "PASS", detail: "学校申请条件明确不要求导师接收函" }
+      ? { label: "瀵煎笀鎺ユ敹鍑?, level: "PASS", detail: "瀛︽牎鐢宠鏉′欢鏄庣‘涓嶈姹傚甯堟帴鏀跺嚱" }
       : status === "REQUIRED"
-        ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确要求导师接收函" }
+        ? { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "瀛︽牎鐢宠鏉′欢鏄庣‘瑕佹眰瀵煎笀鎺ユ敹鍑? }
         : status === "PARTIAL_REQUIRED"
-          ? { label: "导师接收函", level: "FAIL", detail: "部分学院或专业要求导师接收函" }
-          : { label: "导师接收函", level: "FAIL", detail: "数据库未有相关信息" };
+          ? { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "閮ㄥ垎瀛﹂櫌鎴栦笓涓氳姹傚甯堟帴鏀跺嚱" }
+          : { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
   }
 
   return status === "UNKNOWN"
-    ? { label: "导师接收函", level: "PASS", detail: "数据库未有相关信息" }
+    ? { label: "瀵煎笀鎺ユ敹鍑?, level: "PASS", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? }
     : status === "REQUIRED"
-      ? { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确要求导师接收函" }
+      ? { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "瀛︽牎鐢宠鏉′欢鏄庣‘瑕佹眰瀵煎笀鎺ユ敹鍑? }
       : status === "PARTIAL_REQUIRED"
-        ? { label: "导师接收函", level: "FAIL", detail: "部分学院或专业要求导师接收函" }
-        : { label: "导师接收函", level: "FAIL", detail: "学校申请条件明确不要求导师接收函" };
+        ? { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "閮ㄥ垎瀛﹂櫌鎴栦笓涓氳姹傚甯堟帴鏀跺嚱" }
+        : { label: "瀵煎笀鎺ユ敹鍑?, level: "FAIL", detail: "瀛︽牎鐢宠鏉′欢鏄庣‘涓嶈姹傚甯堟帴鏀跺嚱" };
 }
 
 function englishEvidence(program: MatchProgram, criteria: ScreeningCriteria): MatchEvidence {
   const scores = [
-    compareThreshold("雅思", criteria.ielts, program.ieltsMin),
-    compareThreshold("托福", criteria.toefl, program.toeflMin),
-    compareThreshold("多邻国分数", criteria.duolingo, program.duolingoMin),
+    compareThreshold("闆呮€?, criteria.ielts, program.ieltsMin),
+    compareThreshold("鎵樼", criteria.toefl, program.toeflMin),
+    compareThreshold("澶氶偦鍥藉垎鏁?, criteria.duolingo, program.duolingoMin),
   ];
   if (scores.some((item) => item.level === "PASS")) {
-    return { label: "英语", level: "PASS", detail: "至少一项英语成绩达到要求" };
+    return { label: "鑻辫", level: "PASS", detail: "鑷冲皯涓€椤硅嫳璇垚缁╄揪鍒拌姹? };
   }
   if (scores.every((item) => item.level === "UNKNOWN")) {
-    return { label: "英语", level: "UNKNOWN", detail: "数据库未有相关信息" };
+    return { label: "鑻辫", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? };
   }
   if (scores.every((item) => item.level === "FAIL")) {
-    return { label: "英语", level: "FAIL", detail: "已提供的英语成绩均低于项目要求" };
+    return { label: "鑻辫", level: "FAIL", detail: "宸叉彁渚涚殑鑻辫鎴愮哗鍧囦綆浜庨」鐩姹? };
   }
-  return { label: "英语", level: "NEED", detail: "英语成绩需要补充或人工复核" };
+  return { label: "鑻辫", level: "NEED", detail: "鑻辫鎴愮哗闇€瑕佽ˉ鍏呮垨浜哄伐澶嶆牳" };
 }
 
 
@@ -458,25 +457,25 @@ function paperPatentEvidence(
 ): MatchEvidence | null {
   if (!actual) return null;
   if (actual === "sci_ei" && requirement.hasSCI) {
-    return { label: "论文/专利成果", level: "PASS", detail: "客户有SCI/EI论文，匹配学校SCI/EI要求，更具竞争力" };
+    return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "瀹㈡埛鏈塖CI/EI璁烘枃锛屽尮閰嶅鏍CI/EI瑕佹眰锛屾洿鍏风珵浜夊姏" };
   }
   if (requirement.status === "UNKNOWN") {
-    return { label: "论文/专利成果", level: "PASS", detail: "知识库未提及论文/专利要求，不影响申报" };
+    return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "鐭ヨ瘑搴撴湭鎻愬強璁烘枃/涓撳埄瑕佹眰锛屼笉褰卞搷鐢虫姤" };
   }
   const isRequired = requirement.status === "REQUIRED";
   if (isRequired && actual === "general") {
     if (requirement.hasSCI) {
-      return { label: "论文/专利成果", level: "PASS", detail: "学校要求SCI/EI论文，客户有普通论文可尝试申报" };
+      return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "瀛︽牎瑕佹眰SCI/EI璁烘枃锛屽鎴锋湁鏅€氳鏂囧彲灏濊瘯鐢虫姤" };
     }
-    return { label: "论文/专利成果", level: "PASS", detail: "学校要求论文/专利，客户有相关成果可申报" };
+    return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "瀛︽牎瑕佹眰璁烘枃/涓撳埄锛屽鎴锋湁鐩稿叧鎴愭灉鍙敵鎶? };
   }
   if (isRequired && actual === "sci_ei") {
-    return { label: "论文/专利成果", level: "PASS", detail: "学校要求论文/专利，客户有SCI/EI级别更具优势" };
+    return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "瀛︽牎瑕佹眰璁烘枃/涓撳埄锛屽鎴锋湁SCI/EI绾у埆鏇村叿浼樺娍" };
   }
   if (actual === "general") {
-    return { label: "论文/专利成果", level: "PASS", detail: "客户有论文/专利，可作为辅助材料提交" };
+    return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "瀹㈡埛鏈夎鏂?涓撳埄锛屽彲浣滀负杈呭姪鏉愭枡鎻愪氦" };
   }
-  return { label: "论文/专利成果", level: "PASS", detail: "客户有SCI/EI级别论文/专利，竞争力强" };
+  return { label: "璁烘枃/涓撳埄鎴愭灉", level: "PASS", detail: "瀹㈡埛鏈塖CI/EI绾у埆璁烘枃/涓撳埄锛岀珵浜夊姏寮? };
 }
 
 function competitionEvidence(
@@ -485,24 +484,24 @@ function competitionEvidence(
 ): MatchEvidence | null {
   if (!actual) return null;
   if (requirement.status === "UNKNOWN") {
-    return { label: "竞赛/突出表现", level: "PASS", detail: "知识库未提及相关条件，不影响申报" };
+    return { label: "绔炶禌/绐佸嚭琛ㄧ幇", level: "PASS", detail: "鐭ヨ瘑搴撴湭鎻愬強鐩稿叧鏉′欢锛屼笉褰卞搷鐢虫姤" };
   }
   const isRequired = requirement.status === "REQUIRED";
   const isPreferred = requirement.status === "PREFERRED";
-  // 客户只有通用竞赛经历，但项目要求特定级别
+  // 瀹㈡埛鍙湁閫氱敤绔炶禌缁忓巻锛屼絾椤圭洰瑕佹眰鐗瑰畾绾у埆
   if (isRequired && actual === "competition" && requirement.level === "national") {
-    return { label: "竞赛经历", level: "FAIL", detail: "项目要求至少达到国家级竞赛" };
+    return { label: "绔炶禌缁忓巻", level: "FAIL", detail: "椤圭洰瑕佹眰鑷冲皯杈惧埌鍥藉绾х珵璧? };
   }
   if (isRequired && actual === "competition" && requirement.level === "provincial") {
-    return { label: "竞赛经历", level: "FAIL", detail: "项目要求至少达到省级竞赛" };
+    return { label: "绔炶禌缁忓巻", level: "FAIL", detail: "椤圭洰瑕佹眰鑷冲皯杈惧埌鐪佺骇绔炶禌" };
   }
   if (isRequired) {
-    return { label: "竞赛/突出表现", level: "PASS", detail: "学校要求/认可竞赛或突出表现，客户符合条件竞争力更强" };
+    return { label: "绔炶禌/绐佸嚭琛ㄧ幇", level: "PASS", detail: "瀛︽牎瑕佹眰/璁ゅ彲绔炶禌鎴栫獊鍑鸿〃鐜帮紝瀹㈡埛绗﹀悎鏉′欢绔炰簤鍔涙洿寮? };
   }
   if (isPreferred) {
-    return { label: "竞赛/突出表现", level: "PASS", detail: "学校鼓励或优先考虑竞赛/突出表现，客户有优势" };
+    return { label: "绔炶禌/绐佸嚭琛ㄧ幇", level: "PASS", detail: "瀛︽牎榧撳姳鎴栦紭鍏堣€冭檻绔炶禌/绐佸嚭琛ㄧ幇锛屽鎴锋湁浼樺娍" };
   }
-  return { label: "竞赛/突出表现", level: "PASS", detail: "学校提及竞赛/获奖材料，可作为辅助材料提交" };
+  return { label: "绔炶禌/绐佸嚭琛ㄧ幇", level: "PASS", detail: "瀛︽牎鎻愬強绔炶禌/鑾峰鏉愭枡锛屽彲浣滀负杈呭姪鏉愭枡鎻愪氦" };
 }
 
 
@@ -512,57 +511,55 @@ export function evaluateProgram(
   now = new Date(),
 ) {
   const evidence: MatchEvidence[] = [];
-  const programType = compareExact("申请学历", program.programType, criteria.programType);
-  const teachingLanguage = compareExact("授课语言", program.teachingLanguage, criteria.teachingLanguage);
+  const programType = compareExact("鐢宠瀛﹀巻", program.programType, criteria.programType);
+  const teachingLanguage = compareExact("鎺堣璇█", program.teachingLanguage, criteria.teachingLanguage);
   if (programType) evidence.push(programType);
   if (teachingLanguage) evidence.push(teachingLanguage);
 
   if (criteria.targetMajor) {
     const match = majorMatches(criteria.targetMajor, program.majorText);
     if (match.matchType === "exact") {
-      evidence.push({ label: "专业", level: "PASS", detail: "有匹配的专业" });
+      evidence.push({ label: "涓撲笟", level: "PASS", detail: "鏈夊尮閰嶇殑涓撲笟" });
     } else if (match.matchType === "synonym") {
-      evidence.push({ label: "专业", level: "NEED", detail: "可能同类的专业" + (match.synonymKeyword ? "（命中\"" + match.synonymKeyword + "\"）" : "") });
+      evidence.push({ label: "涓撲笟", level: "NEED", detail: "鍙兘鍚岀被鐨勪笓涓? + (match.synonymKeyword ? "锛堝懡涓璡"" + match.synonymKeyword + "\"锛? : "") });
     } else if (program.majorText) {
-      evidence.push({ label: "专业", level: "FAIL", detail: "未找到相关专业" });
+      evidence.push({ label: "涓撲笟", level: "FAIL", detail: "鏈壘鍒扮浉鍏充笓涓? });
     } else {
-      evidence.push({ label: "专业", level: "UNKNOWN", detail: "数据库未有相关信息" });
+      evidence.push({ label: "涓撲笟", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? });
     }
   }
 
   if (criteria.budget != null) {
     evidence.push(
       program.firstYearCostMax == null
-        ? { label: "首年预算", level: "UNKNOWN", detail: "数据库未有相关信息" }
+        ? { label: "棣栧勾棰勭畻", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? }
         : program.firstYearCostMax <= criteria.budget
           ? {
-              label: "首年预算",
+              label: "棣栧勾棰勭畻",
               level: program.costIncomplete ? "UNKNOWN" : "PASS",
               detail: program.costIncomplete
-                ? `已知费用约 ${program.firstYearCostMax} 元，仍有缺失项`
-                : `约 ${program.firstYearCostMax} 元，在预算内`,
+                ? `宸茬煡璐圭敤绾?${program.firstYearCostMax} 鍏冿紝浠嶆湁缂哄け椤筦
+                : `绾?${program.firstYearCostMax} 鍏冿紝鍦ㄩ绠楀唴`,
             }
-          : { label: "首年预算", level: "FAIL", detail: `约 ${program.firstYearCostMax} 元，超过预算` },
+          : { label: "棣栧勾棰勭畻", level: "FAIL", detail: `绾?${program.firstYearCostMax} 鍏冿紝瓒呰繃棰勭畻` },
     );
   }
 
-  if (program.programType === "UG" && criteria.hasCsca != null) {
+  if (criteria.cscaStatus != null) {
     evidence.push(
-      criteria.hasCsca
-        ? { label: "CSCA", level: "PASS", detail: "客户已有 CSCA" }
+      program.cscaStatus === "REQUIRED"
+        ? { label: "CSCA", level: "PASS", detail: "闄㈡牎闇€瑕? }
         : program.cscaStatus === "NOT_REQUIRED"
-          ? { label: "CSCA", level: "PASS", detail: "项目明确不要求" }
-          : program.cscaStatus === "REQUIRED"
-            ? { label: "CSCA", level: "NEED", detail: "需要补充 CSCA" }
-            : { label: "CSCA", level: "UNKNOWN", detail: "数据库未有相关信息" },
+          ? { label: "CSCA", level: "PASS", detail: "闄㈡牎涓嶉渶瑕? }
+          : { label: "CSCA", level: "UNKNOWN", detail: "淇℃伅鏈爣鏄? },
     );
   }
 
   if (criteria.gpa != null) {
     if (program.gpaMin == null || program.gpaScale == null) {
-      evidence.push({ label: "GPA", level: "UNKNOWN", detail: "数据库未有相关信息" });
+      evidence.push({ label: "GPA", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? });
     } else if (criteria.gpaScale !== program.gpaScale) {
-      evidence.push({ label: "GPA", level: "UNKNOWN", detail: "计分制不同，需要人工复核" });
+      evidence.push({ label: "GPA", level: "UNKNOWN", detail: "璁″垎鍒朵笉鍚岋紝闇€瑕佷汉宸ュ鏍? });
     } else {
       evidence.push(compareThreshold("GPA", criteria.gpa, program.gpaMin));
     }
@@ -572,9 +569,9 @@ export function evaluateProgram(
     program.teachingLanguage === "CHINESE" &&
     (criteria.teachingLanguage === "CHINESE" || criteria.hskLevel != null || criteria.hskScore != null);
   if (needsChineseEvidence) {
-    evidence.push(compareThreshold("HSK级别", criteria.hskLevel, program.hskLevelMin));
+    evidence.push(compareThreshold("HSK绾у埆", criteria.hskLevel, program.hskLevelMin));
     if (program.hskScoreMin != null || criteria.hskScore != null) {
-      evidence.push(compareThreshold("HSK分数", criteria.hskScore, program.hskScoreMin));
+      evidence.push(compareThreshold("HSK鍒嗘暟", criteria.hskScore, program.hskScoreMin));
     }
   }
 
@@ -601,13 +598,13 @@ export function evaluateProgram(
     const hasLocation = Boolean(program.province || program.city);
     evidence.push(
       !hasLocation
-        ? { label: "地区", level: "UNKNOWN", detail: "数据库未有相关信息" }
+        ? { label: "鍦板尯", level: "UNKNOWN", detail: "鏁版嵁搴撴湭鏈夌浉鍏充俊鎭? }
         : provinceMatches && cityMatches
-          ? { label: "地区", level: "PASS", detail: [program.province, program.city].filter(Boolean).join(" · ") }
+          ? { label: "鍦板尯", level: "PASS", detail: [program.province, program.city].filter(Boolean).join(" 路 ") }
           : {
-              label: "地区",
+              label: "鍦板尯",
               level: "FAIL",
-              detail: `项目位于 ${[program.province, program.city].filter(Boolean).join(" · ") || "未知地区"}`,
+              detail: `椤圭洰浣嶄簬 ${[program.province, program.city].filter(Boolean).join(" 路 ") || "鏈煡鍦板尯"}`,
             },
     );
   }
@@ -616,14 +613,14 @@ export function evaluateProgram(
     const tierLabels: Record<SchoolTier, string> = {
       "985": "985",
       "211": "211",
-      double_first_class_only: "双一流",
-      double_non: "双非普通院校",
+      double_first_class_only: "鍙屼竴娴?,
+      double_non: "鍙岄潪鏅€氶櫌鏍?,
     };
     const matches = matchesSchoolTier(program.schoolTags, criteria.schoolTier);
     evidence.push(
       matches
-        ? { label: "院校层次", level: "PASS" as const, detail: `学校属于 ${tierLabels[criteria.schoolTier]}` }
-        : { label: "院校层次", level: "FAIL" as const, detail: `学校不属于 ${tierLabels[criteria.schoolTier]}` },
+        ? { label: "闄㈡牎灞傛", level: "PASS" as const, detail: `瀛︽牎灞炰簬 ${tierLabels[criteria.schoolTier]}` }
+        : { label: "闄㈡牎灞傛", level: "FAIL" as const, detail: `瀛︽牎涓嶅睘浜?${tierLabels[criteria.schoolTier]}` },
     );
   }
 
@@ -631,34 +628,34 @@ export function evaluateProgram(
     const pref = getEnrollmentRegionPreference(program);
     evidence.push(
       pref === "NO_PREFERENCE"
-        ? { label: "生源地偏好", level: "PASS" as const, detail: "项目无生源地招生偏好" }
-        : { label: "生源地偏好", level: "FAIL" as const, detail: "项目有生源地招生偏好" },
+        ? { label: "鐢熸簮鍦板亸濂?, level: "PASS" as const, detail: "椤圭洰鏃犵敓婧愬湴鎷涚敓鍋忓ソ" }
+        : { label: "鐢熸簮鍦板亸濂?, level: "FAIL" as const, detail: "椤圭洰鏈夌敓婧愬湴鎷涚敓鍋忓ソ" },
     );
   }
 
   if (criteria.scholarshipType) {
     const cat = program.scholarshipCategory ?? "";
-    const isFull = /全额|全奖|完全|full/i.test(cat);
+    const isFull = /鍏ㄩ|鍏ㄥ|瀹屽叏|full/i.test(cat);
     const hasAny = cat.length > 0;
     if (criteria.scholarshipType === "full") {
       evidence.push(
         isFull
-          ? { label: "奖学金", level: "PASS", detail: `全额奖学金：${cat}` }
+          ? { label: "濂栧閲?, level: "PASS", detail: `鍏ㄩ濂栧閲戯細${cat}` }
           : hasAny
-            ? { label: "奖学金", level: "NEED", detail: `非全额奖学金：${cat}` }
-            : { label: "奖学金", level: "FAIL", detail: "数据库未有奖学金信息" },
+            ? { label: "濂栧閲?, level: "NEED", detail: `闈炲叏棰濆瀛﹂噾锛?{cat}` }
+            : { label: "濂栧閲?, level: "FAIL", detail: "鏁版嵁搴撴湭鏈夊瀛﹂噾淇℃伅" },
       );
     } else if (criteria.scholarshipType === "any") {
       evidence.push(
         hasAny
-          ? { label: "奖学金", level: "PASS", detail: `有奖学金：${cat}` }
-          : { label: "奖学金", level: "FAIL", detail: "数据库未有奖学金信息" },
+          ? { label: "濂栧閲?, level: "PASS", detail: `鏈夊瀛﹂噾锛?{cat}` }
+          : { label: "濂栧閲?, level: "FAIL", detail: "鏁版嵁搴撴湭鏈夊瀛﹂噾淇℃伅" },
       );
     } else if (criteria.scholarshipType === "none") {
       evidence.push(
         !hasAny
-          ? { label: "奖学金", level: "PASS", detail: "该项目无奖学金（自费）" }
-          : { label: "奖学金", level: "NEED", detail: `该项目有奖学金信息：${cat}` },
+          ? { label: "濂栧閲?, level: "PASS", detail: "璇ラ」鐩棤濂栧閲戯紙鑷垂锛? }
+          : { label: "濂栧閲?, level: "NEED", detail: `璇ラ」鐩湁濂栧閲戜俊鎭細${cat}` },
       );
     }
   }
@@ -702,6 +699,7 @@ export function rankPrograms(
   return programs
     .filter((program) => schoolNameMatches(program.schoolName, criteria.schoolQuery))
     .filter((program) => matchesSchoolTier(program.schoolTags, criteria.schoolTier))
+    .filter((program) => criteria.cscaStatus == null || program.cscaStatus === criteria.cscaStatus)
     .map((program) => ({ program, ...evaluateProgram(program, criteria, now) }))
     .filter((result) =>
       criteria.enrollmentRegion === "no_preference"
@@ -721,3 +719,4 @@ export function rankPrograms(
       return b.score - a.score;
     });
 }
+
