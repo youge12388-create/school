@@ -99,23 +99,46 @@ describe("screening matcher", () => {
     expect(majorMatches("计算机", baseProgram.majorText)).toEqual({ matched: true, matchType: "synonym", synonymKeyword: "软件" });
   });
 
-  it("没有 CSCA 时标记需补而非直接排除", () => {
-    const result = evaluateProgram(
-      baseProgram,
-      {
-        targetMajor: "计算机",
-        hasCsca: false,
-        teachingLanguage: "ENGLISH",
-        ielts: 6.5,
-        budget: 50000,
-      },
+  it("按院校 CSCA 状态筛选，并展示院校需要的 evidence", () => {
+    const results = rankPrograms(
+      [
+        baseProgram,
+        makeProgram({ id: "not-required", cscaStatus: "NOT_REQUIRED" }),
+        makeProgram({ id: "unknown", cscaStatus: "UNKNOWN" }),
+      ],
+      { cscaStatus: "REQUIRED" },
       now,
     );
-    expect(result.fitLevel).toBe("NEEDS_ACTION");
-    expect(result.evidence).toContainEqual({
+
+    expect(results.map((item) => item.program.id)).toEqual(["p1"]);
+    expect(results[0].evidence).toContainEqual({
       label: "CSCA",
-      level: "NEED",
-      detail: "需要补充 CSCA",
+      level: "PASS",
+      detail: "院校需要",
+    });
+  });
+
+  it("院校不需要和信息未标明时展示对应 evidence", () => {
+    const notRequired = evaluateProgram(
+      makeProgram({ cscaStatus: "NOT_REQUIRED" }),
+      { cscaStatus: "NOT_REQUIRED" },
+      now,
+    );
+    const unknown = evaluateProgram(
+      makeProgram({ cscaStatus: "UNKNOWN" }),
+      { cscaStatus: "UNKNOWN" },
+      now,
+    );
+
+    expect(notRequired.evidence).toContainEqual({
+      label: "CSCA",
+      level: "PASS",
+      detail: "院校不需要",
+    });
+    expect(unknown.evidence).toContainEqual({
+      label: "CSCA",
+      level: "UNKNOWN",
+      detail: "信息未标明",
     });
   });
 
@@ -429,3 +452,4 @@ describe("screening matcher", () => {
     expect(result.evidence.some((item) => item.label === "志愿者经历")).toBe(false);
   });
 });
+

@@ -53,6 +53,40 @@ describe("program parser", () => {
     expect(result.duolingoMin).toBe(100);
   });
 
+  it("不会把其他材料的否定条件误判为 CSCA 不要求", () => {
+    const result = parseProgram({
+      tuitionText: "24000元/年",
+      accommodationText: "16200元/年",
+      insuranceText: "800元/年",
+      applicationFeeText: "400元",
+      requirementsText: [
+        "需要参加《来华留学本科入学学业水平测试》CSCA",
+        "如果在中学阶段接受过中文学历教育，一般不需要提供HSK成绩",
+        "报名材料：CSCA考试成绩",
+      ].join("\n"),
+      applicationTimeText: "2026年9月30日",
+      majorText: "法学",
+      programType: "UG",
+    });
+
+    expect(result.cscaStatus).toBe("REQUIRED");
+  });
+
+  it("只在否定词明确指向 CSCA 时判定为不要求", () => {
+    const result = parseProgram({
+      tuitionText: "24000元/年",
+      accommodationText: "",
+      insuranceText: "",
+      applicationFeeText: "",
+      requirementsText: "CSCA成绩可免提交",
+      applicationTimeText: "",
+      majorText: "法学",
+      programType: "UG",
+    });
+
+    expect(result.cscaStatus).toBe("NOT_REQUIRED");
+  });
+
   it("区分最低年龄、最高年龄和年龄范围", () => {
     expect(parseAgeRequirement("申请人年龄不超过 35 岁")).toEqual({
       minAge: null,
@@ -119,3 +153,4 @@ describe("program parser", () => {
     ]);
   });
 });
+

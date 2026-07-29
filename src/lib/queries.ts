@@ -12,7 +12,7 @@ import {
 import { db, sqlite } from "@/lib/db";
 import { deriveAdmissionStatus } from "@/lib/customer-status";
 import { categorizeMajors, splitMajorText } from "@/lib/major-categories";
-import { parseDeadline } from "@/lib/program-parser";
+import { parseCscaStatus, parseDeadline } from "@/lib/program-parser";
 import type { AdmissionStatus, ContractStatus } from "@/lib/constants";
 import {
   applications,
@@ -335,6 +335,7 @@ export async function getProgramsForScreening() {
 
     return {
       ...row,
+      cscaStatus: parseCscaStatus(row.requirementsText, row.programType),
       costIncomplete: Boolean(row.costIncomplete),
       deadlineDate,
       deadlineStatus,
@@ -719,3 +720,4 @@ export async function listCustomerOptions() {
     .where(eq(customers.archived, false))
     .orderBy(asc(customers.name));
 }
+

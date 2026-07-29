@@ -40,7 +40,14 @@ function toCriteria(params: Record<string, string | undefined>): ScreeningCriter
     schoolTier: parseSchoolTier(params.schoolTier),
     schoolQuery: params.q,
     budget: asNumber(params.budget),
-    hasCsca: params.csca === "yes" ? true : params.csca === "no" ? false : null,
+    cscaStatus:
+      params.csca === "REQUIRED"
+        ? "REQUIRED"
+        : params.csca === "NOT_REQUIRED"
+          ? "NOT_REQUIRED"
+          : params.csca === "UNKNOWN"
+            ? "UNKNOWN"
+            : null,
     gpa: asNumber(params.gpa),
     gpaScale: asNumber(params.gpaScale),
     hskLevel: asNumber(params.hskLevel),
@@ -266,11 +273,12 @@ export default async function ScreeningPage({
                   />
                 </label>
                 <label>
-                  CSCA 当前状态
+                  CSCA
                   <select name="csca" defaultValue={params.csca}>
                     <option value="">不限</option>
-                    <option value="yes">已有</option>
-                    <option value="no">目前没有</option>
+                    <option value="REQUIRED">院校需要</option>
+                    <option value="NOT_REQUIRED">院校不需要</option>
+                    <option value="UNKNOWN">信息未标明</option>
                   </select>
                 </label>
                 <label>
@@ -495,3 +503,4 @@ export default async function ScreeningPage({
     </>
   );
 }
+

@@ -22,7 +22,7 @@ export type ScreeningCriteria = {
   schoolQuery?: string;
   intakeYear?: number | null;
   budget?: number | null;
-  hasCsca?: boolean | null;
+  cscaStatus?: RuleStatus | null;
   gpa?: number | null;
   gpaScale?: number | null;
   hskLevel?: number | null;
@@ -546,15 +546,13 @@ export function evaluateProgram(
     );
   }
 
-  if (program.programType === "UG" && criteria.hasCsca != null) {
+  if (criteria.cscaStatus != null) {
     evidence.push(
-      criteria.hasCsca
-        ? { label: "CSCA", level: "PASS", detail: "客户已有 CSCA" }
+      program.cscaStatus === "REQUIRED"
+        ? { label: "CSCA", level: "PASS", detail: "院校需要" }
         : program.cscaStatus === "NOT_REQUIRED"
-          ? { label: "CSCA", level: "PASS", detail: "项目明确不要求" }
-          : program.cscaStatus === "REQUIRED"
-            ? { label: "CSCA", level: "NEED", detail: "需要补充 CSCA" }
-            : { label: "CSCA", level: "UNKNOWN", detail: "数据库未有相关信息" },
+          ? { label: "CSCA", level: "PASS", detail: "院校不需要" }
+          : { label: "CSCA", level: "UNKNOWN", detail: "信息未标明" },
     );
   }
 
@@ -702,6 +700,7 @@ export function rankPrograms(
   return programs
     .filter((program) => schoolNameMatches(program.schoolName, criteria.schoolQuery))
     .filter((program) => matchesSchoolTier(program.schoolTags, criteria.schoolTier))
+    .filter((program) => criteria.cscaStatus == null || program.cscaStatus === criteria.cscaStatus)
     .map((program) => ({ program, ...evaluateProgram(program, criteria, now) }))
     .filter((result) =>
       criteria.enrollmentRegion === "no_preference"
@@ -721,3 +720,4 @@ export function rankPrograms(
       return b.score - a.score;
     });
 }
+

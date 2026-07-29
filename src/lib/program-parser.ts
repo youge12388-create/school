@@ -59,12 +59,21 @@ export function parseMoneyRange(text: string, kind: "tuition" | "other"): MoneyR
 
 function parseRuleStatus(text: string, keyword: RegExp): RuleStatus {
   if (!keyword.test(text)) return "UNKNOWN";
-  const negative =
-    /(无需|不需要|不要求|可免|免于|豁免).{0,18}/i.test(text) ||
-    /(?:CSCA|来华留学本科入学学业水平测试).{0,18}(无需|不需要|不要求|可免|豁免)/i.test(
-      text,
-    );
-  return negative ? "NOT_REQUIRED" : "REQUIRED";
+  const csca = "(?:CSCA|来华留学本科入学学业水平测试)";
+  const negative = "(?:无需|不需要|不要求|可免|免于|豁免)";
+  const nearbyText = "[^\\r\\n。；;]{0,18}";
+  const isExplicitlyNotRequired =
+    new RegExp(negative + nearbyText + csca, "i").test(text) ||
+    new RegExp(csca + nearbyText + negative, "i").test(text);
+  return isExplicitlyNotRequired ? "NOT_REQUIRED" : "REQUIRED";
+}
+
+export function parseCscaStatus(requirementsText: string | null | undefined, programType: string): RuleStatus {
+  if (programType !== "UG") return "NOT_REQUIRED";
+  return parseRuleStatus(
+    requirementsText ?? "",
+    /CSCA|来华留学本科入学学业水平测试/i,
+  );
 }
 
 function firstNumber(text: string, pattern: RegExp) {
@@ -183,13 +192,7 @@ export function parseProgram(input: {
   const applicationFee = parseMoneyRange(input.applicationFeeText, "other");
   const requirement = input.requirementsText;
   const deadline = parseDeadline(input.applicationTimeText);
-  const cscaStatus =
-    input.programType === "UG"
-      ? parseRuleStatus(
-          requirement,
-          /CSCA|来华留学本科入学学业水平测试/i,
-        )
-      : "NOT_REQUIRED";
+  const cscaStatus = parseCscaStatus(requirement, input.programType);
 
   const hskLevelMin = firstNumber(requirement, /HSK\s*([1-6])\s*级?/i);
   const hskScoreMin = firstNumber(
@@ -261,3 +264,4 @@ export function findMajorCategory(
   }
   return null;
 }
+
