@@ -31,19 +31,19 @@ export type ParsedProgram = {
   reviewReasons: string[];
 };
 
-const numberPattern = /(?:人民币|RMB|￥|¥)?\s*(\d[\d,]*(?:\.\d+)?)/gi;
+const numberPattern = /(?:浜烘皯甯亅RMB|锟楼)?\s*(\d[\d,]*(?:\.\d+)?)/gi;
 
 export function parseMoneyRange(text: string, kind: "tuition" | "other"): MoneyRange {
-  const normalized = text.replace(/[，,](?=\d{3}\b)/g, "");
+  const normalized = text.replace(/[锛?](?=\d{3}\b)/g, "");
   const values = Array.from(normalized.matchAll(numberPattern))
     .map((match) => Number(match[1].replace(/,/g, "")))
     .filter((value) => Number.isFinite(value) && value >= 50);
 
-  const period = /每月|\/月|元\/月/.test(text)
+  const period = /姣忔湀|\/鏈坾鍏僜/鏈?.test(text)
     ? "MONTH"
-    : /每学期|\/学期|元\/学期/.test(text)
+    : /姣忓鏈焲\/瀛︽湡|鍏僜/瀛︽湡/.test(text)
       ? "SEMESTER"
-      : /每年|\/年|元\/年|年学费/.test(text)
+      : /姣忓勾|\/骞磡鍏僜/骞磡骞村璐?.test(text)
         ? "YEAR"
         : kind === "other" && values.length
           ? "ONE_TIME"
@@ -59,12 +59,21 @@ export function parseMoneyRange(text: string, kind: "tuition" | "other"): MoneyR
 
 function parseRuleStatus(text: string, keyword: RegExp): RuleStatus {
   if (!keyword.test(text)) return "UNKNOWN";
-  const negative =
-    /(无需|不需要|不要求|可免|免于|豁免).{0,18}/i.test(text) ||
-    /(?:CSCA|来华留学本科入学学业水平测试).{0,18}(无需|不需要|不要求|可免|豁免)/i.test(
-      text,
-    );
-  return negative ? "NOT_REQUIRED" : "REQUIRED";
+  const csca = "(?:CSCA|鏉ュ崕鐣欏鏈鍏ュ瀛︿笟姘村钩娴嬭瘯)";
+  const negative = "(?:鏃犻渶|涓嶉渶瑕亅涓嶈姹倈鍙厤|鍏嶄簬|璞佸厤)";
+  const nearbyText = "[^\\r\\n銆傦紱;]{0,18}";
+  const isExplicitlyNotRequired =
+    new RegExp(negative + nearbyText + csca, "i").test(text) ||
+    new RegExp(csca + nearbyText + negative, "i").test(text);
+  return isExplicitlyNotRequired ? "NOT_REQUIRED" : "REQUIRED";
+}
+
+export function parseCscaStatus(requirementsText: string | null | undefined, programType: string): RuleStatus {
+  if (programType !== "UG") return "NOT_REQUIRED";
+  return parseRuleStatus(
+    requirementsText ?? "",
+    /CSCA|鏉ュ崕鐣欏鏈鍏ュ瀛︿笟姘村钩娴嬭瘯/i,
+  );
 }
 
 function firstNumber(text: string, pattern: RegExp) {
@@ -76,8 +85,8 @@ export function parseDeadline(text: string, now = new Date()) {
   const matches: Date[] = [];
   const year = now.getFullYear();
 
-  // Step 1: full dates with year (e.g. 2026年3月20日)
-  const fullDate = /(20\d{2})[年./-](\d{1,2})[月./-](\d{1,2})日?/g;
+  // Step 1: full dates with year (e.g. 2026骞?鏈?0鏃?
+  const fullDate = /(20\d{2})[骞?/-](\d{1,2})[鏈?/-](\d{1,2})鏃?/g;
   for (const match of text.matchAll(fullDate)) {
     const date = new Date(
       Number(match[1]),
@@ -98,27 +107,27 @@ export function parseDeadline(text: string, now = new Date()) {
       return candidate;
     };
 
-    // Step 2: match ranges (X月X日-X月X日), take end dates as deadlines
-    const rangePattern = /(\d{1,2})月(\d{1,2})日\s*[-—–~至到]\s*(\d{1,2})月(\d{1,2})日/g;
+    // Step 2: match ranges (X鏈圶鏃?X鏈圶鏃?, take end dates as deadlines
+    const rangePattern = /(\d{1,2})鏈?\d{1,2})鏃s*[-鈥斺€搤鑷冲埌]\s*(\d{1,2})鏈?\d{1,2})鏃?g;
     let remaining = text;
     for (const match of text.matchAll(rangePattern)) {
       const startMonth = Number(match[1]);
       const endMonth = Number(match[3]);
       const endDay = Number(match[4]);
-      // cross-year range: end month < start month (e.g. 10月-1月 → next year)
+      // cross-year range: end month < start month (e.g. 10鏈?1鏈?鈫?next year)
       const forceYear = endMonth < startMonth ? year + 1 : undefined;
       matches.push(makeDate(endMonth, endDay, forceYear));
       remaining = remaining.replace(match[0], "");
     }
 
     // Step 3: match standalone month-day dates (not part of ranges)
-    const monthDay = /(\d{1,2})月(\d{1,2})日/g;
+    const monthDay = /(\d{1,2})鏈?\d{1,2})鏃?g;
     for (const match of remaining.matchAll(monthDay)) {
       matches.push(makeDate(Number(match[1]), Number(match[2])));
     }
   }
 
-  if (!matches.length || /待定|另行通知|暂无|未公布/.test(text)) {
+  if (!matches.length || /寰呭畾|鍙﹁閫氱煡|鏆傛棤|鏈叕甯?.test(text)) {
     return { date: null, status: "UNKNOWN" as const };
   }
   const date = new Date(Math.max(...matches.map((item) => item.getTime())));
@@ -132,7 +141,7 @@ export function splitMajors(text: string) {
   return Array.from(
     new Set(
       text
-        .split(/[\n；;、]+/)
+        .split(/[\n锛?銆乚+/)
         .map((value) => value.trim())
         .filter((value) => value.length > 1 && value.length < 100),
     ),
@@ -142,23 +151,23 @@ export function splitMajors(text: string) {
 export function parseAgeRequirement(requirementText: string | null | undefined) {
   const requirement = requirementText ?? "";
   const rangeMatch = requirement.match(
-    /(?:年龄(?:要求|范围|一般)?\s*(?:为|在)?\s*)?(\d{1,2})\s*(?:-|—|–|~|至|到)\s*(\d{1,2})\s*(?:周岁|岁)/u,
+    /(?:骞撮緞(?:瑕佹眰|鑼冨洿|涓€鑸??\s*(?:涓簗鍦??\s*)?(\d{1,2})\s*(?:-|鈥攟鈥搢~|鑷硘鍒?\s*(\d{1,2})\s*(?:鍛ㄥ瞾|宀?/u,
   );
   const explicitMinAge = firstNumber(
     requirement,
-    /(?:年满|必须满|须满|年龄(?:要求)?(?:不低于|不少于|至少))\s*(\d{1,2})\s*(?:周岁|岁)?/u,
+    /(?:骞存弧|蹇呴』婊椤绘弧|骞撮緞(?:瑕佹眰)?(?:涓嶄綆浜巪涓嶅皯浜巪鑷冲皯))\s*(\d{1,2})\s*(?:鍛ㄥ瞾|宀??/u,
   );
   const suffixMinAge = firstNumber(
     requirement,
-    /(\d{1,2})\s*(?:周岁|岁)\s*(?:以上|及以上)/u,
+    /(\d{1,2})\s*(?:鍛ㄥ瞾|宀?\s*(?:浠ヤ笂|鍙婁互涓?/u,
   );
   const explicitMaxAge = firstNumber(
     requirement,
-    /(?:年龄(?:要求)?(?:不超过|不高于|低于|小于)|不超过|不满)\s*(\d{1,2})\s*(?:周岁|岁)?/u,
+    /(?:骞撮緞(?:瑕佹眰)?(?:涓嶈秴杩噟涓嶉珮浜巪浣庝簬|灏忎簬)|涓嶈秴杩噟涓嶆弧)\s*(\d{1,2})\s*(?:鍛ㄥ瞾|宀??/u,
   );
   const suffixMaxAge = firstNumber(
     requirement,
-    /(\d{1,2})\s*(?:周岁|岁)\s*(?:以下|以内)/u,
+    /(\d{1,2})\s*(?:鍛ㄥ瞾|宀?\s*(?:浠ヤ笅|浠ュ唴)/u,
   );
 
   return {
@@ -183,28 +192,22 @@ export function parseProgram(input: {
   const applicationFee = parseMoneyRange(input.applicationFeeText, "other");
   const requirement = input.requirementsText;
   const deadline = parseDeadline(input.applicationTimeText);
-  const cscaStatus =
-    input.programType === "UG"
-      ? parseRuleStatus(
-          requirement,
-          /CSCA|来华留学本科入学学业水平测试/i,
-        )
-      : "NOT_REQUIRED";
+  const cscaStatus = parseCscaStatus(requirement, input.programType);
 
-  const hskLevelMin = firstNumber(requirement, /HSK\s*([1-6])\s*级?/i);
+  const hskLevelMin = firstNumber(requirement, /HSK\s*([1-6])\s*绾?/i);
   const hskScoreMin = firstNumber(
     requirement,
-    /HSK\s*[1-6]?\s*级?\s*(?:需|达到|成绩|总分|不低于|至少)?\s*(\d{3})/i,
+    /HSK\s*[1-6]?\s*绾?\s*(?:闇€|杈惧埌|鎴愮哗|鎬诲垎|涓嶄綆浜巪鑷冲皯)?\s*(\d{3})/i,
   );
-  const ieltsMin = firstNumber(requirement, /(?:IELTS|雅思)[^\d]{0,12}(\d(?:\.\d)?)/i);
-  const toeflMin = firstNumber(requirement, /(?:TOEFL|托福)[^\d]{0,12}(\d{2,3})/i);
+  const ieltsMin = firstNumber(requirement, /(?:IELTS|闆呮€?[^\d]{0,12}(\d(?:\.\d)?)/i);
+  const toeflMin = firstNumber(requirement, /(?:TOEFL|鎵樼)[^\d]{0,12}(\d{2,3})/i);
   const duolingoMin = firstNumber(
     requirement,
-    /(?:Duolingo|多邻国)[^\d]{0,12}(\d{2,3})/i,
+    /(?:Duolingo|澶氶偦鍥?[^\d]{0,12}(\d{2,3})/i,
   );
   const gpaMatch = requirement.match(/GPA[^\d]{0,10}(\d(?:\.\d+)?)\s*\/\s*(\d)/i);
   const averageMatch = requirement.match(
-    /(?:平均分|均分|百分制成绩)[^\d]{0,10}(\d{2,3})\s*分?/,
+    /(?:骞冲潎鍒唡鍧囧垎|鐧惧垎鍒舵垚缁?[^\d]{0,10}(\d{2,3})\s*鍒?/,
   );
   const ageRequirement = parseAgeRequirement(requirement);
   const firstYearParts = [
@@ -219,11 +222,11 @@ export function parseProgram(input: {
   const reviewReasons: string[] = [];
 
   if (cscaStatus === "UNKNOWN" && input.programType === "UG") {
-    reviewReasons.push("本科项目未明确 CSCA 要求");
+    reviewReasons.push("鏈椤圭洰鏈槑纭?CSCA 瑕佹眰");
   }
-  if (!deadline.date) reviewReasons.push("申请截止日期无法结构化");
-  if (tuition.max == null) reviewReasons.push("学费无法结构化");
-  if (!requirement) reviewReasons.push("缺少申请要求");
+  if (!deadline.date) reviewReasons.push("鐢宠鎴鏃ユ湡鏃犳硶缁撴瀯鍖?);
+  if (tuition.max == null) reviewReasons.push("瀛﹁垂鏃犳硶缁撴瀯鍖?);
+  if (!requirement) reviewReasons.push("缂哄皯鐢宠瑕佹眰");
 
   return {
     tuition,
@@ -261,3 +264,4 @@ export function findMajorCategory(
   }
   return null;
 }
+
