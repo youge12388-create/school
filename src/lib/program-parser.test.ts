@@ -9,8 +9,8 @@ import {
 } from "./program-parser";
 
 describe("program parser", () => {
-  it("将学期费用折算为年度上限", () => {
-    expect(parseMoneyRange("2400-8000元/学期", "tuition")).toEqual({
+  it("灏嗗鏈熻垂鐢ㄦ姌绠椾负骞村害涓婇檺", () => {
+    expect(parseMoneyRange("2400-8000鍏?瀛︽湡", "tuition")).toEqual({
       min: 2400,
       max: 8000,
       period: "SEMESTER",
@@ -18,15 +18,15 @@ describe("program parser", () => {
     });
   });
 
-  it("将未写明 CSCA 的本科项目保持为 UNKNOWN", () => {
+  it("灏嗘湭鍐欐槑 CSCA 鐨勬湰绉戦」鐩繚鎸佷负 UNKNOWN", () => {
     const result = parseProgram({
-      tuitionText: "26000元/年",
-      accommodationText: "600元/月",
-      insuranceText: "800元/年",
-      applicationFeeText: "400元",
-      requirementsText: "高中毕业，HSK4级180分",
-      applicationTimeText: "2027年5月31日",
-      majorText: "计算机科学\n工商管理",
+      tuitionText: "26000鍏?骞?,
+      accommodationText: "600鍏?鏈?,
+      insuranceText: "800鍏?骞?,
+      applicationFeeText: "400鍏?,
+      requirementsText: "楂樹腑姣曚笟锛孒SK4绾?80鍒?,
+      applicationTimeText: "2027骞?鏈?1鏃?,
+      majorText: "璁＄畻鏈虹瀛n宸ュ晢绠＄悊",
       programType: "UG",
     });
     expect(result.cscaStatus).toBe("UNKNOWN");
@@ -35,14 +35,14 @@ describe("program parser", () => {
     expect(result.hskScoreMin).toBe(180);
   });
 
-  it("解析明确的 CSCA 要求和语言门槛", () => {
+  it("瑙ｆ瀽鏄庣‘鐨?CSCA 瑕佹眰鍜岃瑷€闂ㄦ", () => {
     const result = parseProgram({
-      tuitionText: "30000元/年",
+      tuitionText: "30000鍏?骞?,
       accommodationText: "",
       insuranceText: "",
       applicationFeeText: "",
       requirementsText:
-        "须参加来华留学本科入学学业水平测试（CSCA），雅思6.0，托福80，多邻国100",
+        "椤诲弬鍔犳潵鍗庣暀瀛︽湰绉戝叆瀛﹀涓氭按骞虫祴璇曪紙CSCA锛夛紝闆呮€?.0锛屾墭绂?0锛屽閭诲浗100",
       applicationTimeText: "",
       majorText: "",
       programType: "UG",
@@ -53,69 +53,101 @@ describe("program parser", () => {
     expect(result.duolingoMin).toBe(100);
   });
 
-  it("区分最低年龄、最高年龄和年龄范围", () => {
-    expect(parseAgeRequirement("申请人年龄不超过 35 岁")).toEqual({
+  it("涓嶄細鎶婂叾浠栨潗鏂欑殑鍚﹀畾鏉′欢璇垽涓?CSCA 涓嶈姹?, () => {
+    const result = parseProgram({
+      tuitionText: "24000鍏?骞?,
+      accommodationText: "16200鍏?骞?,
+      insuranceText: "800鍏?骞?,
+      applicationFeeText: "400鍏?,
+      requirementsText: [
+        "闇€瑕佸弬鍔犮€婃潵鍗庣暀瀛︽湰绉戝叆瀛﹀涓氭按骞虫祴璇曘€婥SCA",
+        "濡傛灉鍦ㄤ腑瀛﹂樁娈垫帴鍙楄繃涓枃瀛﹀巻鏁欒偛锛屼竴鑸笉闇€瑕佹彁渚汬SK鎴愮哗",
+        "鎶ュ悕鏉愭枡锛欳SCA鑰冭瘯鎴愮哗",
+      ].join("\n"),
+      applicationTimeText: "2026骞?鏈?0鏃?,
+      majorText: "娉曞",
+      programType: "UG",
+    });
+
+    expect(result.cscaStatus).toBe("REQUIRED");
+  });
+
+  it("鍙湪鍚﹀畾璇嶆槑纭寚鍚?CSCA 鏃跺垽瀹氫负涓嶈姹?, () => {
+    const result = parseProgram({
+      tuitionText: "24000鍏?骞?,
+      accommodationText: "",
+      insuranceText: "",
+      applicationFeeText: "",
+      requirementsText: "CSCA鎴愮哗鍙厤鎻愪氦",
+      applicationTimeText: "",
+      majorText: "娉曞",
+      programType: "UG",
+    });
+
+    expect(result.cscaStatus).toBe("NOT_REQUIRED");
+  });
+
+  it("鍖哄垎鏈€浣庡勾榫勩€佹渶楂樺勾榫勫拰骞撮緞鑼冨洿", () => {
+    expect(parseAgeRequirement("鐢宠浜哄勾榫勪笉瓒呰繃 35 宀?)).toEqual({
       minAge: null,
       maxAge: 35,
     });
-    expect(parseAgeRequirement("申请人必须满 18 岁")).toEqual({
+    expect(parseAgeRequirement("鐢宠浜哄繀椤绘弧 18 宀?)).toEqual({
       minAge: 18,
       maxAge: null,
     });
-    expect(parseAgeRequirement("年龄要求为 18-25 岁")).toEqual({
+    expect(parseAgeRequirement("骞撮緞瑕佹眰涓?18-25 宀?)).toEqual({
       minAge: 18,
       maxAge: 25,
     });
-    expect(parseAgeRequirement("申请人年龄须在 35 岁以下")).toEqual({
+    expect(parseAgeRequirement("鐢宠浜哄勾榫勯』鍦?35 宀佷互涓?)).toEqual({
       minAge: null,
       maxAge: 35,
     });
   });
 
-  it("选择多批次中的最晚截止日期", () => {
+  it("閫夋嫨澶氭壒娆′腑鐨勬渶鏅氭埅姝㈡棩鏈?, () => {
     const result = parseDeadline(
-      "第一批：2026年3月20日；第二批：2026年5月31日",
+      "绗竴鎵癸細2026骞?鏈?0鏃ワ紱绗簩鎵癸細2026骞?鏈?1鏃?,
       new Date("2026-01-01"),
     );
     expect(result.date?.getMonth()).toBe(4);
     expect(result.date?.getDate()).toBe(31);
   });
 
-  it("月日范围取结束日期为截止日期（深圳大学）", () => {
+  it("鏈堟棩鑼冨洿鍙栫粨鏉熸棩鏈熶负鎴鏃ユ湡锛堟繁鍦冲ぇ瀛︼級", () => {
     const result = parseDeadline(
-      "1月1日-3月20日（第一批）；3月20日-5月31日（第二批）",
+      "1鏈?鏃?3鏈?0鏃ワ紙绗竴鎵癸級锛?鏈?0鏃?5鏈?1鏃ワ紙绗簩鎵癸級",
       new Date("2026-01-01"),
     );
-    expect(result.date?.getMonth()).toBe(4); // 5月
-    expect(result.date?.getDate()).toBe(31);
+    expect(result.date?.getMonth()).toBe(4); // 5鏈?    expect(result.date?.getDate()).toBe(31);
     expect(result.status).toBe("OPEN");
   });
 
-  it("跨年范围结束日期推到次年（沈阳化工大学）", () => {
+  it("璺ㄥ勾鑼冨洿缁撴潫鏃ユ湡鎺ㄥ埌娆″勾锛堟矆闃冲寲宸ュぇ瀛︼級", () => {
     const result = parseDeadline(
-      "秋季学期：3月15日-7月15日；春季学期：10月15日-1月15日",
+      "绉嬪瀛︽湡锛?鏈?5鏃?7鏈?5鏃ワ紱鏄ュ瀛︽湡锛?0鏈?5鏃?1鏈?5鏃?,
       new Date("2026-01-01"),
     );
     expect(result.date?.getFullYear()).toBe(2027);
-    expect(result.date?.getMonth()).toBe(0); // 1月
-    expect(result.date?.getDate()).toBe(15);
+    expect(result.date?.getMonth()).toBe(0); // 1鏈?    expect(result.date?.getDate()).toBe(15);
     expect(result.status).toBe("OPEN");
   });
 
-  it("独立月日日期保持原有逻辑", () => {
+  it("鐙珛鏈堟棩鏃ユ湡淇濇寔鍘熸湁閫昏緫", () => {
     const result = parseDeadline(
-      "截止日期：8月15日",
+      "鎴鏃ユ湡锛?鏈?5鏃?,
       new Date("2026-01-01"),
     );
-    expect(result.date?.getMonth()).toBe(7); // 8月
-    expect(result.date?.getDate()).toBe(15);
+    expect(result.date?.getMonth()).toBe(7); // 8鏈?    expect(result.date?.getDate()).toBe(15);
     expect(result.status).toBe("OPEN");
   });
 
-  it("拆分并去重专业", () => {
-    expect(splitMajors("计算机科学\n工商管理\n计算机科学")).toEqual([
-      "计算机科学",
-      "工商管理",
+  it("鎷嗗垎骞跺幓閲嶄笓涓?, () => {
+    expect(splitMajors("璁＄畻鏈虹瀛n宸ュ晢绠＄悊\n璁＄畻鏈虹瀛?)).toEqual([
+      "璁＄畻鏈虹瀛?,
+      "宸ュ晢绠＄悊",
     ]);
   });
 });
+
