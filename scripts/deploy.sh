@@ -43,7 +43,7 @@ else
         kill "$PID"
         echo "已停止旧进程 (PID: $PID)"
     fi
-    nohup node node_modules/.bin/next start > data/logs/deploy-$(date +%Y%m%d-%H%M%S).log 2>&1 &
+    nohup env HOSTNAME=0.0.0.0 PORT=3000 node .next/standalone/server.js > data/logs/deploy-$(date +%Y%m%d-%H%M%S).log 2>&1 &
     echo "已启动新进程"
 fi
 echo ""

@@ -73,7 +73,7 @@ else
     echo "  未检测到服务，直接启动..."
     PID=$(lsof -ti:3000 2>/dev/null)
     [ -n "$PID" ] && kill "$PID"
-    nohup node "$CURRENT_DIR/node_modules/.bin/next start" > "$SHARED_DIR/data/logs/deploy-$(date +%Y%m%d-%H%M%S).log" 2>&1 &
+    nohup env HOSTNAME=0.0.0.0 PORT=3000 node "$CURRENT_DIR/.next/standalone/server.js" > "$SHARED_DIR/data/logs/deploy-$(date +%Y%m%d-%H%M%S).log" 2>&1 &
 fi
 echo ""
 

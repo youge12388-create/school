@@ -62,7 +62,9 @@ if (Test-Path $PidFile) {
 Log "Starting production server..."
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = "node"
-$psi.Arguments = "node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000"
+$psi.Arguments = ".next/standalone/server.js"
+$psi.Environment["HOSTNAME"] = "127.0.0.1"
+$psi.Environment["PORT"] = "3000"
 $psi.WorkingDirectory = $ProjectRoot
 $psi.UseShellExecute = $false
 $psi.RedirectStandardOutput = $true
