@@ -1,14 +1,12 @@
 "use client";
 
 import {
-  ClipboardList,
   Database,
   FileClock,
   GraduationCap,
   LayoutDashboard,
   SearchCheck,
   ShieldCheck,
-  Users,
   UserRoundCog,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,8 +16,6 @@ import { useSidebarCollapsed } from "@/components/sidebar-shell";
 const items = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { href: "/screening", label: "学校筛查", icon: SearchCheck },
-  { href: "/customers", label: "客户管理", icon: Users },
-  { href: "/applications", label: "申请流程", icon: ClipboardList },
   { href: "/schools", label: "学校库", icon: GraduationCap },
   { href: "/imports", label: "数据导入", icon: Database },
   { href: "/audit", label: "操作审计", icon: FileClock },

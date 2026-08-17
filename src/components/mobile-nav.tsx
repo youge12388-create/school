@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Search, Users, UserCircle, Menu } from "lucide-react";
+import { LayoutDashboard, Search, UserCircle, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMobileDrawer } from "@/components/mobile-shell";
@@ -8,7 +8,6 @@ import { useMobileDrawer } from "@/components/mobile-shell";
 const tabs = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { href: "/screening", label: "筛查", icon: Search },
-  { href: "/customers", label: "客户", icon: Users },
   { href: "/account", label: "我的", icon: UserCircle },
 ];
 

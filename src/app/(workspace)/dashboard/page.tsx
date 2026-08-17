@@ -5,8 +5,6 @@ import { getDashboardData } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import {
   Building2,
-  ClipboardList,
-  FileClock,
   GraduationCap,
   LayoutList,
   Users,
@@ -18,7 +16,7 @@ export default async function DashboardPage() {
     <>
       <PageHeading
         title="今日工作"
-        description="集中查看待跟进客户、临近截止项目、补件申请和数据复核任务。"
+        description="集中查看临近截止项目和数据复核任务。"
         action={
           <Link className="button primary" href="/screening">
             开始筛查
@@ -78,24 +76,6 @@ export default async function DashboardPage() {
 
       <section className="grid cols-2 desktop-only" style={{ marginTop: 16 }}>
         <DashboardCard
-          title="7 天内待跟进"
-          moreHref="/customers"
-          moreLabel="全部客户"
-          empty={<EmptyState>暂无到期跟进事项</EmptyState>}
-        >
-          {data.dueCustomers.map((customer) => (
-            <tr key={customer.id}>
-              <td>
-                <Link href={`/customers/${customer.id}`}>
-                  <strong>{customer.name}</strong>
-                  <div className="small muted">{customer.customerNo}</div>
-                </Link>
-              </td>
-              <td className="nowrap">{formatDate(customer.nextFollowUpAt)}</td>
-            </tr>
-          ))}
-        </DashboardCard>
-        <DashboardCard
           title="30 天内截止项目"
           empty={<EmptyState>暂无已结构化的临近截止项目</EmptyState>}
         >
@@ -107,26 +87,6 @@ export default async function DashboardPage() {
               </td>
               <td className="nowrap">
                 <Badge tone="amber">{formatDate(program.deadlineDate)}</Badge>
-              </td>
-            </tr>
-          ))}
-        </DashboardCard>
-        <DashboardCard
-          title="待补件申请"
-          moreHref="/applications?status=SUPPLEMENT_REQUIRED"
-          moreLabel="查看流程"
-          empty={<EmptyState>暂无待补件申请</EmptyState>}
-        >
-          {data.supplementApplications.map((item) => (
-            <tr key={item.id}>
-              <td>
-                <Link href={`/applications/${item.id}`}>
-                  <strong>{item.customerName}</strong>
-                  <div className="small muted">{item.programName}</div>
-                </Link>
-              </td>
-              <td>
-                <Badge tone="amber">补件</Badge>
               </td>
             </tr>
           ))}
@@ -152,22 +112,6 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mobile-only mobile-dashboard-sections">
-        <MobileSection title="7 天内待跟进" href="/customers" more="全部客户">
-          {data.dueCustomers.length ? (
-            data.dueCustomers.map((customer) => (
-              <Link key={customer.id} href={`/customers/${customer.id}`} className="mobile-list-item">
-                <div>
-                  <strong>{customer.name}</strong>
-                  <div className="small muted">{customer.customerNo}</div>
-                </div>
-                <span className="small muted">{formatDate(customer.nextFollowUpAt)}</span>
-              </Link>
-            ))
-          ) : (
-            <div className="mobile-empty"><ClipboardList aria-hidden="true" /> 暂无须跟进事项</div>
-          )}
-        </MobileSection>
-
         <MobileSection title="30 天内截止项目">
           {data.deadlines.length ? (
             data.deadlines.map((program) => (
@@ -185,22 +129,6 @@ export default async function DashboardPage() {
           {data.deadlines.length ? (
             <Link href="/screening" className="mobile-section-more">查看全部</Link>
           ) : null}
-        </MobileSection>
-
-        <MobileSection title="待补件申请" href="/applications?status=SUPPLEMENT_REQUIRED" more="查看流程">
-          {data.supplementApplications.length ? (
-            data.supplementApplications.map((item) => (
-              <Link key={item.id} href={`/applications/${item.id}`} className="mobile-list-item">
-                <div>
-                  <strong>{item.customerName}</strong>
-                  <div className="small muted">{item.programName}</div>
-                </div>
-                <Badge tone="amber">补件</Badge>
-              </Link>
-            ))
-          ) : (
-            <div className="mobile-empty"><FileClock aria-hidden="true" /> 暂无待补件申请</div>
-          )}
         </MobileSection>
 
         <MobileSection title="最近操作" href="/audit" more="操作审计">
