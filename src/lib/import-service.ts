@@ -18,6 +18,7 @@ import {
 } from "@/lib/excel-import";
 import { openRawDatabase } from "@/lib/db/raw";
 import { findMajorCategory, parseProgram } from "@/lib/program-parser";
+import { stripConfidentialSchoolData } from "@/lib/permissions";
 import { invalidateMajorCatalog } from "@/lib/queries";
 import { asNumber, newId, normalizeKeyword } from "@/lib/utils";
 
@@ -107,6 +108,7 @@ export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
 type ImportServiceOptions = {
   databaseFile?: string;
   importDir?: string;
+  stripConfidential?: boolean;
 };
 
 function mergeSchoolSources(
@@ -275,6 +277,11 @@ export function createImportPreview(
     summary,
     entries,
   };
+  if (options.stripConfidential) {
+    preview.schools = preview.schools.map((school) =>
+      stripConfidentialSchoolData(school),
+    );
+  }
   const importDir = resolve(
     /* turbopackIgnore: true */
     options.importDir ?? process.env.IMPORT_DIR ?? "./data/imports",

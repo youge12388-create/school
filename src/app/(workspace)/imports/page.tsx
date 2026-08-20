@@ -1,11 +1,12 @@
 import { ImportPanel } from "@/components/import-panel";
 import { Badge, PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { IMPORT_ROLES } from "@/lib/permissions";
 import { listImports } from "@/lib/queries";
 import { formatDate, safeJson } from "@/lib/utils";
 
 export default async function ImportsPage() {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole([...IMPORT_ROLES]);
   const batches = await listImports();
   return (
     <>

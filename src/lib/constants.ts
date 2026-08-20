@@ -1,5 +1,19 @@
-export const USER_ROLES = ["ADMIN", "ADVISOR", "DATA_MANAGER"] as const;
+export const USER_ROLES = [
+  "ADMIN",
+  "ADVISOR",
+  "DATA_MANAGER",
+  "CHANNEL_RESOURCE",
+  "MARKET_MANAGER",
+] as const;
 export type UserRole = (typeof USER_ROLES)[number];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: "高级管理员",
+  ADVISOR: "顾问",
+  DATA_MANAGER: "数据管理员",
+  CHANNEL_RESOURCE: "渠道资源部",
+  MARKET_MANAGER: "市场经理",
+};
 
 export const REVIEW_STATUSES = [
   "AUTO_PARSED",

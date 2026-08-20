@@ -2,11 +2,20 @@ import { ZodError } from "zod";
 
 import { requireRole } from "@/lib/auth";
 import { createManualEntry } from "@/lib/import-service";
+import {
+  canViewConfidentialSchoolFields,
+  IMPORT_ROLES,
+  stripConfidentialSchoolUpdates,
+} from "@/lib/permissions";
 
 export async function POST(request: Request) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...IMPORT_ROLES]);
   try {
-    const result = createManualEntry(await request.json(), user.id);
+    const body = (await request.json()) as Record<string, unknown>;
+    const payload = canViewConfidentialSchoolFields(user.role)
+      ? body
+      : stripConfidentialSchoolUpdates(body);
+    const result = createManualEntry(payload, user.id);
     return Response.json(result, { status: 201 });
   } catch (error) {
     const message =

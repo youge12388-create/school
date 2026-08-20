@@ -24,7 +24,15 @@ export const users = sqliteTable(
     username: text("username").notNull(),
     displayName: text("display_name").notNull(),
     passwordHash: text("password_hash").notNull(),
-    role: text("role", { enum: ["ADMIN", "ADVISOR", "DATA_MANAGER"] })
+    role: text("role", {
+      enum: [
+        "ADMIN",
+        "ADVISOR",
+        "DATA_MANAGER",
+        "CHANNEL_RESOURCE",
+        "MARKET_MANAGER",
+      ],
+    })
       .notNull()
       .default("ADVISOR"),
     active: integer("active", { mode: "boolean" }).notNull().default(true),

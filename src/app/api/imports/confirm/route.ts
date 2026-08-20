@@ -1,8 +1,9 @@
 import { requireRole } from "@/lib/auth";
 import { confirmImport } from "@/lib/import-service";
+import { IMPORT_ROLES } from "@/lib/permissions";
 
 export async function POST(request: Request) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...IMPORT_ROLES]);
   try {
     const body = (await request.json()) as { batchId?: string };
     if (!body.batchId) {

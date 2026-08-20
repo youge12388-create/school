@@ -4,14 +4,9 @@ import Link from "next/link";
 import { toggleUserAction } from "@/app/actions";
 import { Badge, PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { ROLE_LABELS } from "@/lib/constants";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
-
-const roleLabels: Record<string, string> = {
-  ADMIN: "管理员",
-  ADVISOR: "顾问",
-  DATA_MANAGER: "数据管理员",
-};
 
 export default async function UsersPage({
   searchParams,
@@ -57,7 +52,9 @@ export default async function UsersPage({
                 <select name="role">
                   <option value="ADVISOR">顾问</option>
                   <option value="DATA_MANAGER">数据管理员</option>
-                  <option value="ADMIN">管理员</option>
+                  <option value="CHANNEL_RESOURCE">渠道资源部</option>
+                  <option value="MARKET_MANAGER">市场经理</option>
+                  <option value="ADMIN">高级管理员</option>
                 </select>
               </label>
               <label>
@@ -81,10 +78,16 @@ export default async function UsersPage({
               <strong>顾问：</strong>筛选、客户、跟进、申请和材料。
             </p>
             <p>
-              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核。
+              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；院校机密字段仅高级管理员可见。
             </p>
             <p>
-              <strong>管理员：</strong>全部权限，加账号与审计管理。
+              <strong>渠道资源部：</strong>院校信息录入与更新，不包含机密字段。
+            </p>
+            <p>
+              <strong>市场经理：</strong>只读查看校名、地址、专业、申请条件、截止时间、学费、住宿费。
+            </p>
+            <p>
+              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段。
             </p>
           </div>
         </div>
@@ -113,7 +116,7 @@ export default async function UsersPage({
                       <strong>{user.displayName}</strong>
                       <div className="small muted">{user.username}</div>
                     </td>
-                    <td>{roleLabels[user.role] ?? user.role}</td>
+                    <td>{ROLE_LABELS[user.role]}</td>
                     <td>
                       <Badge tone={user.active ? "green" : "red"}>
                         {user.active ? "启用" : "停用"}
@@ -165,7 +168,9 @@ export default async function UsersPage({
                 <select name="role" defaultValue="ADVISOR">
                   <option value="ADVISOR">顾问</option>
                   <option value="DATA_MANAGER">数据管理员</option>
-                  <option value="ADMIN">管理员</option>
+                  <option value="CHANNEL_RESOURCE">渠道资源部</option>
+                  <option value="MARKET_MANAGER">市场经理</option>
+                  <option value="ADMIN">高级管理员</option>
                 </select>
               </label>
               <label>
@@ -190,10 +195,16 @@ export default async function UsersPage({
               <strong>顾问：</strong>筛选、客户、跟进、申请和材料。
             </p>
             <p>
-              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核。
+              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；院校机密字段仅高级管理员可见。
             </p>
             <p>
-              <strong>管理员：</strong>全部权限，加账号与审计管理。
+              <strong>渠道资源部：</strong>院校信息录入与更新，不包含机密字段。
+            </p>
+            <p>
+              <strong>市场经理：</strong>只读查看校名、地址、专业、申请条件、截止时间、学费、住宿费。
+            </p>
+            <p>
+              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段。
             </p>
           </div>
         </div>
@@ -211,7 +222,7 @@ export default async function UsersPage({
                 <div className="small muted mobile-login-line"><Calendar aria-hidden="true" /> 最近登录：{formatDate(user.lastLoginAt) || "—"}</div>
               </div>
               <div className="mobile-account-actions">
-                <div className="mobile-account-role">{roleLabels[user.role] ?? user.role}</div>
+                <div className="mobile-account-role">{ROLE_LABELS[user.role]}</div>
                 <Badge tone={user.active ? "green" : "red"}>
                   {user.active ? "启用" : "停用"}
                 </Badge>

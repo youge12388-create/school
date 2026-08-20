@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Pagination } from "@/components/pagination";
 import { Badge, PageHeading } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
+import { isMarketManager } from "@/lib/permissions";
 import { listSchools } from "@/lib/queries";
 
 export default async function SchoolsPage({
@@ -11,6 +13,8 @@ export default async function SchoolsPage({
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const params = await searchParams;
+  const user = await requireUser();
+  const marketManagerView = isMarketManager(user.role);
   const { q = "" } = params;
   const page = Math.max(1, Number(params.page) || 1);
   const result = await listSchools(q, page);
@@ -48,11 +52,11 @@ export default async function SchoolsPage({
             <tr>
               <th>学校</th>
               <th>地区</th>
-              <th>QS</th>
-              <th>合作星级</th>
-              <th>CSCA</th>
+              {!marketManagerView ? <th>QS</th> : null}
+              {!marketManagerView ? <th>合作星级</th> : null}
+              {!marketManagerView ? <th>CSCA</th> : null}
               <th>项目数</th>
-              <th>数据状态</th>
+              {!marketManagerView ? <th>数据状态</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -62,31 +66,35 @@ export default async function SchoolsPage({
                   <Link href={`/schools/${school.id}`}><strong>{school.nameZh}</strong></Link>
                 </td>
                 <td>{[school.province, school.city].filter(Boolean).join(" · ") || "—"}</td>
-                <td>{school.qsRanking || "—"}</td>
-                <td>{school.partnershipRating || "—"}</td>
-                <td>
-                  <Badge
-                    tone={
-                      school.cscaStatus === "NOT_REQUIRED"
-                        ? "green"
+                {!marketManagerView ? <td>{school.qsRanking || "—"}</td> : null}
+                {!marketManagerView ? <td>{school.partnershipRating || "—"}</td> : null}
+                {!marketManagerView ? (
+                  <td>
+                    <Badge
+                      tone={
+                        school.cscaStatus === "NOT_REQUIRED"
+                          ? "green"
+                          : school.cscaStatus === "REQUIRED"
+                            ? "amber"
+                            : "gray"
+                      }
+                    >
+                      {school.cscaStatus === "NOT_REQUIRED"
+                        ? "不要求"
                         : school.cscaStatus === "REQUIRED"
-                          ? "amber"
-                          : "gray"
-                    }
-                  >
-                    {school.cscaStatus === "NOT_REQUIRED"
-                      ? "不要求"
-                      : school.cscaStatus === "REQUIRED"
-                        ? "要求"
-                        : "数据库未有相关信息"}
-                  </Badge>
-                </td>
+                          ? "要求"
+                          : "数据库未有相关信息"}
+                    </Badge>
+                  </td>
+                ) : null}
                 <td>{school.programCount}</td>
-                <td>
-                  <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : "gray"}>
-                    {school.reviewStatus === "VERIFIED" ? "已复核" : "自动导入"}
-                  </Badge>
-                </td>
+                {!marketManagerView ? (
+                  <td>
+                    <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : "gray"}>
+                      {school.reviewStatus === "VERIFIED" ? "已复核" : "自动导入"}
+                    </Badge>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -101,42 +109,50 @@ export default async function SchoolsPage({
               {[school.province, school.city].filter(Boolean).join(" · ") || "—"}
             </div>
             <div className="mobile-school-meta">
-              <div>
-                <span className="mobile-school-meta-label">QS</span>
-                <span className="mobile-school-meta-value">{school.qsRanking || "—"}</span>
-              </div>
-              <div>
-                <span className="mobile-school-meta-label">合作星级</span>
-                <span className="mobile-school-meta-value">{"★".repeat(Number(school.partnershipRating) || 0) || "—"}</span>
-              </div>
-              <div>
-                <span className="mobile-school-meta-label">CSCA</span>
-                <Badge
-                  tone={
-                    school.cscaStatus === "NOT_REQUIRED"
-                      ? "green"
+              {!marketManagerView ? (
+                <div>
+                  <span className="mobile-school-meta-label">QS</span>
+                  <span className="mobile-school-meta-value">{school.qsRanking || "—"}</span>
+                </div>
+              ) : null}
+              {!marketManagerView ? (
+                <div>
+                  <span className="mobile-school-meta-label">合作星级</span>
+                  <span className="mobile-school-meta-value">{"★".repeat(Number(school.partnershipRating) || 0) || "—"}</span>
+                </div>
+              ) : null}
+              {!marketManagerView ? (
+                <div>
+                  <span className="mobile-school-meta-label">CSCA</span>
+                  <Badge
+                    tone={
+                      school.cscaStatus === "NOT_REQUIRED"
+                        ? "green"
+                        : school.cscaStatus === "REQUIRED"
+                          ? "amber"
+                          : "gray"
+                    }
+                  >
+                    {school.cscaStatus === "NOT_REQUIRED"
+                      ? "不要求"
                       : school.cscaStatus === "REQUIRED"
-                        ? "amber"
-                        : "gray"
-                  }
-                >
-                  {school.cscaStatus === "NOT_REQUIRED"
-                    ? "不要求"
-                    : school.cscaStatus === "REQUIRED"
-                      ? "要求"
-                      : "未写明"}
-                </Badge>
-              </div>
+                        ? "要求"
+                        : "未写明"}
+                  </Badge>
+                </div>
+              ) : null}
               <div>
                 <span className="mobile-school-meta-label">项目数</span>
                 <span className="mobile-school-meta-value">{school.programCount}</span>
               </div>
-              <div>
-                <span className="mobile-school-meta-label">数据状态</span>
-                <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : "gray"}>
-                  {school.reviewStatus === "VERIFIED" ? "已复核" : "自动导入"}
-                </Badge>
-              </div>
+              {!marketManagerView ? (
+                <div>
+                  <span className="mobile-school-meta-label">数据状态</span>
+                  <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : "gray"}>
+                    {school.reviewStatus === "VERIFIED" ? "已复核" : "自动导入"}
+                  </Badge>
+                </div>
+              ) : null}
             </div>
           </Link>
         ))}

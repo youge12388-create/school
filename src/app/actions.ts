@@ -13,6 +13,11 @@ import {
 } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { requireRole, requireUser } from "@/lib/auth";
+import {
+  canViewConfidentialSchoolFields,
+  SCHOOL_EDITOR_ROLES,
+  stripConfidentialSchoolUpdates,
+} from "@/lib/permissions";
 import { db } from "@/lib/db";
 import {
   applications,
@@ -233,7 +238,7 @@ function optionalFormNumber(formData: FormData, key: string) {
 export async function updateSchoolAction(formData: FormData) {
   let schoolId: string | undefined;
   try {
-    const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+    const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
     const id = asText(formData.get("id"));
     if (!id) throw new Error("缺少学校ID");
     schoolId = id;
@@ -279,16 +284,22 @@ export async function updateSchoolAction(formData: FormData) {
       reviewStatus: "VERIFIED" as const,
       updatedAt: new Date(),
     };
+    const permittedUpdates = canViewConfidentialSchoolFields(user.role)
+      ? updates
+      : stripConfidentialSchoolUpdates(updates);
 
     const [oldSchool] = await db.select().from(schools).where(eq(schools.id, id));
     if (!oldSchool) throw new Error("学校不存在");
-    await db.update(schools).set(updates).where(eq(schools.id, id));
+    await db.update(schools).set(permittedUpdates).where(eq(schools.id, id));
     await writeAudit({
       userId: user.id,
       action: "SCHOOL_UPDATED",
       entityType: "SCHOOL",
       entityId: id,
-      details: { nameZh: oldSchool.nameZh, changed: changedFields(oldSchool, updates) },
+      details: {
+        nameZh: oldSchool.nameZh,
+        changed: changedFields(oldSchool, permittedUpdates),
+      },
     });
 
     // 保存项目数据（同一表单一并提交）
@@ -404,7 +415,7 @@ async function updateSingleProgram(userId: string, formData: FormData, index: nu
 }
 
 export async function updateProgramAction(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
   const id = asText(formData.get("id"));
   if (!id) throw new Error("缺少项目ID");
 

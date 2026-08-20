@@ -1,6 +1,11 @@
 import * as XLSX from "xlsx";
 
 import { requireRole } from "@/lib/auth";
+import {
+  canViewConfidentialSchoolFields,
+  CONFIDENTIAL_TEMPLATE_HEADERS,
+  IMPORT_ROLES,
+} from "@/lib/permissions";
 import { openRawDatabase } from "@/lib/db/raw";
 
 // 与参照表“高校项目汇总-中文(20260704).xlsx”表头完全对齐（37列）
@@ -86,7 +91,16 @@ const COL_KEYS: (string | null)[] = [
 ];
 
 export async function GET() {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...IMPORT_ROLES]);
+  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
+  const headers = canViewConfidential
+    ? HEADERS
+    : HEADERS.filter((header) => !CONFIDENTIAL_TEMPLATE_HEADERS.includes(header));
+  const colKeys = canViewConfidential
+    ? COL_KEYS
+    : COL_KEYS.filter(
+        (_, index) => !CONFIDENTIAL_TEMPLATE_HEADERS.includes(HEADERS[index]),
+      );
 
   const database = openRawDatabase();
 
@@ -121,14 +135,14 @@ export async function GET() {
 
   // Sheet 1: 高校项目
   const dataRows = rows.map((row, i) =>
-    COL_KEYS.map((key, colIdx) => {
+    colKeys.map((key, colIdx) => {
       if (colIdx === 0) return i + 1; // 序号
       return key ? (row[key] ?? "") : "";
     }),
   );
   const sheet1 = XLSX.utils.aoa_to_sheet([
     ["高校项目汇总-中文版"],
-    HEADERS,
+    headers,
     ...dataRows,
   ]);
   XLSX.utils.book_append_sheet(workbook, sheet1, "高校项目");

@@ -6,6 +6,14 @@ import { ScrollToProgram } from "@/components/scroll-to-program";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
+import {
+  canEditSchool,
+  canViewConfidentialSchoolFields,
+  isMarketManager,
+  MARKET_MANAGER_PROGRAM_CORE_FIELDS,
+  MARKET_MANAGER_PROGRAM_LONG_FIELDS,
+  MARKET_MANAGER_SCHOOL_FIELDS,
+} from "@/lib/permissions";
 import { getSchoolDetails } from "@/lib/queries";
 import { parseMajorItems } from "@/lib/screening-results";
 import { formatDate, formatMoney, normalizeKeyword, safeJson } from "@/lib/utils";
@@ -215,7 +223,18 @@ export default async function SchoolDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   const user = await requireUser();
-  const canEdit = user.role === "ADMIN" || user.role === "DATA_MANAGER";
+  const canEdit = canEditSchool(user.role);
+  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
+  const marketManagerView = isMarketManager(user.role);
+  const schoolFields = marketManagerView
+    ? MARKET_MANAGER_SCHOOL_FIELDS
+    : SCHOOL_FIELDS;
+  const programCoreFields = marketManagerView
+    ? MARKET_MANAGER_PROGRAM_CORE_FIELDS
+    : PROGRAM_CORE_FIELDS;
+  const programLongFields = marketManagerView
+    ? MARKET_MANAGER_PROGRAM_LONG_FIELDS
+    : PROGRAM_LONG_FIELDS;
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs } = data;
@@ -289,15 +308,23 @@ export default async function SchoolDetailsPage({
         </>}
       />
 
-      <section className="grid cols-3 school-overview-grid">
+      <section
+        className={
+          marketManagerView
+            ? "grid cols-2 school-overview-grid"
+            : "grid cols-3 school-overview-grid"
+        }
+      >
         <div className="card school-overview-card">
           <span>地区</span>
           <strong>{[school.province, school.city].filter(Boolean).join(" · ") || UNKNOWN_TEXT}</strong>
         </div>
-        <div className="card school-overview-card">
-          <span>QS 排名</span>
-          <strong>{school.qsRanking ?? UNKNOWN_TEXT}</strong>
-        </div>
+        {!marketManagerView ? (
+          <div className="card school-overview-card">
+            <span>QS 排名</span>
+            <strong>{school.qsRanking ?? UNKNOWN_TEXT}</strong>
+          </div>
+        ) : null}
         <div className="card school-overview-card">
           <span>知识库项目</span>
           <strong>{visiblePrograms.length} / {programs.length} 个</strong>
@@ -315,32 +342,34 @@ export default async function SchoolDetailsPage({
           </Badge>
         </div>
         <div className="card-body">
-          <KnowledgeFieldGrid targetMajor={targetMajor || undefined} fields={SCHOOL_FIELDS} data={schoolKnowledge} />
+          <KnowledgeFieldGrid targetMajor={targetMajor || undefined} fields={schoolFields} data={schoolKnowledge} />
         </div>
       </section>
 
-      <details className="card card-compact school-cooperation-card">
-        <summary className="card-header school-knowledge-header">
-          <div>
-            <h3>合作与招生信息</h3>
-            <p className="small muted">
-              来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。大部分字段待后续补充，点击展开。
-            </p>
+      {canViewConfidential ? (
+        <details className="card card-compact school-cooperation-card">
+          <summary className="card-header school-knowledge-header">
+            <div>
+              <h3>合作与招生信息</h3>
+              <p className="small muted">
+                来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。大部分字段待后续补充，点击展开。
+              </p>
+            </div>
+            <Badge tone="blue">机密字段</Badge>
+          </summary>
+          <div className="card-body cooperation-field-groups">
+            {COOPERATION_FIELD_GROUPS.map((group) => (
+              <section className="cooperation-field-group" key={group.title}>
+                <h4>{group.title}</h4>
+                <KnowledgeFieldGrid
+                  data={cooperationKnowledge}
+                  fields={group.fields}
+                />
+              </section>
+            ))}
           </div>
-          <Badge tone="blue">学校级信息</Badge>
-        </summary>
-        <div className="card-body cooperation-field-groups">
-          {COOPERATION_FIELD_GROUPS.map((group) => (
-            <section className="cooperation-field-group" key={group.title}>
-              <h4>{group.title}</h4>
-              <KnowledgeFieldGrid
-                data={cooperationKnowledge}
-                fields={group.fields}
-              />
-            </section>
-          ))}
-        </div>
-      </details>
+        </details>
+      ) : null}
 
       <section className="school-programs-section">
         {targetProgramId ? <ScrollToProgram programId={targetProgramId} /> : null}
@@ -395,22 +424,26 @@ export default async function SchoolDetailsPage({
                   <div>
                     <span className="small muted">项目 {index + 1}</span>
                     <h3>{program.name}</h3>
-                    <div className="result-meta">
-                      <span>{PROGRAM_TYPE_LABELS[program.programType] ?? program.programType}</span>
-                      <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
-                      <span>首年上限：{formatMoney(program.firstYearCostMax)}</span>
-                    </div>
+                    {!marketManagerView ? (
+                      <div className="result-meta">
+                        <span>{PROGRAM_TYPE_LABELS[program.programType] ?? program.programType}</span>
+                        <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
+                        <span>首年上限：{formatMoney(program.firstYearCostMax)}</span>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="school-program-badges">
                     <Badge tone={deadlineTone(program.deadlineDate)}>{deadlineLabel(program.deadlineDate)}</Badge>
-                    <Badge tone={program.reviewStatus === "VERIFIED" ? "green" : program.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
-                      {program.reviewStatus === "VERIFIED" ? "已复核" : program.reviewStatus === "NEEDS_REVIEW" ? "待复核" : "自动解析"}
-                    </Badge>
+                    {!marketManagerView ? (
+                      <Badge tone={program.reviewStatus === "VERIFIED" ? "green" : program.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
+                        {program.reviewStatus === "VERIFIED" ? "已复核" : program.reviewStatus === "NEEDS_REVIEW" ? "待复核" : "自动解析"}
+                      </Badge>
+                    ) : null}
                   </div>
                 </div>
                 {/* 核心字段：4 列紧凑网格，决策时一眼可见（空字段不渲染） */}
                 <div className="program-core-grid">
-                  {PROGRAM_CORE_FIELDS.filter(
+                  {programCoreFields.filter(
                     (label) => displayValue(programKnowledge[label]) !== UNKNOWN_TEXT,
                   ).map((label) => {
                     const text = displayValue(programKnowledge[label]);
@@ -433,7 +466,7 @@ export default async function SchoolDetailsPage({
                 <details className="program-long-section">
                   <summary>展开项目详情（项目介绍 / 专业 / 学期 / 奖学金 / 费用备注）</summary>
                   <div className="program-long-body">
-                    <KnowledgeFieldGrid fields={PROGRAM_LONG_FIELDS} data={programKnowledge} hideEmpty targetMajor={targetMajor} />
+                    <KnowledgeFieldGrid fields={programLongFields} data={programKnowledge} hideEmpty targetMajor={targetMajor} />
                   </div>
                 </details>
               </article>

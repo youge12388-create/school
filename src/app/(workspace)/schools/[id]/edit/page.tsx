@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireRole } from "@/lib/auth";
+import {
+  canViewConfidentialSchoolFields,
+  SCHOOL_EDITOR_ROLES,
+} from "@/lib/permissions";
 import { getSchoolDetails } from "@/lib/queries";
 
 export default async function SchoolEditPage({
@@ -13,7 +17,8 @@ export default async function SchoolEditPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const { id } = await params;
   const query = await searchParams;
   const errorMessage = query.error;
@@ -101,80 +106,84 @@ export default async function SchoolEditPage({
           </label>
         </div>
 
-        <details className="card-header" style={{ cursor: "pointer" }} open>
-          <summary style={{ listStyle: "none", fontWeight: 600, fontSize: 15 }}>
-            <h3 style={{ display: "inline" }}>合作与招生信息</h3>
-            <span className="small muted" style={{ marginLeft: 8 }}>仅作为顾问操作参考，不参与学生资格自动判断</span>
-          </summary>
-        </details>
-        <div className="card-body">
-          <div style={{ marginBottom: 16 }}>
-            <h4 style={{ marginBottom: 8, fontWeight: 600 }}>申请通道</h4>
-            <div className="form-grid">
-              <label>
-                团体申请账号
-                <input name="groupApplicationAccount" defaultValue={school.groupApplicationAccount ?? ""} />
-              </label>
-              <label>
-                是否可代收
-                <input name="collectionServiceText" defaultValue={school.collectionServiceText ?? ""} />
-              </label>
-              <label>
-                奖学金发放形式
-                <input name="scholarshipDisbursementText" defaultValue={school.scholarshipDisbursementText ?? ""} />
-              </label>
-              <label>
-                合作截止日期
-                <input name="cooperationDeadlineText" defaultValue={school.cooperationDeadlineText ?? ""} />
-              </label>
+        {canViewConfidential ? (
+          <>
+            <details className="card-header" style={{ cursor: "pointer" }} open>
+              <summary style={{ listStyle: "none", fontWeight: 600, fontSize: 15 }}>
+                <h3 style={{ display: "inline" }}>合作与招生信息</h3>
+                <span className="small muted" style={{ marginLeft: 8 }}>机密字段，仅高级管理员可编辑</span>
+              </summary>
+            </details>
+            <div className="card-body">
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 8, fontWeight: 600 }}>申请通道</h4>
+                <div className="form-grid">
+                  <label>
+                    团体申请账号
+                    <input name="groupApplicationAccount" defaultValue={school.groupApplicationAccount ?? ""} />
+                  </label>
+                  <label>
+                    是否可代收
+                    <input name="collectionServiceText" defaultValue={school.collectionServiceText ?? ""} />
+                  </label>
+                  <label>
+                    奖学金发放形式
+                    <input name="scholarshipDisbursementText" defaultValue={school.scholarshipDisbursementText ?? ""} />
+                  </label>
+                  <label>
+                    合作截止日期
+                    <input name="cooperationDeadlineText" defaultValue={school.cooperationDeadlineText ?? ""} />
+                  </label>
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 8, fontWeight: 600 }}>招生计划</h4>
+                <div className="form-grid">
+                  <label>
+                    公司招生名额
+                    <input name="companyRecruitmentQuotaText" defaultValue={school.companyRecruitmentQuotaText ?? ""} />
+                  </label>
+                  <label>
+                    学校招生计划
+                    <input name="schoolRecruitmentPlanText" defaultValue={school.schoolRecruitmentPlanText ?? ""} />
+                  </label>
+                  <label>
+                    申请更新频率
+                    <input name="applicationUpdateFrequency" defaultValue={school.applicationUpdateFrequency ?? ""} />
+                  </label>
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 8, fontWeight: 600 }}>考核安排</h4>
+                <div className="form-grid">
+                  <label>
+                    语言生考核
+                    <input name="languageStudentAssessmentText" defaultValue={school.languageStudentAssessmentText ?? ""} placeholder="语言生面试、笔试安排" />
+                  </label>
+                  <label>
+                    学历生考核
+                    <input name="degreeStudentAssessmentText" defaultValue={school.degreeStudentAssessmentText ?? ""} placeholder="学历生面试、笔试安排" />
+                  </label>
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 8, fontWeight: 600 }}>合作说明</h4>
+                <label style={{ marginBottom: 10 }}>
+                  招生偏向
+                  <textarea name="recruitmentPreferenceText" defaultValue={school.recruitmentPreferenceText ?? ""} rows={2} />
+                </label>
+                <label style={{ marginBottom: 10 }}>
+                  合作备注
+                  <textarea name="cooperationNote" defaultValue={school.cooperationNote ?? ""} rows={2} />
+                </label>
+                <label>
+                  特殊情况备注
+                  <textarea name="specialCaseNote" defaultValue={school.specialCaseNote ?? ""} rows={2} />
+                </label>
+              </div>
             </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <h4 style={{ marginBottom: 8, fontWeight: 600 }}>招生计划</h4>
-            <div className="form-grid">
-              <label>
-                公司招生名额
-                <input name="companyRecruitmentQuotaText" defaultValue={school.companyRecruitmentQuotaText ?? ""} />
-              </label>
-              <label>
-                学校招生计划
-                <input name="schoolRecruitmentPlanText" defaultValue={school.schoolRecruitmentPlanText ?? ""} />
-              </label>
-              <label>
-                申请更新频率
-                <input name="applicationUpdateFrequency" defaultValue={school.applicationUpdateFrequency ?? ""} />
-              </label>
-            </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <h4 style={{ marginBottom: 8, fontWeight: 600 }}>考核安排</h4>
-            <div className="form-grid">
-              <label>
-                语言生考核
-                <input name="languageStudentAssessmentText" defaultValue={school.languageStudentAssessmentText ?? ""} placeholder="语言生面试、笔试安排" />
-              </label>
-              <label>
-                学历生考核
-                <input name="degreeStudentAssessmentText" defaultValue={school.degreeStudentAssessmentText ?? ""} placeholder="学历生面试、笔试安排" />
-              </label>
-            </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <h4 style={{ marginBottom: 8, fontWeight: 600 }}>合作说明</h4>
-            <label style={{ marginBottom: 10 }}>
-              招生偏向
-              <textarea name="recruitmentPreferenceText" defaultValue={school.recruitmentPreferenceText ?? ""} rows={2} />
-            </label>
-            <label style={{ marginBottom: 10 }}>
-              合作备注
-              <textarea name="cooperationNote" defaultValue={school.cooperationNote ?? ""} rows={2} />
-            </label>
-            <label>
-              特殊情况备注
-              <textarea name="specialCaseNote" defaultValue={school.specialCaseNote ?? ""} rows={2} />
-            </label>
-          </div>
-        </div>
+          </>
+        ) : null}
 
         <div className="card-header" style={{ borderTop: "1px solid var(--border-soft)" }}>
           <h3>项目信息（{schoolPrograms.length} 个）</h3>

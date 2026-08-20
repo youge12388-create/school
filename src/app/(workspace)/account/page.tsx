@@ -1,15 +1,11 @@
 import { changePasswordAction } from "@/app/account-actions";
 import { PageHeading } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { ROLE_LABELS } from "@/lib/constants";
 
 export default async function AccountPage() {
   const user = await requireUser();
-  const roleLabel =
-    user.role === "ADMIN"
-      ? "管理员"
-      : user.role === "DATA_MANAGER"
-        ? "数据管理员"
-        : "顾问";
+  const roleLabel = ROLE_LABELS[user.role];
 
   return (
     <>

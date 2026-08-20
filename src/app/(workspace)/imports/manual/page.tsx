@@ -2,9 +2,13 @@ import { ImportMethodTabs } from "@/components/import-method-tabs";
 import { ManualEntryForm } from "@/components/manual-entry-form";
 import { PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import {
+  canViewConfidentialSchoolFields,
+  IMPORT_ROLES,
+} from "@/lib/permissions";
 
 export default async function ManualImportPage() {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...IMPORT_ROLES]);
 
   return (
     <>
@@ -13,7 +17,9 @@ export default async function ManualImportPage() {
         description="录入一所学校及其项目资料；仅学校中文名必填，其余字段可后续补充。"
       />
       <ImportMethodTabs active="manual" />
-      <ManualEntryForm />
+      <ManualEntryForm
+        canEditConfidential={canViewConfidentialSchoolFields(user.role)}
+      />
     </>
   );
 }

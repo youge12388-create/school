@@ -6,6 +6,7 @@ import { MobileShell } from "@/components/mobile-shell";
 import { SidebarShell } from "@/components/sidebar-shell";
 import { GlobalSearch } from "@/components/global-search";
 import { requireUser } from "@/lib/auth";
+import { ROLE_LABELS } from "@/lib/constants";
 
 export default async function WorkspaceLayout({
   children,
@@ -13,12 +14,7 @@ export default async function WorkspaceLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
-  const roleLabel =
-    user.role === "ADMIN"
-      ? "管理员"
-      : user.role === "DATA_MANAGER"
-        ? "数据管理员"
-        : "顾问";
+  const roleLabel = ROLE_LABELS[user.role];
 
   return (
     <MobileShell role={user.role}>

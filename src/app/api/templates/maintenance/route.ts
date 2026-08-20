@@ -1,6 +1,11 @@
 import * as XLSX from "xlsx";
 
 import { requireRole } from "@/lib/auth";
+import {
+  canViewConfidentialSchoolFields,
+  CONFIDENTIAL_TEMPLATE_HEADERS,
+  IMPORT_ROLES,
+} from "@/lib/permissions";
 
 // 与参照表“高校项目汇总-中文(20260704).xlsx”表头完全对齐（37列）
 const HEADERS = [
@@ -44,14 +49,18 @@ const HEADERS = [
 ];
 
 export async function GET() {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...IMPORT_ROLES]);
+  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
+  const headers = canViewConfidential
+    ? HEADERS
+    : HEADERS.filter((header) => !CONFIDENTIAL_TEMPLATE_HEADERS.includes(header));
 
   const workbook = XLSX.utils.book_new();
 
   // 标题行 + 表头行，空数据供填写
   const rows: (string | number)[][] = [
     ["高校项目汇总-中文版"],
-    HEADERS,
+    headers,
   ];
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, sheet, "高校项目");

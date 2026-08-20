@@ -1,10 +1,11 @@
 import { requireRole } from "@/lib/auth";
 import { createImportPreview } from "@/lib/import-service";
+import { canViewConfidentialSchoolFields, IMPORT_ROLES } from "@/lib/permissions";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: Request) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole([...IMPORT_ROLES]);
   try {
     const formData = await request.formData();
     const file = formData.get("file");
@@ -23,11 +24,14 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const preview = createImportPreview({
-      fileBuffer: buffer,
-      fileName: file.name,
-      userId: user.id,
-    });
+    const preview = createImportPreview(
+      {
+        fileBuffer: buffer,
+        fileName: file.name,
+        userId: user.id,
+      },
+      { stripConfidential: !canViewConfidentialSchoolFields(user.role) },
+    );
 
     return Response.json({
       batchId: preview.batchId,

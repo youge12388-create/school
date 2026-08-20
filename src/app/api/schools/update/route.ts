@@ -5,6 +5,11 @@ import { eq } from "drizzle-orm";
 import { RULE_STATUSES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
+import {
+  canViewConfidentialSchoolFields,
+  SCHOOL_EDITOR_ROLES,
+  stripConfidentialSchoolUpdates,
+} from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { programs, programMajors, schools } from "@/lib/db/schema";
 import { parseProgram, splitMajors } from "@/lib/program-parser";
@@ -49,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+    const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
 
     const nameZh = asText(formData.get("nameZh"));
     if (!nameZh) {
@@ -103,16 +108,22 @@ export async function POST(request: Request) {
       reviewStatus: "VERIFIED" as const,
       updatedAt: new Date(),
     };
+    const permittedUpdates = canViewConfidentialSchoolFields(user.role)
+      ? updates
+      : stripConfidentialSchoolUpdates(updates);
 
     const [oldSchool] = await db.select().from(schools).where(eq(schools.id, id));
     if (!oldSchool) throw new Error("学校不存在");
-    await db.update(schools).set(updates).where(eq(schools.id, id));
+    await db.update(schools).set(permittedUpdates).where(eq(schools.id, id));
     await writeAudit({
       userId: user.id,
       action: "SCHOOL_UPDATED",
       entityType: "SCHOOL",
       entityId: id,
-      details: { nameZh: oldSchool.nameZh, changed: changedFields(oldSchool, updates) },
+      details: {
+        nameZh: oldSchool.nameZh,
+        changed: changedFields(oldSchool, permittedUpdates),
+      },
     });
 
     // 保存项目数据（同一表单一并提交）
