@@ -22,6 +22,7 @@ vi.mock("next/navigation", () => ({
 import { migrateDatabase } from "@/lib/db/migration";
 
 const previousDatabasePath = process.env.DATABASE_PATH;
+const previousSessionTtlHours = process.env.SESSION_TTL_HOURS;
 
 let testDir: string;
 let databaseFile: string;
@@ -48,6 +49,11 @@ afterEach(() => {
     delete process.env.DATABASE_PATH;
   } else {
     process.env.DATABASE_PATH = previousDatabasePath;
+  }
+  if (previousSessionTtlHours === undefined) {
+    delete process.env.SESSION_TTL_HOURS;
+  } else {
+    process.env.SESSION_TTL_HOURS = previousSessionTtlHours;
   }
   rmSync(testDir, { recursive: true, force: true });
 });
@@ -98,7 +104,7 @@ describe("getCurrentUser", () => {
   });
 
   it("returns null when no cookie is present", async () => {
-    const [{ getCurrentUser, requireUser }, { sqlite }] = await Promise.all([
+    const [{ getCurrentUser }, { sqlite }] = await Promise.all([
       import("@/lib/auth"),
       import("@/lib/db"),
     ]);
@@ -311,5 +317,16 @@ describe("auditLoginFailure", () => {
     expect(JSON.parse(row.detailsJson ?? "{}")).toEqual({ username: "faileduser" });
 
     sqlite.close();
+  });
+});
+
+describe("getSessionTtlHours", () => {
+  it("falls back to twelve hours for invalid session configuration", async () => {
+    process.env.SESSION_TTL_HOURS = "invalid";
+    vi.resetModules();
+
+    const { getSessionTtlHours } = await import("@/lib/auth");
+
+    expect(getSessionTtlHours()).toBe(12);
   });
 });

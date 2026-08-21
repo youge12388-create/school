@@ -11,7 +11,12 @@ import { sessions } from "@/lib/db/schema";
 import { newId } from "@/lib/utils";
 
 const COOKIE_NAME = "school_syt_session";
-const ttlHours = Number(process.env.SESSION_TTL_HOURS ?? 12);
+const DEFAULT_SESSION_TTL_HOURS = 12;
+
+export function getSessionTtlHours() {
+  const value = Number(process.env.SESSION_TTL_HOURS ?? DEFAULT_SESSION_TTL_HOURS);
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_SESSION_TTL_HOURS;
+}
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -23,7 +28,7 @@ export async function createSession(
 ) {
   const token = randomBytes(32).toString("base64url");
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
+  const expiresAt = new Date(now.getTime() + getSessionTtlHours() * 60 * 60 * 1000);
 
   await db.insert(sessions).values({
     id: newId(),

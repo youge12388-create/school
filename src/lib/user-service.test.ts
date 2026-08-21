@@ -12,6 +12,7 @@ import { verifyPassword } from "@/lib/password";
 import {
   createUser,
   resetUserPassword,
+  updateUserRole,
   UserManagementError,
 } from "@/lib/user-service";
 
@@ -81,6 +82,49 @@ describe("user service", () => {
       .prepare("SELECT COUNT(*) AS value FROM users WHERE username = 'admin'")
       .get() as { value: number };
     expect(count.value).toBe(1);
+  });
+
+  it("updates an account role and records the previous and new roles", async () => {
+    const created = await createUser(
+      {
+        username: "advisor",
+        displayName: "顾问账号",
+        password: "test-password-123",
+        role: "ADVISOR",
+      },
+      "admin-id",
+      database,
+    );
+
+    await updateUserRole(
+      { userId: created.id, role: "DATA_MANAGER" },
+      "admin-id",
+      database,
+    );
+
+    const user = database
+      .prepare("SELECT role FROM users WHERE id = ?")
+      .get(created.id) as { role: string };
+    const audit = database
+      .prepare("SELECT action, details_json AS detailsJson FROM audit_logs WHERE entity_id = ? ORDER BY created_at DESC LIMIT 1")
+      .get(created.id) as { action: string; detailsJson: string };
+
+    expect(user.role).toBe("DATA_MANAGER");
+    expect(audit.action).toBe("USER_ROLE_UPDATED");
+    expect(JSON.parse(audit.detailsJson)).toMatchObject({
+      username: "advisor",
+      from: "ADVISOR",
+      to: "DATA_MANAGER",
+    });
+  });
+
+  it("rejects invalid role changes and a current administrator self-demotion", async () => {
+    await expect(
+      updateUserRole({ userId: "admin-id", role: "INVALID" }, "admin-id", database),
+    ).rejects.toEqual(new UserManagementError("角色信息不完整"));
+    await expect(
+      updateUserRole({ userId: "admin-id", role: "ADVISOR" }, "admin-id", database),
+    ).rejects.toEqual(new UserManagementError("不能降低当前管理员账号的角色"));
   });
 
   it("resets the password and invalidates existing sessions", async () => {
