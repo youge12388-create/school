@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { appUrl } from "@/lib/http";
 import { sqlite } from "@/lib/db";
-import { createUser, UserManagementError } from "@/lib/user-service";
+import {
+  createUser,
+  updateUserRole,
+  UserManagementError,
+} from "@/lib/user-service";
 import { asText } from "@/lib/utils";
 
 function usersUrl(request: Request, params: Record<string, string>) {
@@ -49,8 +53,31 @@ export async function POST(request: Request) {
     );
   }
 
-  // 5) 创建用户
   const formData = await request.formData();
+  if (asText(formData.get("intent")) === "update-role") {
+    try {
+      await updateUserRole(
+        {
+          userId: asText(formData.get("userId")),
+          role: asText(formData.get("role")),
+        },
+        admin.id,
+        sqlite,
+      );
+    } catch (error) {
+      if (error instanceof UserManagementError) {
+        return NextResponse.redirect(
+          usersUrl(request, { error: error.message }),
+          303,
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.redirect(usersUrl(request, { roleUpdated: "1" }), 303);
+  }
+
+  // 5) 创建用户
   try {
     await createUser(
       {

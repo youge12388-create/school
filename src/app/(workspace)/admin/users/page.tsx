@@ -4,17 +4,16 @@ import Link from "next/link";
 import { toggleUserAction } from "@/app/actions";
 import { Badge, PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { ROLE_LABELS } from "@/lib/constants";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; error?: string }>;
+  searchParams: Promise<{ created?: string; roleUpdated?: string; error?: string }>;
 }) {
   await requireRole(["ADMIN"]);
-  const { created, error } = await searchParams;
+  const { created, roleUpdated, error } = await searchParams;
   const rows = await listUsers();
 
   return (
@@ -38,6 +37,7 @@ export default async function UsersPage({
             {created ? (
               <div className="alert success">账号已创建并写入当前数据库。</div>
             ) : null}
+            {roleUpdated ? <div className="alert success">账号角色已更新。</div> : null}
             <div className="form-grid">
               <label>
                 用户名
@@ -116,7 +116,20 @@ export default async function UsersPage({
                       <strong>{user.displayName}</strong>
                       <div className="small muted">{user.username}</div>
                     </td>
-                    <td>{ROLE_LABELS[user.role]}</td>
+                    <td>
+                      <form action="/api/admin/users" method="post">
+                        <input type="hidden" name="intent" value="update-role" />
+                        <input type="hidden" name="userId" value={user.id} />
+                        <select name="role" defaultValue={user.role} aria-label={`${user.displayName} 的角色`}>
+                          <option value="ADVISOR">顾问</option>
+                          <option value="DATA_MANAGER">数据管理员</option>
+                          <option value="CHANNEL_RESOURCE">渠道资源部</option>
+                          <option value="MARKET_MANAGER">市场经理</option>
+                          <option value="ADMIN">高级管理员</option>
+                        </select>
+                        <button type="submit">保存角色</button>
+                      </form>
+                    </td>
                     <td>
                       <Badge tone={user.active ? "green" : "red"}>
                         {user.active ? "启用" : "停用"}
@@ -154,6 +167,7 @@ export default async function UsersPage({
             {created ? (
               <div className="alert success">账号已创建并写入当前数据库。</div>
             ) : null}
+            {roleUpdated ? <div className="alert success">账号角色已更新。</div> : null}
             <div className="form-grid mobile-two-col">
               <label>
                 用户名
@@ -222,7 +236,18 @@ export default async function UsersPage({
                 <div className="small muted mobile-login-line"><Calendar aria-hidden="true" /> 最近登录：{formatDate(user.lastLoginAt) || "—"}</div>
               </div>
               <div className="mobile-account-actions">
-                <div className="mobile-account-role">{ROLE_LABELS[user.role]}</div>
+                <form action="/api/admin/users" method="post">
+                  <input type="hidden" name="intent" value="update-role" />
+                  <input type="hidden" name="userId" value={user.id} />
+                  <select name="role" defaultValue={user.role} aria-label={`${user.displayName} 的角色`}>
+                    <option value="ADVISOR">顾问</option>
+                    <option value="DATA_MANAGER">数据管理员</option>
+                    <option value="CHANNEL_RESOURCE">渠道资源部</option>
+                    <option value="MARKET_MANAGER">市场经理</option>
+                    <option value="ADMIN">高级管理员</option>
+                  </select>
+                  <button type="submit" className="mobile-toggle-btn">保存角色</button>
+                </form>
                 <Badge tone={user.active ? "green" : "red"}>
                   {user.active ? "启用" : "停用"}
                 </Badge>

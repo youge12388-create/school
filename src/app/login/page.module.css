@@ -1,0 +1,485 @@
+.page {
+  --ink: #101a38;
+  --muted: #65718d;
+  --line: #dbe3f2;
+  --blue: #315eea;
+  --blue-deep: #183ba5;
+  --mist: #eef3ff;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(0, 1.12fr) minmax(430px, 0.88fr);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 82% 112% at 62% 48%, rgba(205, 221, 255, 0.68) 0%, rgba(234, 242, 255, 0.28) 48%, transparent 74%),
+    linear-gradient(122deg, #e5efff 0%, #edf3ff 52%, #e8f0ff 100%);
+}
+
+.page::before {
+  position: absolute;
+  z-index: 0;
+  top: -26vh;
+  right: -20vw;
+  width: 86vw;
+  height: 145vh;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.7) 0%, rgba(220, 233, 255, 0.3) 43%, transparent 72%);
+  content: "";
+  filter: blur(58px);
+  pointer-events: none;
+}
+
+.intro {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  display: flex;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--ink);
+  background: transparent;
+}
+
+.intro::before,
+.intro::after {
+  position: absolute;
+  z-index: -1;
+  border-radius: 999px;
+  content: "";
+  filter: blur(1px);
+}
+
+.intro::before {
+  top: -16rem;
+  right: -10rem;
+  width: 36rem;
+  height: 36rem;
+  border: 1px solid rgba(49, 94, 234, 0.14);
+  box-shadow: 0 0 0 5.5rem rgba(49, 94, 234, 0.035), 0 0 0 11rem rgba(49, 94, 234, 0.025);
+  animation: orbit 16s ease-in-out infinite alternate;
+}
+
+.intro::after {
+  bottom: -12rem;
+  left: -10rem;
+  width: 25rem;
+  height: 25rem;
+  background: rgba(111, 224, 195, 0.25);
+  animation: drift 12s ease-in-out infinite alternate;
+}
+
+.introContent {
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(2rem, 4vw, 4.5rem);
+}
+
+.brand {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.75rem;
+  color: #33415e;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  animation: reveal 0.6s both;
+}
+
+.brandMark {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.8rem;
+  background: var(--blue);
+  box-shadow: 0 10px 24px rgba(49, 94, 234, 0.23);
+  color: white;
+  font-size: 0.83rem;
+  font-weight: 800;
+  letter-spacing: -0.07em;
+}
+
+.hero {
+  max-width: 47rem;
+  margin: auto 0;
+  padding: 6rem 0 7rem;
+  animation: reveal 0.8s 0.1s both;
+}
+
+.eyebrow,
+.formHeading > p {
+  color: var(--blue);
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.hero h1 {
+  margin-top: 1.15rem;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(2.85rem, 4.7vw, 5.1rem);
+  font-weight: 760;
+  letter-spacing: -0.085em;
+  line-height: 1.08;
+}
+
+.heroCopy {
+  max-width: 32rem;
+  margin-top: 1.65rem;
+  color: #53617c;
+  font-size: clamp(0.95rem, 1.25vw, 1.1rem);
+  line-height: 1.85;
+}
+
+.featureList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  animation: reveal 0.8s 0.25s both;
+}
+
+.featureList span {
+  border: 1px solid rgba(49, 94, 234, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 0.45rem 0.75rem;
+  color: #44516d;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.pathway {
+  position: absolute;
+  z-index: 0;
+  right: -4%;
+  bottom: -18%;
+  width: min(52vw, 38rem);
+  opacity: 0.42;
+  filter: saturate(0.82);
+  pointer-events: none;
+}
+
+.pathway svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pathLine,
+.pathLineSoft {
+  stroke-linecap: round;
+  stroke-width: 2.5;
+}
+
+.pathLine {
+  stroke: #5e83ed;
+  stroke-dasharray: 10 12;
+  animation: trace 18s linear infinite;
+}
+
+.pathLineSoft {
+  stroke: #a4b7ee;
+  stroke-dasharray: 4 10;
+  animation: trace 23s linear infinite reverse;
+}
+
+.nodeOne,
+.nodeThree {
+  fill: #6ee0c3;
+  transform-origin: center;
+  animation: pulse 3.4s ease-out infinite;
+}
+
+.nodeTwo,
+.nodeFour {
+  fill: #315eea;
+  transform-origin: center;
+  animation: pulse 3.4s 1.2s ease-out infinite;
+}
+
+.panel {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  padding: clamp(1.5rem, 5vw, 5.5rem);
+}
+
+.form {
+  display: grid;
+  width: min(100%, 25.5rem);
+  gap: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 2rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(244, 248, 255, 0.42));
+  box-shadow: 0 28px 70px rgba(49, 76, 135, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  padding: clamp(1.8rem, 3.4vw, 2.7rem);
+  backdrop-filter: blur(18px);
+  animation: formIn 0.75s 0.18s both;
+}
+
+.formHeading {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 1.15rem;
+}
+
+.formAccent {
+  display: block;
+  width: 2.6rem;
+  height: 0.28rem;
+  margin-bottom: 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), #79a0ff);
+}
+
+.formHeading h2 {
+  color: var(--ink);
+  font-size: clamp(2rem, 3.2vw, 2.45rem);
+  font-weight: 780;
+  letter-spacing: -0.07em;
+  line-height: 1.1;
+}
+
+.formHeading > span:last-child,
+.helpText {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.field {
+  display: grid;
+  gap: 0.5rem;
+  color: #33415e;
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.field input {
+  min-height: 3.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.78rem;
+  background: #fbfcff;
+  padding: 0.7rem 0.9rem;
+  color: var(--ink);
+  box-shadow: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.field input::placeholder {
+  color: #a0aabc;
+}
+
+.field input:focus {
+  border-color: var(--blue);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(49, 94, 234, 0.12);
+}
+
+.submit {
+  display: inline-flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 0.45rem;
+  border: 0;
+  border-radius: 0.8rem;
+  background: var(--blue);
+  box-shadow: 0 12px 22px rgba(49, 94, 234, 0.22);
+  color: white;
+  font-size: 0.92rem;
+  font-weight: 750;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.submit:hover {
+  border: 0;
+  background: var(--blue-deep);
+  box-shadow: 0 16px 28px rgba(49, 94, 234, 0.3);
+  transform: translateY(-2px);
+}
+
+.submit:focus-visible {
+  outline: 3px solid rgba(49, 94, 234, 0.32);
+  outline-offset: 3px;
+}
+
+.submit svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transition: transform 0.2s ease;
+}
+
+.submit:hover svg {
+  transform: translateX(3px);
+}
+
+.helpText {
+  margin-top: 0.35rem;
+  text-align: center;
+}
+
+.error {
+  border: 1px solid #f4c6cf;
+  border-radius: 0.7rem;
+  background: #fff4f5;
+  padding: 0.7rem 0.85rem;
+  color: #b4233a;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes formIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes trace {
+  to {
+    stroke-dashoffset: -260;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.45);
+  }
+}
+
+@keyframes orbit {
+  to {
+    transform: translate(-1.5rem, 2rem) scale(1.04);
+  }
+}
+
+@keyframes drift {
+  to {
+    transform: translate(2.5rem, -1.25rem) scale(1.08);
+  }
+}
+
+@media (max-width: 940px) {
+  .page {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .page::before {
+    top: 35%;
+    right: -48vw;
+    width: 130vw;
+    height: 82vh;
+  }
+
+  .intro {
+    min-height: auto;
+  }
+
+  .introContent {
+    min-height: 30rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .hero {
+    margin: 3.5rem 0;
+    padding: 0;
+  }
+
+  .pathway {
+    display: none;
+  }
+
+  .panel {
+    min-height: 34rem;
+    padding: 3.5rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .introContent {
+    min-height: 28rem;
+  }
+
+  .brand {
+    font-size: 0.8rem;
+  }
+
+  .brandMark {
+    width: 2.45rem;
+    height: 2.45rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.35rem, 11vw, 3.25rem);
+  }
+
+  .featureList span {
+    font-size: 0.72rem;
+  }
+
+  .panel {
+    min-height: 0;
+    padding: 2.75rem 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand,
+  .hero,
+  .featureList,
+  .form,
+  .intro::before,
+  .intro::after,
+  .pathLine,
+  .pathLineSoft,
+  .nodeOne,
+  .nodeTwo,
+  .nodeThree,
+  .nodeFour {
+    animation: none;
+  }
+
+  .submit,
+  .submit svg,
+  .field input {
+    transition: none;
+  }
+}

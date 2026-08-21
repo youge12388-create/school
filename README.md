@@ -63,6 +63,15 @@ npm run dev
 powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
 ```
 
+### 本地测试账号
+
+以下账号只用于本机功能测试，禁止用于生产或公网部署：
+
+- 用户名：`admin`
+- 密码：`local-admin-2026`
+
+测试结束后应通过 `npm run admin:password -- admin` 改为独立的强密码。
+
 ## 环境要求
 
 - Windows 10/11

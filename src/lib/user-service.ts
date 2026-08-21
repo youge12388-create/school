@@ -14,6 +14,11 @@ type CreateUserInput = {
   role: string;
 };
 
+type UpdateUserRoleInput = {
+  userId: string;
+  role: string;
+};
+
 function normalizedUsername(username: string) {
   return username.trim().toLowerCase();
 }
@@ -78,6 +83,53 @@ export async function createUser(
   }
 
   return { id, username };
+}
+
+export async function updateUserRole(
+  input: UpdateUserRoleInput,
+  actorId: string,
+  database: DatabaseSync,
+) {
+  const role = input.role as UserRole;
+  if (!input.userId || !USER_ROLES.includes(role)) {
+    throw new UserManagementError("角色信息不完整");
+  }
+  if (input.userId === actorId && role !== "ADMIN") {
+    throw new UserManagementError("不能降低当前管理员账号的角色");
+  }
+
+  const user = database
+    .prepare("SELECT username, role FROM users WHERE id = ? LIMIT 1")
+    .get(input.userId) as { username: string; role: UserRole } | undefined;
+  if (!user) {
+    throw new UserManagementError("用户不存在");
+  }
+  if (user.role === role) {
+    return { changed: false };
+  }
+
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database
+      .prepare("UPDATE users SET role = ?, updated_at = ? WHERE id = ?")
+      .run(role, Date.now(), input.userId);
+    writeAuditRecord(
+      {
+        userId: actorId,
+        action: "USER_ROLE_UPDATED",
+        entityType: "USER",
+        entityId: input.userId,
+        details: { username: user.username, from: user.role, to: role },
+      },
+      database,
+    );
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return { changed: true };
 }
 
 export async function resetUserPassword(

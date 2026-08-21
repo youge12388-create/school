@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createUser, getCurrentUser, sqlite, UserManagementError } = vi.hoisted(() => ({
+const { createUser, updateUserRole, getCurrentUser, sqlite, UserManagementError } = vi.hoisted(() => ({
   createUser: vi.fn(),
+  updateUserRole: vi.fn(),
   getCurrentUser: vi.fn(),
   sqlite: {},
   UserManagementError: class extends Error {},
@@ -9,7 +10,11 @@ const { createUser, getCurrentUser, sqlite, UserManagementError } = vi.hoisted((
 
 vi.mock("@/lib/auth", () => ({ getCurrentUser }));
 vi.mock("@/lib/db", () => ({ sqlite }));
-vi.mock("@/lib/user-service", () => ({ createUser, UserManagementError }));
+vi.mock("@/lib/user-service", () => ({
+  createUser,
+  updateUserRole,
+  UserManagementError,
+}));
 
 import { POST } from "./route";
 
@@ -79,6 +84,25 @@ describe("POST /api/admin/users", () => {
 
     expect(response.status).toBe(303);
     expect(createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates an existing account role and redirects with a success marker", async () => {
+    const formData = new FormData();
+    formData.set("intent", "update-role");
+    formData.set("userId", "advisor-id");
+    formData.set("role", "DATA_MANAGER");
+
+    const response = await POST(request(formData));
+
+    expect(updateUserRole).toHaveBeenCalledWith(
+      { userId: "advisor-id", role: "DATA_MANAGER" },
+      "admin-id",
+      sqlite,
+    );
+    expect(createUser).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBe(
+      "https://app.example.com/admin/users?roleUpdated=1",
+    );
   });
 
   it("redirects unauthenticated requests to login", async () => {
