@@ -111,7 +111,7 @@ export default async function SchoolEditPage({
             <details className="card-header" style={{ cursor: "pointer" }} open>
               <summary style={{ listStyle: "none", fontWeight: 600, fontSize: 15 }}>
                 <h3 style={{ display: "inline" }}>合作与招生信息</h3>
-                <span className="small muted" style={{ marginLeft: 8 }}>机密字段，仅高级管理员可编辑</span>
+                <span className="small muted" style={{ marginLeft: 8 }}>内部资料，仅高级管理员可编辑</span>
               </summary>
             </details>
             <div className="card-body">

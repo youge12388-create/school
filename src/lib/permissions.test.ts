@@ -4,7 +4,9 @@ import type { UserRole } from "@/lib/constants";
 import {
   canEditSchool,
   canManageImports,
+  canManageSchoolUpdates,
   canViewConfidentialSchoolFields,
+  canViewSchoolUpdateSecret,
   isMarketManager,
   stripConfidentialSchoolData,
   stripConfidentialSchoolUpdates,
@@ -39,6 +41,15 @@ describe("permissions", () => {
   it("only MARKET_MANAGER is the market manager view", () => {
     for (const role of ROLES) {
       expect(isMarketManager(role)).toBe(role === "MARKET_MANAGER");
+    }
+  });
+
+  it("only ADMIN and DATA_MANAGER manage school updates and view secrets", () => {
+    const expected = (role: UserRole) =>
+      role === "ADMIN" || role === "DATA_MANAGER";
+    for (const role of ROLES) {
+      expect(canManageSchoolUpdates(role)).toBe(expected(role));
+      expect(canViewSchoolUpdateSecret(role)).toBe(expected(role));
     }
   });
 

@@ -1,12 +1,17 @@
 import { ImportPanel } from "@/components/import-panel";
+import { SchoolUpdateImportPanel } from "@/components/school-update-import-panel";
 import { Badge, PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { IMPORT_ROLES } from "@/lib/permissions";
+import {
+  canManageSchoolUpdates,
+  IMPORT_ROLES,
+} from "@/lib/permissions";
 import { listImports } from "@/lib/queries";
 import { formatDate, safeJson } from "@/lib/utils";
 
 export default async function ImportsPage() {
-  await requireRole([...IMPORT_ROLES]);
+  const user = await requireRole([...IMPORT_ROLES]);
+  const canImportSchoolUpdates = canManageSchoolUpdates(user.role);
   const batches = await listImports();
   return (
     <>
@@ -21,6 +26,7 @@ export default async function ImportsPage() {
         }
       />
       <ImportPanel />
+      {canImportSchoolUpdates ? <SchoolUpdateImportPanel /> : null}
       <section className="card" style={{ marginTop: 16 }}>
         <div className="card-header"><h3>导入历史</h3></div>
         <div className="card-body">

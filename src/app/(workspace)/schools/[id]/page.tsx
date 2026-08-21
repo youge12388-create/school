@@ -3,20 +3,29 @@ import { notFound } from "next/navigation";
 
 import { BackButton } from "@/components/back-button";
 import { ScrollToProgram } from "@/components/scroll-to-program";
+import { SchoolUpdateForm } from "@/components/school-update-form";
+import { SchoolUpdateItem } from "@/components/school-update-item";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import {
   canEditSchool,
+  canManageSchoolUpdates,
   canViewConfidentialSchoolFields,
   isMarketManager,
   MARKET_MANAGER_PROGRAM_CORE_FIELDS,
   MARKET_MANAGER_PROGRAM_LONG_FIELDS,
   MARKET_MANAGER_SCHOOL_FIELDS,
 } from "@/lib/permissions";
-import { getSchoolDetails } from "@/lib/queries";
+import { getSchoolDetails, getSchoolUpdates } from "@/lib/queries";
+import { serializeSchoolUpdate } from "@/lib/school-updates";
 import { parseMajorItems } from "@/lib/screening-results";
-import { formatDate, formatMoney, normalizeKeyword, safeJson } from "@/lib/utils";
+import {
+  formatDate,
+  formatMoney,
+  normalizeKeyword,
+  safeJson,
+} from "@/lib/utils";
 
 const UNKNOWN_TEXT = "数据库未有相关信息";
 
@@ -225,6 +234,7 @@ export default async function SchoolDetailsPage({
   const user = await requireUser();
   const canEdit = canEditSchool(user.role);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
+  const canManageUpdates = canManageSchoolUpdates(user.role);
   const marketManagerView = isMarketManager(user.role);
   const schoolFields = marketManagerView
     ? MARKET_MANAGER_SCHOOL_FIELDS
@@ -238,6 +248,7 @@ export default async function SchoolDetailsPage({
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs } = data;
+  const updateItems = await getSchoolUpdates(id);
   const screeningContext = {
     programId: query.programId,
     type: query.type,
@@ -331,6 +342,44 @@ export default async function SchoolDetailsPage({
         </div>
       </section>
 
+      <section className="card card-compact school-updates-card">
+        <div className="card-header school-knowledge-header">
+          <div>
+            <h3>最近更新</h3>
+            <p className="small muted">院校动态与重要变更，按时间倒序展示。</p>
+          </div>
+          <Badge tone="blue">{updateItems.length} 条动态</Badge>
+        </div>
+        <div className="card-body">
+          {updateItems.length ? (
+            <div className="update-timeline">
+              {updateItems.map((item) => {
+                const view = serializeSchoolUpdate(
+                  item.update,
+                  item.attachments,
+                  user.role,
+                );
+                return (
+                  <SchoolUpdateItem
+                    key={view.id}
+                    view={view}
+                    canManage={canManageUpdates}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <p className="small muted">暂无更新记录</p>
+          )}
+          {canManageUpdates ? (
+            <details className="update-form-toggle">
+              <summary>＋ 新增更新记录</summary>
+              <SchoolUpdateForm schoolId={school.id} />
+            </details>
+          ) : null}
+        </div>
+      </section>
+
       <section className="card card-compact school-knowledge-card">
         <div className="card-header school-knowledge-header">
           <div>
@@ -355,7 +404,7 @@ export default async function SchoolDetailsPage({
                 来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。大部分字段待后续补充，点击展开。
               </p>
             </div>
-            <Badge tone="blue">机密字段</Badge>
+            <Badge tone="blue">内部资料</Badge>
           </summary>
           <div className="card-body cooperation-field-groups">
             {COOPERATION_FIELD_GROUPS.map((group) => (

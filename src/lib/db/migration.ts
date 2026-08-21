@@ -31,6 +31,13 @@ export function migrateDatabase(databaseFile?: string) {
         "utf8",
       ),
     },
+    {
+      name: "0003_school_updates",
+      sql: readFileSync(
+        resolve(process.cwd(), "drizzle/0003_school_updates.sql"),
+        "utf8",
+      ),
+    },
   ];
 
   database.exec(`

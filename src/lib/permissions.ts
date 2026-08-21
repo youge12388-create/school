@@ -16,6 +16,12 @@ export const AUDIT_ROLES: readonly UserRole[] = ["ADMIN", "DATA_MANAGER"];
 
 export const USER_MANAGER_ROLES: readonly UserRole[] = ["ADMIN"];
 
+// 院校信息更新：机密人员 = 高级管理员 + 数据管理员，可查看/上传机密更新与人员字段。
+export const SCHOOL_UPDATE_MANAGER_ROLES: readonly UserRole[] = [
+  "ADMIN",
+  "DATA_MANAGER",
+];
+
 // 学校机密字段：仅高级管理员（ADMIN）可查看和修改。
 export const CONFIDENTIAL_SCHOOL_FIELDS: readonly string[] = [
   "groupApplicationAccount",
@@ -98,6 +104,14 @@ export function canManageUsers(role: UserRole) {
 
 export function canViewConfidentialSchoolFields(role: UserRole) {
   return role === "ADMIN";
+}
+
+export function canManageSchoolUpdates(role: UserRole) {
+  return SCHOOL_UPDATE_MANAGER_ROLES.includes(role);
+}
+
+export function canViewSchoolUpdateSecret(role: UserRole) {
+  return canManageSchoolUpdates(role);
 }
 
 export function isMarketManager(role: UserRole) {

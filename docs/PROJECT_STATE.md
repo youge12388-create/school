@@ -2,6 +2,15 @@
 
 最后更新：2026-07-08
 
+## 院校信息更新模块（2026-08-21）
+
+- 新增 `school_updates` 与 `school_update_attachments` 表（迁移 0003），支持按 Excel“院校信息更新”台账结构保存普通/机密两组更新内容、网址、附件、操作人和提交人。
+- 机密人员 = 高级管理员 + 数据管理员：可查看/上传机密更新与人员字段；普通角色只能看到普通更新内容与公开附件。
+- 新增接口：学校更新列表/新建/编辑/删除、附件上传/下载（机密附件仅机密人员可下载）、Excel 台账导入。
+- 学校详情页新增“院校信息更新”时间线卡片，公开区所有角色可见，机密区仅机密人员渲染；管理角色可内联新增更新。
+- 权限统一由 `src/lib/permissions.ts` 的 `canManageSchoolUpdates` / `canViewSchoolUpdateSecret` 控制，接口返回前用 `serializeSchoolUpdate` 裁剪。
+- 验证：`npm run typecheck`、`npm run lint`、`npm test`（133 通过）、`npm run build` 通过；临时库端到端冒烟 10 项全过；本地 `data/app.db` 已应用 0003 迁移。
+
 ## 院校字段级权限管理（2026-08-20）
 
 - 新增角色：`CHANNEL_RESOURCE`（渠道资源部）、`MARKET_MANAGER`（市场经理）；`ADMIN` 展示名改为“高级管理员”。

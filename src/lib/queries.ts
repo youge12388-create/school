@@ -14,6 +14,10 @@ import { deriveAdmissionStatus } from "@/lib/customer-status";
 import { categorizeMajors, splitMajorText } from "@/lib/major-categories";
 import { parseCscaStatus, parseDeadline } from "@/lib/program-parser";
 import type { AdmissionStatus, ContractStatus } from "@/lib/constants";
+import type {
+  SchoolUpdateAttachment,
+  SchoolUpdateRow,
+} from "@/lib/school-updates";
 import {
   applications,
   applicationEvents,
@@ -719,5 +723,49 @@ export async function listCustomerOptions() {
     .from(customers)
     .where(eq(customers.archived, false))
     .orderBy(asc(customers.name));
+}
+
+export async function getSchoolUpdates(schoolId: string) {
+  const updates = sqlite
+    .prepare(
+      `SELECT
+         id, external_id AS externalId, school_id AS schoolId, title,
+         submitter, submitted_at AS submittedAt,
+         public_content AS publicContent, public_url AS publicUrl,
+         public_operator AS publicOperator, public_updated_at AS publicUpdatedAt,
+         secret_content AS secretContent, secret_url AS secretUrl,
+         secret_operator AS secretOperator, secret_updated_at AS secretUpdatedAt,
+         archived, created_at AS createdAt, updated_at AS updatedAt
+       FROM school_updates
+       WHERE school_id = ? AND archived = 0
+       ORDER BY COALESCE(submitted_at, created_at) DESC, created_at DESC`,
+    )
+    .all(schoolId) as SchoolUpdateRow[];
+
+  const ids = updates.map((update) => update.id);
+  const attachments = ids.length
+    ? (sqlite
+        .prepare(
+          `SELECT
+             id, school_update_id AS schoolUpdateId, group_name AS groupName,
+             original_name AS originalName, mime_type AS mimeType, size,
+             created_at AS createdAt
+           FROM school_update_attachments
+           WHERE school_update_id IN (${ids.map(() => "?").join(",")})
+             AND archived = 0
+           ORDER BY created_at ASC`,
+        )
+        .all(...ids) as SchoolUpdateAttachment[])
+    : [];
+  const byUpdate = new Map<string, SchoolUpdateAttachment[]>();
+  for (const attachment of attachments) {
+    const list = byUpdate.get(attachment.schoolUpdateId) ?? [];
+    list.push(attachment);
+    byUpdate.set(attachment.schoolUpdateId, list);
+  }
+  return updates.map((update) => ({
+    update,
+    attachments: byUpdate.get(update.id) ?? [],
+  }));
 }
 

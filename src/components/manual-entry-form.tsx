@@ -181,7 +181,7 @@ export function ManualEntryForm({
             <div className="manual-entry-section optional">
               <div className="manual-entry-section-title">
                 <span>03</span>
-                <div><h4>学校合作与招生信息</h4><p>机密字段，仅高级管理员可录入。</p></div>
+                <div><h4>学校合作与招生信息</h4><p>内部资料，仅高级管理员可录入。</p></div>
               </div>
               <div className="grid cols-2">
                 <TextInput label="团体申请账号" name="groupApplicationAccount" />

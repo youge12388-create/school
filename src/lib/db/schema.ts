@@ -442,3 +442,60 @@ export const documents = sqliteTable(
     index("documents_application_idx").on(table.applicationId),
   ],
 );
+
+export const schoolUpdates = sqliteTable(
+  "school_updates",
+  {
+    id: text("id").primaryKey(),
+    externalId: text("external_id"),
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    title: text("title"),
+    submitter: text("submitter"),
+    submittedAt: integer("submitted_at", { mode: "timestamp_ms" }),
+    publicContent: text("public_content"),
+    publicUrl: text("public_url"),
+    publicOperator: text("public_operator"),
+    publicUpdatedAt: integer("public_updated_at", { mode: "timestamp_ms" }),
+    secretContent: text("secret_content"),
+    secretUrl: text("secret_url"),
+    secretOperator: text("secret_operator"),
+    secretUpdatedAt: integer("secret_updated_at", { mode: "timestamp_ms" }),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("school_updates_external_id_unique").on(table.externalId),
+    index("school_updates_school_idx").on(table.schoolId, table.archived),
+  ],
+);
+
+export const schoolUpdateAttachments = sqliteTable(
+  "school_update_attachments",
+  {
+    id: text("id").primaryKey(),
+    schoolUpdateId: text("school_update_id")
+      .notNull()
+      .references(() => schoolUpdates.id),
+    groupName: text("group_name").notNull(),
+    originalName: text("original_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    size: integer("size").notNull(),
+    storagePath: text("storage_path").notNull(),
+    encryptionIv: text("encryption_iv").notNull(),
+    encryptionTag: text("encryption_tag").notNull(),
+    checksum: text("checksum").notNull(),
+    uploadedBy: text("uploaded_by").references(() => users.id),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => [
+    index("school_update_attachments_update_idx").on(
+      table.schoolUpdateId,
+      table.archived,
+    ),
+  ],
+);
