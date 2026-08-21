@@ -66,11 +66,19 @@ describe("POST /api/admin/users", () => {
     expect(location.pathname).toBe("/admin/users");
     expect(location.searchParams.get("error")).toBe("用户名已存在");
   });
-  it("rejects a cross-origin account creation request", async () => {
-    const response = await POST(request(new FormData(), "https://evil.example"));
+  it("does not block an authenticated cross-origin request", async () => {
+    const formData = new FormData();
+    formData.set("username", "advisor");
+    formData.set("displayName", "顾问账号");
+    formData.set("password", "test-password-123");
+    formData.set("role", "ADVISOR");
 
-    expect(response.status).toBe(403);
-    expect(createUser).not.toHaveBeenCalled();
+    const response = await POST(
+      request(formData, "https://evil.example"),
+    );
+
+    expect(response.status).toBe(303);
+    expect(createUser).toHaveBeenCalledTimes(1);
   });
 
   it("redirects unauthenticated requests to login", async () => {
