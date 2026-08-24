@@ -20,7 +20,7 @@ export default async function NotedSchoolsPage({
   const user = await requireUser();
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const page = Math.max(1, Number(params.page) || 1);
-  const result = await listNotedSchools(page, pageSize);
+  const result = await listNotedSchools(page, pageSize, canViewConfidential);
   const { rows } = result;
   const totalPages = Math.max(
     1,
@@ -31,7 +31,7 @@ export default async function NotedSchoolsPage({
     <>
       <PageHeading
         title="特别备注院校"
-        description="集中查看所有填写了备注的院校。信息备注为普通信息，合作与特殊情况备注仅高级管理员可见。"
+        description="集中查看所有填写了备注的院校。信息备注为普通信息，合作与招生信息仅高级管理员可见。"
       />
 
       {rows.length === 0 ? (
@@ -41,12 +41,25 @@ export default async function NotedSchoolsPage({
           <div className="card-body">
             {rows.map((school) => {
               const infoNote = displayNote(school.infoNote);
-              const cooperationNote = canViewConfidential
-                ? displayNote(school.cooperationNote)
-                : null;
-              const specialCaseNote = canViewConfidential
-                ? displayNote(school.specialCaseNote)
-                : null;
+              const confidentialNotes: Array<{ label: string; value: string }> = canViewConfidential
+                ? [
+                    { label: "团体申请账号", value: school.groupApplicationAccount },
+                    { label: "奖学金发放形式", value: school.scholarshipDisbursementText },
+                    { label: "是否可代收", value: school.collectionServiceText },
+                    { label: "合作截止日期", value: school.cooperationDeadlineText },
+                    { label: "公司招生名额", value: school.companyRecruitmentQuotaText },
+                    { label: "学校招生计划", value: school.schoolRecruitmentPlanText },
+                    { label: "招生偏向", value: school.recruitmentPreferenceText },
+                    { label: "语言生考核", value: school.languageStudentAssessmentText },
+                    { label: "学历生考核", value: school.degreeStudentAssessmentText },
+                    { label: "合作备注", value: school.cooperationNote },
+                    { label: "特殊情况备注", value: school.specialCaseNote },
+                    { label: "申请更新频率", value: school.applicationUpdateFrequency },
+                  ].flatMap(({ label, value }) => {
+                    const note = displayNote(value);
+                    return note ? [{ label, value: note }] : [];
+                  })
+                : [];
               return (
                 <article
                   key={school.id}
@@ -70,22 +83,12 @@ export default async function NotedSchoolsPage({
                       <p style={{ marginTop: 4 }}>{infoNote}</p>
                     </div>
                   ) : null}
-                  {canViewConfidential ? (
-                    <>
-                      {cooperationNote ? (
-                        <div style={{ marginTop: 8 }}>
-                          <span className="small muted">合作备注</span>
-                          <p style={{ marginTop: 4 }}>{cooperationNote}</p>
-                        </div>
-                      ) : null}
-                      {specialCaseNote ? (
-                        <div style={{ marginTop: 8 }}>
-                          <span className="small muted">特殊情况备注</span>
-                          <p style={{ marginTop: 4 }}>{specialCaseNote}</p>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
+                  {confidentialNotes.map((note) => (
+                    <div style={{ marginTop: 8 }} key={note.label}>
+                      <span className="small muted">{note.label}</span>
+                      <p style={{ marginTop: 4 }}>{note.value}</p>
+                    </div>
+                  ))}
                 </article>
               );
             })}

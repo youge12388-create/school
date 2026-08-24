@@ -167,8 +167,58 @@ export async function listSchools(query = "", page = 1, pageSize = SCHOOL_PAGE_S
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }
 
-export async function listNotedSchools(page = 1, pageSize = SCHOOL_PAGE_SIZE) {
+export async function listNotedSchools(
+  page = 1,
+  pageSize = SCHOOL_PAGE_SIZE,
+  includeConfidential = false,
+) {
   const offset = (Math.max(1, page) - 1) * pageSize;
+  const confidentialNoteWhere = [
+    "s.group_application_account",
+    "s.scholarship_disbursement_text",
+    "s.collection_service_text",
+    "s.cooperation_deadline_text",
+    "s.company_recruitment_quota_text",
+    "s.school_recruitment_plan_text",
+    "s.recruitment_preference_text",
+    "s.language_student_assessment_text",
+    "s.degree_student_assessment_text",
+    "s.cooperation_note",
+    "s.special_case_note",
+    "s.application_update_frequency",
+  ]
+    .map((column) => `(${column} IS NOT NULL AND TRIM(${column}) != '')`)
+    .join("\n        OR ");
+  const noteWhere = includeConfidential
+    ? `(\n        (s.info_note IS NOT NULL AND TRIM(s.info_note) != '')\n        OR ${confidentialNoteWhere}\n      )`
+    : `(s.info_note IS NOT NULL AND TRIM(s.info_note) != '')`;
+  const confidentialSelect = includeConfidential
+    ? `
+      s.group_application_account AS groupApplicationAccount,
+      s.scholarship_disbursement_text AS scholarshipDisbursementText,
+      s.collection_service_text AS collectionServiceText,
+      s.cooperation_deadline_text AS cooperationDeadlineText,
+      s.company_recruitment_quota_text AS companyRecruitmentQuotaText,
+      s.school_recruitment_plan_text AS schoolRecruitmentPlanText,
+      s.recruitment_preference_text AS recruitmentPreferenceText,
+      s.language_student_assessment_text AS languageStudentAssessmentText,
+      s.degree_student_assessment_text AS degreeStudentAssessmentText,
+      s.cooperation_note AS cooperationNote,
+      s.special_case_note AS specialCaseNote,
+      s.application_update_frequency AS applicationUpdateFrequency`
+    : `
+      NULL AS groupApplicationAccount,
+      NULL AS scholarshipDisbursementText,
+      NULL AS collectionServiceText,
+      NULL AS cooperationDeadlineText,
+      NULL AS companyRecruitmentQuotaText,
+      NULL AS schoolRecruitmentPlanText,
+      NULL AS recruitmentPreferenceText,
+      NULL AS languageStudentAssessmentText,
+      NULL AS degreeStudentAssessmentText,
+      NULL AS cooperationNote,
+      NULL AS specialCaseNote,
+      NULL AS applicationUpdateFrequency`;
   const rows = sqlite.prepare(`
     SELECT
       s.id AS id,
@@ -176,35 +226,36 @@ export async function listNotedSchools(page = 1, pageSize = SCHOOL_PAGE_SIZE) {
       s.province AS province,
       s.city AS city,
       s.info_note AS infoNote,
-      s.cooperation_note AS cooperationNote,
-      s.special_case_note AS specialCaseNote
+      ${confidentialSelect}
     FROM schools s
     WHERE s.archived = 0
-      AND (
-        (s.info_note IS NOT NULL AND TRIM(s.info_note) != '')
-        OR (s.cooperation_note IS NOT NULL AND TRIM(s.cooperation_note) != '')
-        OR (s.special_case_note IS NOT NULL AND TRIM(s.special_case_note) != '')
-      )
+      AND ${noteWhere}
     ORDER BY s.name_zh ASC
     LIMIT ? OFFSET ?
   `).all(String(pageSize), String(offset)) as Array<{
     id: string;
     nameZh: string;
-    province: string | null;
-    city: string | null;
-    infoNote: string | null;
-    cooperationNote: string | null;
-    specialCaseNote: string | null;
-  }>;
+      province: string | null;
+      city: string | null;
+      infoNote: string | null;
+      groupApplicationAccount: string | null;
+      scholarshipDisbursementText: string | null;
+      collectionServiceText: string | null;
+      cooperationDeadlineText: string | null;
+      companyRecruitmentQuotaText: string | null;
+      schoolRecruitmentPlanText: string | null;
+      languageStudentAssessmentText: string | null;
+      degreeStudentAssessmentText: string | null;
+      cooperationNote: string | null;
+      specialCaseNote: string | null;
+      recruitmentPreferenceText: string | null;
+      applicationUpdateFrequency: string | null;
+    }>;
 
   const totalRow = sqlite.prepare(`
     SELECT COUNT(*) AS cnt FROM schools s
     WHERE s.archived = 0
-      AND (
-        (s.info_note IS NOT NULL AND TRIM(s.info_note) != '')
-        OR (s.cooperation_note IS NOT NULL AND TRIM(s.cooperation_note) != '')
-        OR (s.special_case_note IS NOT NULL AND TRIM(s.special_case_note) != '')
-      )
+      AND ${noteWhere}
   `).get() as { cnt: number };
 
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
