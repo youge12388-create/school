@@ -47,11 +47,20 @@ const SCHOOL_FIELDS = [
   "合作项目",
 ] as const;
 
-const COOPERATION_FIELD_GROUPS = [
+// 合作关系：申请通道 + 合作说明
+const COOPERATION_RELATIONSHIP_GROUPS = [
   {
     title: "申请通道",
     fields: ["团体申请账号", "是否可代收", "奖学金发放形式", "合作截止日期"],
   },
+  {
+    title: "合作说明",
+    fields: ["招生偏向", "合作备注", "特殊情况备注"],
+  },
+] as const;
+
+// 机密字段：招生计划 + 考核安排（仅高级管理员可见）
+const CONFIDENTIAL_FIELD_GROUPS = [
   {
     title: "招生计划",
     fields: ["公司招生名额", "学校招生计划", "学校申请更新频率"],
@@ -59,10 +68,6 @@ const COOPERATION_FIELD_GROUPS = [
   {
     title: "考核安排",
     fields: ["语言生面试、笔试", "学历生面试、笔试"],
-  },
-  {
-    title: "合作说明",
-    fields: ["招生偏向", "合作备注", "特殊情况备注"],
   },
 ] as const;
 
@@ -383,7 +388,7 @@ export default async function SchoolDetailsPage({
       <section className="card card-compact school-knowledge-card">
         <div className="card-header school-knowledge-header">
           <div>
-            <h3>高校汇总表 · 全部字段</h3>
+            <h3>{marketManagerView ? "高校汇总表 · 校名与地址" : "高校汇总表 · 全部字段"}</h3>
             <p className="small muted">以下内容来自你上传的高校汇总知识库原始记录。</p>
           </div>
           <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : school.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
@@ -396,28 +401,53 @@ export default async function SchoolDetailsPage({
       </section>
 
       {canViewConfidential ? (
-        <details className="card card-compact school-cooperation-card">
-          <summary className="card-header school-knowledge-header">
-            <div>
-              <h3>合作与招生信息</h3>
-              <p className="small muted">
-                来自项目维护表，仅作为顾问操作参考，不参与学生资格自动判断。大部分字段待后续补充，点击展开。
-              </p>
+        <>
+          <details className="card card-compact school-cooperation-card">
+            <summary className="card-header school-knowledge-header">
+              <div>
+                <h3>合作关系</h3>
+                <p className="small muted">
+                  申请通道与合作说明，仅内部管理员可见，不参与学生资格自动判断。点击展开。
+                </p>
+              </div>
+              <Badge tone="blue">内部资料</Badge>
+            </summary>
+            <div className="card-body cooperation-field-groups">
+              {COOPERATION_RELATIONSHIP_GROUPS.map((group) => (
+                <section className="cooperation-field-group" key={group.title}>
+                  <h4>{group.title}</h4>
+                  <KnowledgeFieldGrid
+                    data={cooperationKnowledge}
+                    fields={group.fields}
+                  />
+                </section>
+              ))}
             </div>
-            <Badge tone="blue">内部资料</Badge>
-          </summary>
-          <div className="card-body cooperation-field-groups">
-            {COOPERATION_FIELD_GROUPS.map((group) => (
-              <section className="cooperation-field-group" key={group.title}>
-                <h4>{group.title}</h4>
-                <KnowledgeFieldGrid
-                  data={cooperationKnowledge}
-                  fields={group.fields}
-                />
-              </section>
-            ))}
-          </div>
-        </details>
+          </details>
+
+          <details className="card card-compact school-cooperation-card school-secret-card">
+            <summary className="card-header school-knowledge-header">
+              <div>
+                <h3>机密字段</h3>
+                <p className="small muted">
+                  招生计划与考核安排，仅高级管理员可见，点击展开。
+                </p>
+              </div>
+              <Badge tone="red">仅管理员</Badge>
+            </summary>
+            <div className="card-body cooperation-field-groups">
+              {CONFIDENTIAL_FIELD_GROUPS.map((group) => (
+                <section className="cooperation-field-group" key={group.title}>
+                  <h4>{group.title}</h4>
+                  <KnowledgeFieldGrid
+                    data={cooperationKnowledge}
+                    fields={group.fields}
+                  />
+                </section>
+              ))}
+            </div>
+          </details>
+        </>
       ) : null}
 
       <section className="school-programs-section">
@@ -428,7 +458,7 @@ export default async function SchoolDetailsPage({
             <p>
               {hasScreeningContext
                 ? `当前从筛选结果进入，仅显示 ${activeContextLabel || "当前筛选"} 相关项目：${visiblePrograms.length} / ${programs.length} 个。`
-                : `共 ${programs.length} 个有效项目。每个项目均按原始 Excel 列完整展示。`}
+                : `共 ${programs.length} 个有效项目。默认折叠，点击项目标题展开查看完整字段。`}
             </p>
           </div>
           <div className="school-program-actions">
@@ -468,9 +498,14 @@ export default async function SchoolDetailsPage({
               ...raw,
             };
             return (
-              <article id={`program-${program.id}`} className="card card-compact school-program-card" key={program.id}>
-                <div className="card-header school-program-header">
-                  <div>
+              <details
+                id={`program-${program.id}`}
+                className="card card-compact school-program-card school-program-collapsible"
+                key={program.id}
+                open={program.id === targetProgramId ? true : undefined}
+              >
+                <summary className="card-header school-program-header school-program-summary">
+                  <div className="school-program-summary-main">
                     <span className="small muted">项目 {index + 1}</span>
                     <h3>{program.name}</h3>
                     {!marketManagerView ? (
@@ -479,6 +514,9 @@ export default async function SchoolDetailsPage({
                         <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
                         <span>首年上限：{formatMoney(program.firstYearCostMax)}</span>
                       </div>
+                    ) : null}
+                    {marketManagerView && displayValue(programKnowledge["专业列表"]) !== UNKNOWN_TEXT ? (
+                      <p className="program-summary-major">{displayValue(programKnowledge["专业列表"])}</p>
                     ) : null}
                   </div>
                   <div className="school-program-badges">
@@ -489,36 +527,38 @@ export default async function SchoolDetailsPage({
                       </Badge>
                     ) : null}
                   </div>
-                </div>
-                {/* 核心字段：4 列紧凑网格，决策时一眼可见（空字段不渲染） */}
-                <div className="program-core-grid">
-                  {programCoreFields.filter(
-                    (label) => displayValue(programKnowledge[label]) !== UNKNOWN_TEXT,
-                  ).map((label) => {
-                    const text = displayValue(programKnowledge[label]);
-                    return (
-                      <div className="detail-field" key={label}>
-                        <span className="label">{label}</span>
-                        <p className="value">{text}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* 申请要求及材料：不折叠，重点信息（空时不渲染） */}
-                {displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD]) !== UNKNOWN_TEXT ? (
-                  <div className="program-material-section">
-                    <h4>申请要求及材料</h4>
-                    <p className="program-material-body">{displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD])}</p>
+                </summary>
+                <div className="school-program-expanded">
+                  {/* 核心字段：4 列紧凑网格，决策时一眼可见（空字段不渲染） */}
+                  <div className="program-core-grid">
+                    {programCoreFields.filter(
+                      (label) => displayValue(programKnowledge[label]) !== UNKNOWN_TEXT,
+                    ).map((label) => {
+                      const text = displayValue(programKnowledge[label]);
+                      return (
+                        <div className="detail-field" key={label}>
+                          <span className="label">{label}</span>
+                          <p className="value">{text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : null}
-                {/* 其他长字段：折叠区，避免多项目时下滑过长 */}
-                <details className="program-long-section">
-                  <summary>展开项目详情（项目介绍 / 专业 / 学期 / 奖学金 / 费用备注）</summary>
-                  <div className="program-long-body">
-                    <KnowledgeFieldGrid fields={programLongFields} data={programKnowledge} hideEmpty targetMajor={targetMajor} />
-                  </div>
-                </details>
-              </article>
+                  {/* 申请要求及材料：重点信息（空时不渲染） */}
+                  {displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD]) !== UNKNOWN_TEXT ? (
+                    <div className="program-material-section">
+                      <h4>申请要求及材料</h4>
+                      <p className="program-material-body">{displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD])}</p>
+                    </div>
+                  ) : null}
+                  {/* 其他长字段：折叠区，避免多项目时下滑过长 */}
+                  <details className="program-long-section">
+                    <summary>展开项目详情（项目介绍 / 专业 / 学期 / 奖学金 / 费用备注）</summary>
+                    <div className="program-long-body">
+                      <KnowledgeFieldGrid fields={programLongFields} data={programKnowledge} hideEmpty targetMajor={targetMajor} />
+                    </div>
+                  </details>
+                </div>
+              </details>
             );
           })
         ) : (
