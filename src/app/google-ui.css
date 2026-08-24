@@ -2040,6 +2040,77 @@ tbody tr:hover {
   line-height: 1.5;
 }
 
+/* ===== 学校详情页：项目折叠矩形 + 合作/机密分块 ===== */
+.school-program-collapsible > summary.school-program-summary {
+  list-style: none;
+  cursor: pointer;
+  gap: 12px;
+  transition: background 0.15s;
+}
+
+.school-program-collapsible > summary.school-program-summary::-webkit-details-marker {
+  display: none;
+}
+
+.school-program-collapsible > summary.school-program-summary::before {
+  content: '▶';
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 11px;
+  color: var(--primary);
+  transition: transform 0.15s;
+}
+
+.school-program-collapsible[open] > summary.school-program-summary::before {
+  transform: rotate(90deg);
+}
+
+.school-program-collapsible > summary.school-program-summary:hover {
+  background: #f7f9ff;
+}
+
+.school-program-summary-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.school-program-summary-main h3 {
+  margin: 2px 0 0;
+}
+
+.program-summary-major {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.school-program-expanded {
+  border-top: 1px solid var(--border-soft);
+  background: #fafbff;
+}
+
+.school-secret-card {
+  margin-top: 16px;
+}
+
+@media (max-width: 760px) {
+  .school-program-collapsible > summary.school-program-summary {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .school-program-collapsible > summary.school-program-summary > .school-program-badges {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
 /* ===== 申请详情页 ===== */
 .application-status-form {
   display: grid;

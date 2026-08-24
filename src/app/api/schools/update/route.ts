@@ -93,6 +93,7 @@ export async function POST(request: Request) {
       description: optionalFormText(formData, "description"),
       tags: optionalFormText(formData, "tags"),
       cooperationPrograms: optionalFormText(formData, "cooperationPrograms"),
+      infoNote: optionalFormText(formData, "infoNote"),
       groupApplicationAccount: optionalFormText(formData, "groupApplicationAccount"),
       scholarshipDisbursementText: optionalFormText(formData, "scholarshipDisbursementText"),
       collectionServiceText: optionalFormText(formData, "collectionServiceText"),

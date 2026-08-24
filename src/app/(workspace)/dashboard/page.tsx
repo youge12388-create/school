@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
+import { isMarketManager } from "@/lib/permissions";
 import { getDashboardData } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import {
@@ -11,12 +13,14 @@ import {
 } from "lucide-react";
 
 export default async function DashboardPage() {
+  const user = await requireUser();
+  const marketManagerView = isMarketManager(user.role);
   const data = await getDashboardData();
   return (
     <>
       <PageHeading
         title="今日工作"
-        description="集中查看临近截止项目和数据复核任务。"
+        description={marketManagerView ? "查看学校项目与临近截止信息。" : "集中查看临近截止项目和数据复核任务。"}
         action={
           <Link className="button primary" href="/screening">
             开始筛查
@@ -33,14 +37,18 @@ export default async function DashboardPage() {
           <div className="stat-label">项目</div>
           <div className="stat-number">{data.counts.programs}</div>
         </div>
-        <div className="card stat">
-          <div className="stat-label">有效客户</div>
-          <div className="stat-number">{data.counts.customers}</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">待复核项目</div>
-          <div className="stat-number">{data.counts.needsReview}</div>
-        </div>
+        {!marketManagerView ? (
+          <>
+            <div className="card stat">
+              <div className="stat-label">有效客户</div>
+              <div className="stat-number">{data.counts.customers}</div>
+            </div>
+            <div className="card stat">
+              <div className="stat-label">待复核项目</div>
+              <div className="stat-number">{data.counts.needsReview}</div>
+            </div>
+          </>
+        ) : null}
       </section>
 
       <section className="mobile-only mobile-dashboard-stats">
@@ -58,20 +66,24 @@ export default async function DashboardPage() {
           </div>
           <GraduationCap aria-hidden="true" />
         </div>
-        <div className="mobile-stat-card">
-          <div>
-            <div className="mobile-stat-label">有效客户</div>
-            <div className="mobile-stat-number">{data.counts.customers}</div>
-          </div>
-          <Users aria-hidden="true" />
-        </div>
-        <div className="mobile-stat-card">
-          <div>
-            <div className="mobile-stat-label">待复核项目</div>
-            <div className="mobile-stat-number">{data.counts.needsReview}</div>
-          </div>
-          <LayoutList aria-hidden="true" />
-        </div>
+        {!marketManagerView ? (
+          <>
+            <div className="mobile-stat-card">
+              <div>
+                <div className="mobile-stat-label">有效客户</div>
+                <div className="mobile-stat-number">{data.counts.customers}</div>
+              </div>
+              <Users aria-hidden="true" />
+            </div>
+            <div className="mobile-stat-card">
+              <div>
+                <div className="mobile-stat-label">待复核项目</div>
+                <div className="mobile-stat-number">{data.counts.needsReview}</div>
+              </div>
+              <LayoutList aria-hidden="true" />
+            </div>
+          </>
+        ) : null}
       </section>
 
       <section className="grid cols-2 desktop-only" style={{ marginTop: 16 }}>
@@ -91,24 +103,26 @@ export default async function DashboardPage() {
             </tr>
           ))}
         </DashboardCard>
-        <DashboardCard
-          title="最近操作"
-          moreHref="/audit"
-          moreLabel="操作审计"
-          empty={<EmptyState>暂无操作记录</EmptyState>}
-        >
-          {data.recentAudit.map((log) => (
-            <tr key={log.id}>
-              <td>
-                <strong>{log.displayName ?? "系统"}</strong>
-                <div className="small muted">
-                  {log.action} · {log.entityType}
-                </div>
-              </td>
-              <td className="small nowrap">{formatDate(log.createdAt)}</td>
-            </tr>
-          ))}
-        </DashboardCard>
+        {!marketManagerView ? (
+          <DashboardCard
+            title="最近操作"
+            moreHref="/audit"
+            moreLabel="操作审计"
+            empty={<EmptyState>暂无操作记录</EmptyState>}
+          >
+            {data.recentAudit.map((log) => (
+              <tr key={log.id}>
+                <td>
+                  <strong>{log.displayName ?? "系统"}</strong>
+                  <div className="small muted">
+                    {log.action} · {log.entityType}
+                  </div>
+                </td>
+                <td className="small nowrap">{formatDate(log.createdAt)}</td>
+              </tr>
+            ))}
+          </DashboardCard>
+        ) : null}
       </section>
 
       <section className="mobile-only mobile-dashboard-sections">
@@ -131,20 +145,22 @@ export default async function DashboardPage() {
           ) : null}
         </MobileSection>
 
-        <MobileSection title="最近操作" href="/audit" more="操作审计">
-          {data.recentAudit.map((log) => (
-            <div key={log.id} className="mobile-list-item">
-              <div>
-                <strong>{log.displayName ?? "系统"}</strong>
-                <div className="small muted">{log.action} · {log.entityType}</div>
+        {!marketManagerView ? (
+          <MobileSection title="最近操作" href="/audit" more="操作审计">
+            {data.recentAudit.map((log) => (
+              <div key={log.id} className="mobile-list-item">
+                <div>
+                  <strong>{log.displayName ?? "系统"}</strong>
+                  <div className="small muted">{log.action} · {log.entityType}</div>
+                </div>
+                <span className="small muted">{formatDate(log.createdAt)}</span>
               </div>
-              <span className="small muted">{formatDate(log.createdAt)}</span>
-            </div>
-          ))}
-          {data.recentAudit.length ? (
-            <Link href="/audit" className="mobile-section-more">查看全部</Link>
-          ) : null}
-        </MobileSection>
+            ))}
+            {data.recentAudit.length ? (
+              <Link href="/audit" className="mobile-section-more">查看全部</Link>
+            ) : null}
+          </MobileSection>
+        ) : null}
       </section>
     </>
   );

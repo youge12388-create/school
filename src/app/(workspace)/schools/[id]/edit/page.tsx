@@ -104,6 +104,10 @@ export default async function SchoolEditPage({
             合作项目
             <textarea name="cooperationPrograms" defaultValue={school.cooperationPrograms ?? ""} rows={2} placeholder="列出已合作的项目" />
           </label>
+          <label style={{ marginTop: 10 }}>
+            信息备注
+            <textarea name="infoNote" defaultValue={school.infoNote ?? ""} rows={2} placeholder="院校备注信息，普通字段，参与特别备注院校筛选" />
+          </label>
         </div>
 
         {canViewConfidential ? (
