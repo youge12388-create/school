@@ -388,7 +388,7 @@ export default async function SchoolDetailsPage({
       <section className="card card-compact school-knowledge-card">
         <div className="card-header school-knowledge-header">
           <div>
-            <h3>{marketManagerView ? "高校汇总表 · 校名与地址" : "高校汇总表 · 全部字段"}</h3>
+            <h3>院校基本信息</h3>
             <p className="small muted">以下内容来自你上传的高校汇总知识库原始记录。</p>
           </div>
           <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : school.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
@@ -454,7 +454,7 @@ export default async function SchoolDetailsPage({
         {targetProgramId ? <ScrollToProgram programId={targetProgramId} /> : null}
         <div className="school-programs-heading">
           <div>
-            <h2>{hasScreeningContext ? "筛选相关项目" : "高校项目表 · 全部项目与字段"}</h2>
+            <h2>{hasScreeningContext ? "筛选相关项目" : "院校项目"}</h2>
             <p>
               {hasScreeningContext
                 ? `当前从筛选结果进入，仅显示 ${activeContextLabel || "当前筛选"} 相关项目：${visiblePrograms.length} / ${programs.length} 个。`
