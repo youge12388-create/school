@@ -119,6 +119,7 @@ export const schools = sqliteTable(
     tags: text("tags"),
     description: text("description"),
     cooperationPrograms: text("cooperation_programs"),
+    infoNote: text("info_note"),
     groupApplicationAccount: text("group_application_account"),
     scholarshipDisbursementText: text("scholarship_disbursement_text"),
     collectionServiceText: text("collection_service_text"),

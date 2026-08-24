@@ -39,6 +39,7 @@ export default async function SchoolsPage({
           <input name="q" defaultValue={q} placeholder="例如：浙江、深圳大学" />
         </label>
         <button type="submit">搜索</button>
+        <Link className="button" href="/schools/noted">特别备注院校</Link>
       </form>
 
       <form className="mobile-only mobile-school-search">

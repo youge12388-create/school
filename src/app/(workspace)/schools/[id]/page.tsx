@@ -45,6 +45,7 @@ const SCHOOL_FIELDS = [
   "CoverID",
   "学校简介",
   "合作项目",
+  "信息备注",
 ] as const;
 
 // 合作关系：申请通道 + 合作说明
@@ -297,6 +298,7 @@ export default async function SchoolDetailsPage({
     CoverID: null,
     学校简介: school.description,
     合作项目: school.cooperationPrograms,
+    信息备注: school.infoNote,
   };
   const cooperationKnowledge: Record<string, unknown> = {
     团体申请账号: school.groupApplicationAccount,

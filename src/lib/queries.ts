@@ -167,6 +167,49 @@ export async function listSchools(query = "", page = 1, pageSize = SCHOOL_PAGE_S
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }
 
+export async function listNotedSchools(page = 1, pageSize = SCHOOL_PAGE_SIZE) {
+  const offset = (Math.max(1, page) - 1) * pageSize;
+  const rows = sqlite.prepare(`
+    SELECT
+      s.id AS id,
+      s.name_zh AS nameZh,
+      s.province AS province,
+      s.city AS city,
+      s.info_note AS infoNote,
+      s.cooperation_note AS cooperationNote,
+      s.special_case_note AS specialCaseNote
+    FROM schools s
+    WHERE s.archived = 0
+      AND (
+        (s.info_note IS NOT NULL AND TRIM(s.info_note) != '')
+        OR (s.cooperation_note IS NOT NULL AND TRIM(s.cooperation_note) != '')
+        OR (s.special_case_note IS NOT NULL AND TRIM(s.special_case_note) != '')
+      )
+    ORDER BY s.name_zh ASC
+    LIMIT ? OFFSET ?
+  `).all(String(pageSize), String(offset)) as Array<{
+    id: string;
+    nameZh: string;
+    province: string | null;
+    city: string | null;
+    infoNote: string | null;
+    cooperationNote: string | null;
+    specialCaseNote: string | null;
+  }>;
+
+  const totalRow = sqlite.prepare(`
+    SELECT COUNT(*) AS cnt FROM schools s
+    WHERE s.archived = 0
+      AND (
+        (s.info_note IS NOT NULL AND TRIM(s.info_note) != '')
+        OR (s.cooperation_note IS NOT NULL AND TRIM(s.cooperation_note) != '')
+        OR (s.special_case_note IS NOT NULL AND TRIM(s.special_case_note) != '')
+      )
+  `).get() as { cnt: number };
+
+  return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
+}
+
 export async function listPrograms(filters: {
   query?: string;
   programType?: string;

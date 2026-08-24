@@ -80,6 +80,7 @@ export const MARKET_MANAGER_SCHOOL_FIELDS = [
   "学校名称",
   "省份",
   "城市",
+  "信息备注",
 ] as const;
 
 export const MARKET_MANAGER_PROGRAM_CORE_FIELDS = ["学费", "住宿费"] as const;
