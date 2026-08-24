@@ -253,7 +253,7 @@ export default async function SchoolDetailsPage({
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs } = data;
-  const updateItems = await getSchoolUpdates(id);
+  const updateItems = marketManagerView ? [] : await getSchoolUpdates(id);
   const screeningContext = {
     programId: query.programId,
     type: query.type,
@@ -347,7 +347,8 @@ export default async function SchoolDetailsPage({
         </div>
       </section>
 
-      <section className="card card-compact school-updates-card">
+      {!marketManagerView ? (
+        <section className="card card-compact school-updates-card">
         <div className="card-header school-knowledge-header">
           <div>
             <h3>最近更新</h3>
@@ -383,7 +384,8 @@ export default async function SchoolDetailsPage({
             </details>
           ) : null}
         </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="card card-compact school-knowledge-card">
         <div className="card-header school-knowledge-header">

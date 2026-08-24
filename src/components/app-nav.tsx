@@ -32,12 +32,17 @@ export function AppNav({ role }: { role: string }) {
           if (item.href === "/admin/users") return role === "ADMIN";
           if (item.href === "/imports") {
             return (
+              role !== "MARKET_MANAGER" &&
+              (
               role === "ADMIN" ||
               role === "DATA_MANAGER" ||
               role === "CHANNEL_RESOURCE"
+              )
             );
           }
-          if (item.href === "/audit") return role === "ADMIN" || role === "DATA_MANAGER";
+          if (item.href === "/audit") {
+            return role !== "MARKET_MANAGER" && (role === "ADMIN" || role === "DATA_MANAGER");
+          }
           return true;
         })
         .map((item) => {
@@ -56,10 +61,12 @@ export function AppNav({ role }: { role: string }) {
             </Link>
           );
         })}
-      <Link className="nav-link" href="/security">
-        <ShieldCheck aria-hidden="true" />
-        {!collapsed && "安全说明"}
-      </Link>
+      {role !== "MARKET_MANAGER" ? (
+        <Link className="nav-link" href="/security">
+          <ShieldCheck aria-hidden="true" />
+          {!collapsed && "安全说明"}
+        </Link>
+      ) : null}
     </nav>
   );
 }

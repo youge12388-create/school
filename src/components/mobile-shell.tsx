@@ -69,6 +69,7 @@ function MobileDrawer({
       );
     }
     if (item.href === "/audit") return role === "ADMIN" || role === "DATA_MANAGER";
+    if (item.href === "/security") return role !== "MARKET_MANAGER";
     return true;
   });
 
