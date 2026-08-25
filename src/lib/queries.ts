@@ -167,31 +167,91 @@ export async function listSchools(query = "", page = 1, pageSize = SCHOOL_PAGE_S
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }
 
-export async function listNotedSchools(
-  page = 1,
-  pageSize = SCHOOL_PAGE_SIZE,
-  includeConfidential = false,
-) {
-  const offset = (Math.max(1, page) - 1) * pageSize;
-  const confidentialNoteWhere = [
+export const NOTED_SCHOOL_SCOPES = [
+  "all",
+  "info",
+  "cooperation",
+  "recruitment",
+  "assessment",
+  "special",
+] as const;
+
+export type NotedSchoolScope = (typeof NOTED_SCHOOL_SCOPES)[number];
+
+type NotedSchoolScopeCounts = Record<NotedSchoolScope, number>;
+
+function buildNotedSchoolWhere(includeConfidential: boolean) {
+  const hasValue = (column: string) =>
+    `(${column} IS NOT NULL AND TRIM(${column}) != '')`;
+  const info = hasValue("s.info_note");
+  const cooperation = [
     "s.group_application_account",
     "s.scholarship_disbursement_text",
     "s.collection_service_text",
     "s.cooperation_deadline_text",
+    "s.cooperation_note",
+  ].map(hasValue).join("\n        OR ");
+  const recruitment = [
     "s.company_recruitment_quota_text",
     "s.school_recruitment_plan_text",
     "s.recruitment_preference_text",
+    "s.application_update_frequency",
+  ].map(hasValue).join("\n        OR ");
+  const assessment = [
     "s.language_student_assessment_text",
     "s.degree_student_assessment_text",
-    "s.cooperation_note",
-    "s.special_case_note",
-    "s.application_update_frequency",
-  ]
-    .map((column) => `(${column} IS NOT NULL AND TRIM(${column}) != '')`)
-    .join("\n        OR ");
-  const noteWhere = includeConfidential
-    ? `(\n        (s.info_note IS NOT NULL AND TRIM(s.info_note) != '')\n        OR ${confidentialNoteWhere}\n      )`
-    : `(s.info_note IS NOT NULL AND TRIM(s.info_note) != '')`;
+  ].map(hasValue).join("\n        OR ");
+  const special = hasValue("s.special_case_note");
+  const all = includeConfidential
+    ? `(\n        ${info}\n        OR ${cooperation}\n        OR ${recruitment}\n        OR ${assessment}\n        OR ${special}\n      )`
+    : info;
+
+  return { all, info, cooperation: `(${cooperation})`, recruitment: `(${recruitment})`, assessment: `(${assessment})`, special };
+}
+
+function notedSchoolScopeWhere(
+  scope: NotedSchoolScope,
+  includeConfidential: boolean,
+) {
+  const where = buildNotedSchoolWhere(includeConfidential);
+  if (scope === "all" || scope === "info") return where[scope];
+  return includeConfidential ? where[scope] : "0 = 1";
+}
+
+export async function getNotedSchoolScopeCounts(
+  includeConfidential = false,
+): Promise<NotedSchoolScopeCounts> {
+  const where = buildNotedSchoolWhere(includeConfidential);
+  const row = sqlite.prepare(`
+    SELECT
+      SUM(CASE WHEN ${where.info} THEN 1 ELSE 0 END) AS info,
+      SUM(CASE WHEN ${includeConfidential ? where.cooperation : "0 = 1"} THEN 1 ELSE 0 END) AS cooperation,
+      SUM(CASE WHEN ${includeConfidential ? where.recruitment : "0 = 1"} THEN 1 ELSE 0 END) AS recruitment,
+      SUM(CASE WHEN ${includeConfidential ? where.assessment : "0 = 1"} THEN 1 ELSE 0 END) AS assessment,
+      SUM(CASE WHEN ${includeConfidential ? where.special : "0 = 1"} THEN 1 ELSE 0 END) AS special,
+      SUM(CASE WHEN ${where.all} THEN 1 ELSE 0 END) AS allCount
+    FROM schools s
+    WHERE s.archived = 0
+  `).get() as Partial<Record<NotedSchoolScope, number | null>> & { allCount?: number | null };
+
+  return {
+    all: Number(row.allCount ?? 0),
+    info: Number(row.info ?? 0),
+    cooperation: Number(row.cooperation ?? 0),
+    recruitment: Number(row.recruitment ?? 0),
+    assessment: Number(row.assessment ?? 0),
+    special: Number(row.special ?? 0),
+  };
+}
+
+export async function listNotedSchools(
+  page = 1,
+  pageSize = SCHOOL_PAGE_SIZE,
+  includeConfidential = false,
+  scope: NotedSchoolScope = "all",
+) {
+  const offset = (Math.max(1, page) - 1) * pageSize;
+  const scopeWhere = notedSchoolScopeWhere(scope, includeConfidential);
   const confidentialSelect = includeConfidential
     ? `
       s.group_application_account AS groupApplicationAccount,
@@ -225,42 +285,43 @@ export async function listNotedSchools(
       s.name_zh AS nameZh,
       s.province AS province,
       s.city AS city,
+      s.updated_at AS updatedAt,
       s.info_note AS infoNote,
       ${confidentialSelect}
     FROM schools s
     WHERE s.archived = 0
-      AND ${noteWhere}
-    ORDER BY s.name_zh ASC
+      AND ${scopeWhere}
+    ORDER BY s.updated_at DESC, s.name_zh ASC
     LIMIT ? OFFSET ?
   `).all(String(pageSize), String(offset)) as Array<{
     id: string;
     nameZh: string;
-      province: string | null;
-      city: string | null;
-      infoNote: string | null;
-      groupApplicationAccount: string | null;
-      scholarshipDisbursementText: string | null;
-      collectionServiceText: string | null;
-      cooperationDeadlineText: string | null;
-      companyRecruitmentQuotaText: string | null;
-      schoolRecruitmentPlanText: string | null;
-      languageStudentAssessmentText: string | null;
-      degreeStudentAssessmentText: string | null;
-      cooperationNote: string | null;
-      specialCaseNote: string | null;
-      recruitmentPreferenceText: string | null;
-      applicationUpdateFrequency: string | null;
-    }>;
+    province: string | null;
+    city: string | null;
+    updatedAt: string | Date;
+    infoNote: string | null;
+    groupApplicationAccount: string | null;
+    scholarshipDisbursementText: string | null;
+    collectionServiceText: string | null;
+    cooperationDeadlineText: string | null;
+    companyRecruitmentQuotaText: string | null;
+    schoolRecruitmentPlanText: string | null;
+    languageStudentAssessmentText: string | null;
+    degreeStudentAssessmentText: string | null;
+    cooperationNote: string | null;
+    specialCaseNote: string | null;
+    recruitmentPreferenceText: string | null;
+    applicationUpdateFrequency: string | null;
+  }>;
 
   const totalRow = sqlite.prepare(`
     SELECT COUNT(*) AS cnt FROM schools s
     WHERE s.archived = 0
-      AND ${noteWhere}
+      AND ${scopeWhere}
   `).get() as { cnt: number };
 
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }
-
 export async function listPrograms(filters: {
   query?: string;
   programType?: string;

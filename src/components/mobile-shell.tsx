@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   SearchCheck,
   ShieldCheck,
+  StickyNote,
   UserRoundCog,
   X,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const drawerItems = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { href: "/screening", label: "学校筛查", icon: SearchCheck },
   { href: "/schools", label: "学校库", icon: GraduationCap },
+  { href: "/schools/noted", label: "特别备注院校", icon: StickyNote },
   { href: "/imports", label: "数据导入", icon: Database },
   { href: "/audit", label: "操作审计", icon: FileClock },
   { href: "/admin/users", label: "账号管理", icon: UserRoundCog },
@@ -59,6 +61,7 @@ function MobileDrawer({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const isNotedRoute = pathname.startsWith("/schools/noted");
   const items = drawerItems.filter((item) => {
     if (item.href === "/admin/users") return role === "ADMIN";
     if (item.href === "/imports") {
@@ -97,7 +100,11 @@ function MobileDrawer({
             const Icon = item.icon;
             const active =
               pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+              (
+                item.href !== "/dashboard" &&
+                pathname.startsWith(`${item.href}/`) &&
+                !(item.href === "/schools" && isNotedRoute)
+              );
             return (
               <Link
                 key={item.href}

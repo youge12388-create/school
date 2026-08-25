@@ -5,6 +5,7 @@ import { PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireRole } from "@/lib/auth";
 import {
+  canEditConfidentialSchoolFields,
   canViewConfidentialSchoolFields,
   SCHOOL_EDITOR_ROLES,
 } from "@/lib/permissions";
@@ -19,6 +20,7 @@ export default async function SchoolEditPage({
 }) {
   const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
+  const canEditConfidential = canEditConfidentialSchoolFields(user.role);
   const { id } = await params;
   const query = await searchParams;
   const errorMessage = query.error;
@@ -41,6 +43,21 @@ export default async function SchoolEditPage({
 
       <form action="/api/schools/update" method="POST" className="card" style={{ marginBottom: 24 }}>
         <input type="hidden" name="id" value={school.id} />
+
+        <section className="ordinary-note-editor" id="ordinary-note">
+          <div>
+            <h3>备注</h3>
+            <p className="small muted">填写日常跟进、申请提醒和常见咨询口径。</p>
+          </div>
+          <textarea
+            aria-describedby="ordinary-note-help"
+            name="infoNote"
+            defaultValue={school.infoNote ?? ""}
+            placeholder="例如：每周同步申请进度；常见咨询口径；材料提交提醒。"
+            rows={4}
+          />
+          <p className="small muted" id="ordinary-note-help">仅填写可供业务协作参考的内容；合作账号与特殊情况请在对应字段维护。保存后会显示在院校详情与“特别备注院校”清单。</p>
+        </section>
 
         <div className="card-header">
           <h3>学校基本信息</h3>
@@ -104,14 +121,18 @@ export default async function SchoolEditPage({
             合作项目
             <textarea name="cooperationPrograms" defaultValue={school.cooperationPrograms ?? ""} rows={2} placeholder="列出已合作的项目" />
           </label>
-          <label style={{ marginTop: 10 }}>
-            信息备注
-            <textarea name="infoNote" defaultValue={school.infoNote ?? ""} rows={2} placeholder="院校备注信息，普通字段，参与特别备注院校筛选" />
-          </label>
+
         </div>
 
         {canViewConfidential ? (
-          <>
+          <fieldset
+            className="confidential-school-fields"
+            disabled={!canEditConfidential}
+          >
+            <legend>
+              机密院校信息
+              {!canEditConfidential ? <span className="small muted">仅可查看</span> : null}
+            </legend>
             <details className="card-header" style={{ cursor: "pointer" }} open>
               <summary style={{ listStyle: "none", fontWeight: 600, fontSize: 15 }}>
                 <h3 style={{ display: "inline" }}>合作与招生信息</h3>
@@ -186,7 +207,7 @@ export default async function SchoolEditPage({
                 </label>
               </div>
             </div>
-          </>
+                    </fieldset>
         ) : null}
 
         <div className="card-header" style={{ borderTop: "1px solid var(--border-soft)" }}>

@@ -171,4 +171,40 @@ describe("listNotedSchools", () => {
       cases.map((item) => item.id).sort(),
     );
   });
+
+  it("groups notes by workflow category and hides confidential categories without access", async () => {
+    insertSchool(databaseFile, "info", { infoNote: "日常跟进" });
+    insertSchool(databaseFile, "cooperation", { cooperationNote: "合作节奏" });
+    insertSchool(databaseFile, "recruitment", { schoolRecruitmentPlanText: "年度计划" });
+    insertSchool(databaseFile, "assessment", { languageStudentAssessmentText: "语言生面试" });
+    insertSchool(databaseFile, "special", { specialCaseNote: "特殊处理" });
+
+    const { getNotedSchoolScopeCounts, listNotedSchools } = await import("@/lib/queries");
+
+    const assessment = await listNotedSchools(1, 20, true, "assessment");
+    expect(assessment.rows.map((row) => row.id)).toEqual(["assessment"]);
+
+    const counts = await getNotedSchoolScopeCounts(true);
+    expect(counts).toMatchObject({
+      all: 5,
+      info: 1,
+      cooperation: 1,
+      recruitment: 1,
+      assessment: 1,
+      special: 1,
+    });
+
+    const publicCounts = await getNotedSchoolScopeCounts(false);
+    expect(publicCounts).toMatchObject({
+      all: 1,
+      info: 1,
+      cooperation: 0,
+      recruitment: 0,
+      assessment: 0,
+      special: 0,
+    });
+    const restrictedScope = await listNotedSchools(1, 20, false, "cooperation");
+    expect(restrictedScope.rows).toEqual([]);
+    expect(restrictedScope.total).toBe(0);
+  });
 });

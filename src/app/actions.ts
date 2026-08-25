@@ -14,7 +14,7 @@ import {
 import { writeAudit } from "@/lib/audit";
 import { requireRole, requireUser } from "@/lib/auth";
 import {
-  canViewConfidentialSchoolFields,
+  canEditConfidentialSchoolFields,
   SCHOOL_EDITOR_ROLES,
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
@@ -284,7 +284,7 @@ export async function updateSchoolAction(formData: FormData) {
       reviewStatus: "VERIFIED" as const,
       updatedAt: new Date(),
     };
-    const permittedUpdates = canViewConfidentialSchoolFields(user.role)
+    const permittedUpdates = canEditConfidentialSchoolFields(user.role)
       ? updates
       : stripConfidentialSchoolUpdates(updates);
 

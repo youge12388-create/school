@@ -22,7 +22,12 @@ export const SCHOOL_UPDATE_MANAGER_ROLES: readonly UserRole[] = [
   "DATA_MANAGER",
 ];
 
-// 学校机密字段：仅高级管理员（ADMIN）可查看和修改。
+// 学校机密字段：高级管理员和数据管理员可查看；仅高级管理员可修改或导入。
+export const CONFIDENTIAL_SCHOOL_VIEWER_ROLES: readonly UserRole[] = [
+  "ADMIN",
+  "DATA_MANAGER",
+];
+
 export const CONFIDENTIAL_SCHOOL_FIELDS: readonly string[] = [
   "groupApplicationAccount",
   "scholarshipDisbursementText",
@@ -80,7 +85,6 @@ export const MARKET_MANAGER_SCHOOL_FIELDS = [
   "学校名称",
   "省份",
   "城市",
-  "信息备注",
 ] as const;
 
 export const MARKET_MANAGER_PROGRAM_CORE_FIELDS = ["学费", "住宿费"] as const;
@@ -104,6 +108,10 @@ export function canManageUsers(role: UserRole) {
 }
 
 export function canViewConfidentialSchoolFields(role: UserRole) {
+  return CONFIDENTIAL_SCHOOL_VIEWER_ROLES.includes(role);
+}
+
+export function canEditConfidentialSchoolFields(role: UserRole) {
   return role === "ADMIN";
 }
 

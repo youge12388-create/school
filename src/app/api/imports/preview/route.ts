@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth";
 import { createImportPreview } from "@/lib/import-service";
-import { canViewConfidentialSchoolFields, IMPORT_ROLES } from "@/lib/permissions";
+import { canEditConfidentialSchoolFields, IMPORT_ROLES } from "@/lib/permissions";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         fileName: file.name,
         userId: user.id,
       },
-      { stripConfidential: !canViewConfidentialSchoolFields(user.role) },
+      { stripConfidential: !canEditConfidentialSchoolFields(user.role) },
     );
 
     return Response.json({

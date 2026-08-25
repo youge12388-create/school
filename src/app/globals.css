@@ -212,3 +212,63 @@ tr td:last-child{border-bottom:0}
 .mobile-customer-label{color:var(--muted);font-size:12px;font-weight:600}
 .login-form-wrap{padding:24px}
 }
+
+.noted-schools-summary{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:-6px 0 12px;border:1px solid #dce8fb;border-radius:var(--radius);background:linear-gradient(110deg,#f5f9ff,#fff);padding:12px 18px}
+.noted-schools-summary-count{display:flex;align-items:baseline;gap:7px}
+.noted-schools-summary strong{color:var(--primary);font-size:28px;line-height:1}
+.noted-schools-summary p{margin:0;text-align:right}
+.noted-school-filters{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.noted-school-filter{border:1px solid var(--border-soft);border-radius:999px;background:var(--surface);color:var(--muted);padding:6px 12px;font-size:13px;font-weight:600;text-decoration:none}
+.noted-school-filter:hover{border-color:var(--primary);color:var(--primary);text-decoration:none}
+.noted-school-filter.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.noted-school-filter-hint{margin-left:auto}
+.noted-school-table-wrap{overflow:hidden;border:1px solid var(--border-soft);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-1)}
+.noted-school-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.noted-school-table th{border-bottom:1px solid var(--border-soft);background:#f8fafc;color:var(--muted);padding:10px 14px;text-align:left;font-size:12px;font-weight:700;white-space:nowrap}
+.noted-school-table td{border-bottom:1px solid var(--border-soft);padding:12px 14px;vertical-align:middle;font-size:13px}
+.noted-school-table tbody tr:last-child td{border-bottom:0}
+.noted-school-table tbody tr:hover{background:#fbfdff}
+.noted-school-column-school{width:22%}
+.noted-school-column-tags{width:20%}
+.noted-school-column-summary{width:44%}
+.noted-school-column-actions{width:14%}
+.noted-school-cell-school{min-width:0}
+.noted-school-name{display:block;overflow:hidden;color:var(--text);font-weight:700;line-height:1.4;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}
+.noted-school-name:hover{color:var(--primary);text-decoration:none}
+.noted-school-cell-school>.small{display:block;margin-top:4px}
+.noted-school-tags{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.noted-school-tags .badge{padding:2px 7px;font-size:11px}
+.noted-school-deadline-chip{overflow:hidden;max-width:132px;border:1px solid #f3deb3;border-radius:999px;background:#fff8e7;color:#986800;padding:2px 7px;font-size:11px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.noted-school-summary-text{display:-webkit-box;overflow:hidden;margin:0;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.noted-school-table-actions{display:flex;justify-content:flex-end;gap:6px}
+.noted-school-table-actions .button{min-height:30px;padding:5px 10px;font-size:12px;white-space:nowrap}
+@media(max-width:760px){
+.noted-schools-summary{align-items:flex-start;flex-direction:column;gap:6px;margin-top:0}
+.noted-schools-summary p{text-align:left}
+.noted-school-filter-hint{width:100%;margin:2px 0 0}
+.noted-school-table-wrap{overflow:visible;border:0;background:transparent;box-shadow:none}
+.noted-school-table{display:block}
+.noted-school-table thead{display:none}
+.noted-school-table tbody,.noted-school-table tr,.noted-school-table td{display:block;width:100%}
+.noted-school-table tr{margin-bottom:10px;border:1px solid var(--border-soft);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-1);padding:12px}
+.noted-school-table td{border:0;padding:0}
+.noted-school-cell-tags{margin-top:7px}
+.noted-school-cell-summary{margin-top:8px}
+.noted-school-table-actions{justify-content:flex-start;margin-top:10px}
+.noted-school-table-actions .button{min-height:34px;padding:6px 12px}
+}.school-ordinary-note-card{display:grid;gap:6px;margin:14px 0 18px;border:1px solid #e4ebf5;border-left:3px solid #8db4ff;border-radius:12px;background:#fbfdff;padding:14px 16px}
+.school-ordinary-note-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#35547a;font-size:13px;font-weight:700}
+.school-ordinary-note-edit{color:var(--primary);font-size:13px;font-weight:600;text-decoration:none}
+.school-ordinary-note-edit:hover{text-decoration:underline}
+.school-ordinary-note-content{margin:0;color:#27384d;white-space:pre-wrap;line-height:1.65}
+.school-ordinary-note-empty{margin:0;color:var(--muted);font-size:13px}
+.ordinary-note-editor{scroll-margin-top:88px;display:grid;gap:10px;margin:0 0 20px;border:1px solid #e4ebf5;border-left:3px solid #8db4ff;border-radius:12px;background:#fbfdff;padding:16px 18px}
+.ordinary-note-editor h3{font-size:16px}
+.ordinary-note-editor p{margin:0}
+.ordinary-note-editor textarea{min-height:108px;background:#fff}
+@media(max-width:760px){.school-ordinary-note-card{margin:14px 0;padding:13px}.ordinary-note-editor{padding:14px}}
+
+.confidential-school-fields{margin:0;border:0;padding:0}
+.confidential-school-fields legend{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--text);font-size:16px;font-weight:700}
+.confidential-school-fields:disabled{opacity:.78}
+.confidential-school-fields:disabled input,.confidential-school-fields:disabled textarea,.confidential-school-fields:disabled select{background:#f8fafc;color:#526176;cursor:not-allowed}

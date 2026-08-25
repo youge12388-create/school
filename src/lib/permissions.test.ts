@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { UserRole } from "@/lib/constants";
 import {
+  canEditConfidentialSchoolFields,
   canEditSchool,
   canManageImports,
   canManageSchoolUpdates,
@@ -21,9 +22,17 @@ const ROLES: UserRole[] = [
 ];
 
 describe("permissions", () => {
-  it("only ADMIN can view confidential school fields", () => {
+  it("ADMIN and DATA_MANAGER can view confidential school fields", () => {
     for (const role of ROLES) {
-      expect(canViewConfidentialSchoolFields(role)).toBe(role === "ADMIN");
+      expect(canViewConfidentialSchoolFields(role)).toBe(
+        role === "ADMIN" || role === "DATA_MANAGER",
+      );
+    }
+  });
+
+  it("only ADMIN can edit or import confidential school fields", () => {
+    for (const role of ROLES) {
+      expect(canEditConfidentialSchoolFields(role)).toBe(role === "ADMIN");
     }
   });
 

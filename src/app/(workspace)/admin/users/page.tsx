@@ -78,16 +78,16 @@ export default async function UsersPage({
               <strong>顾问：</strong>筛选、客户、跟进、申请和材料。
             </p>
             <p>
-              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；院校机密字段仅高级管理员可见。
+              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。
             </p>
             <p>
               <strong>渠道资源部：</strong>院校信息录入与更新，不包含机密字段。
             </p>
             <p>
-              <strong>市场经理：</strong>只读查看校名、地址、专业、申请条件、截止时间、学费、住宿费。
+              <strong>市场经理：</strong>只读查看院校公开信息和备注。
             </p>
             <p>
-              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段。
+              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。
             </p>
           </div>
         </div>
@@ -209,16 +209,16 @@ export default async function UsersPage({
               <strong>顾问：</strong>筛选、客户、跟进、申请和材料。
             </p>
             <p>
-              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；院校机密字段仅高级管理员可见。
+              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。
             </p>
             <p>
               <strong>渠道资源部：</strong>院校信息录入与更新，不包含机密字段。
             </p>
             <p>
-              <strong>市场经理：</strong>只读查看校名、地址、专业、申请条件、截止时间、学费、住宿费。
+              <strong>市场经理：</strong>只读查看院校公开信息和备注。
             </p>
             <p>
-              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段。
+              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。
             </p>
           </div>
         </div>
