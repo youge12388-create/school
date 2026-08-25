@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 
 import { requireRole } from "@/lib/auth";
 import {
-  canViewConfidentialSchoolFields,
+  canEditConfidentialSchoolFields,
   CONFIDENTIAL_TEMPLATE_HEADERS,
   IMPORT_ROLES,
 } from "@/lib/permissions";
@@ -50,8 +50,8 @@ const HEADERS = [
 
 export async function GET() {
   const user = await requireRole([...IMPORT_ROLES]);
-  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
-  const headers = canViewConfidential
+  const canEditConfidential = canEditConfidentialSchoolFields(user.role);
+  const headers = canEditConfidential
     ? HEADERS
     : HEADERS.filter((header) => !CONFIDENTIAL_TEMPLATE_HEADERS.includes(header));
 

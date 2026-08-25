@@ -6,7 +6,7 @@ import { RULE_STATUSES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import {
-  canViewConfidentialSchoolFields,
+  canEditConfidentialSchoolFields,
   SCHOOL_EDITOR_ROLES,
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       reviewStatus: "VERIFIED" as const,
       updatedAt: new Date(),
     };
-    const permittedUpdates = canViewConfidentialSchoolFields(user.role)
+    const permittedUpdates = canEditConfidentialSchoolFields(user.role)
       ? updates
       : stripConfidentialSchoolUpdates(updates);
 

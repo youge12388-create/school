@@ -45,7 +45,6 @@ const SCHOOL_FIELDS = [
   "CoverID",
   "学校简介",
   "合作项目",
-  "信息备注",
 ] as const;
 
 // 合作关系：申请通道 + 合作说明
@@ -337,7 +336,7 @@ export default async function SchoolDetailsPage({
           <span>地区</span>
           <strong>{[school.province, school.city].filter(Boolean).join(" · ") || UNKNOWN_TEXT}</strong>
         </div>
-        {!marketManagerView ? (
+      {!marketManagerView ? (
           <div className="card school-overview-card">
             <span>QS 排名</span>
             <strong>{school.qsRanking ?? UNKNOWN_TEXT}</strong>
@@ -347,6 +346,22 @@ export default async function SchoolDetailsPage({
           <span>知识库项目</span>
           <strong>{visiblePrograms.length} / {programs.length} 个</strong>
         </div>
+      </section>
+
+      <section className="school-ordinary-note-card">
+        <div className="school-ordinary-note-meta">
+          <span>备注</span>
+          {canEdit ? (
+            <Link className="school-ordinary-note-edit" href={`/schools/${school.id}/edit#ordinary-note`}>
+              {school.infoNote ? "编辑备注" : "添加备注"}
+            </Link>
+          ) : null}
+        </div>
+        {school.infoNote ? (
+          <p className="school-ordinary-note-content">{school.infoNote}</p>
+        ) : (
+          <p className="school-ordinary-note-empty">暂无备注</p>
+        )}
       </section>
 
       {!marketManagerView ? (

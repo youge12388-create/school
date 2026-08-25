@@ -3,7 +3,7 @@ import { ManualEntryForm } from "@/components/manual-entry-form";
 import { PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import {
-  canViewConfidentialSchoolFields,
+  canEditConfidentialSchoolFields,
   IMPORT_ROLES,
 } from "@/lib/permissions";
 
@@ -18,7 +18,7 @@ export default async function ManualImportPage() {
       />
       <ImportMethodTabs active="manual" />
       <ManualEntryForm
-        canEditConfidential={canViewConfidentialSchoolFields(user.role)}
+        canEditConfidential={canEditConfidentialSchoolFields(user.role)}
       />
     </>
   );
