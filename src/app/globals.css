@@ -222,6 +222,13 @@ tr td:last-child{border-bottom:0}
 .noted-school-filter:hover{border-color:var(--primary);color:var(--primary);text-decoration:none}
 .noted-school-filter.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
 .noted-school-filter-hint{margin-left:auto}
+.noted-school-search-panel{display:grid;gap:8px;margin:-2px 0 14px;border:1px solid var(--border-soft);border-radius:var(--radius);background:var(--surface);padding:14px 16px;box-shadow:var(--shadow-1)}
+.noted-school-search{display:flex;align-items:flex-end;gap:10px}
+.noted-school-search-field{display:grid;flex:1;max-width:560px;gap:6px}
+.noted-school-search-field span{color:var(--muted);font-size:12px;font-weight:700}
+.noted-school-search-field input{background:#fbfdff}
+.noted-school-search-actions{display:flex;align-items:center;gap:8px}
+.noted-school-search-actions .button,.noted-school-search-actions button{min-height:42px}
 .noted-school-table-wrap{overflow:hidden;border:1px solid var(--border-soft);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-1)}
 .noted-school-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .noted-school-table th{border-bottom:1px solid var(--border-soft);background:#f8fafc;color:var(--muted);padding:10px 14px;text-align:left;font-size:12px;font-weight:700;white-space:nowrap}
@@ -256,6 +263,9 @@ tr td:last-child{border-bottom:0}
 .noted-school-cell-summary{margin-top:8px}
 .noted-school-table-actions{justify-content:flex-start;margin-top:10px}
 .noted-school-table-actions .button{min-height:34px;padding:6px 12px}
+.noted-school-search{align-items:stretch;flex-wrap:wrap}
+.noted-school-search-field{width:100%;max-width:none}
+.noted-school-search-actions{width:100%}
 }.school-ordinary-note-card{display:grid;gap:6px;margin:14px 0 18px;border:1px solid #e4ebf5;border-left:3px solid #8db4ff;border-radius:12px;background:#fbfdff;padding:14px 16px}
 .school-ordinary-note-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#35547a;font-size:13px;font-weight:700}
 .school-ordinary-note-edit{color:var(--primary);font-size:13px;font-weight:600;text-decoration:none}

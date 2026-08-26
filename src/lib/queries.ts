@@ -218,10 +218,25 @@ function notedSchoolScopeWhere(
   return includeConfidential ? where[scope] : "0 = 1";
 }
 
+function notedSchoolSearchWhere(query: string) {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) {
+    return { clause: "", params: [] as string[] };
+  }
+
+  const keyword = `%${normalizedQuery}%`;
+  return {
+    clause: "AND (s.name_zh LIKE ? OR s.province LIKE ? OR s.city LIKE ?)",
+    params: [keyword, keyword, keyword],
+  };
+}
+
 export async function getNotedSchoolScopeCounts(
   includeConfidential = false,
+  query = "",
 ): Promise<NotedSchoolScopeCounts> {
   const where = buildNotedSchoolWhere(includeConfidential);
+  const searchWhere = notedSchoolSearchWhere(query);
   const row = sqlite.prepare(`
     SELECT
       SUM(CASE WHEN ${where.info} THEN 1 ELSE 0 END) AS info,
@@ -232,7 +247,8 @@ export async function getNotedSchoolScopeCounts(
       SUM(CASE WHEN ${where.all} THEN 1 ELSE 0 END) AS allCount
     FROM schools s
     WHERE s.archived = 0
-  `).get() as Partial<Record<NotedSchoolScope, number | null>> & { allCount?: number | null };
+      ${searchWhere.clause}
+  `).get(...searchWhere.params) as Partial<Record<NotedSchoolScope, number | null>> & { allCount?: number | null };
 
   return {
     all: Number(row.allCount ?? 0),
@@ -249,9 +265,11 @@ export async function listNotedSchools(
   pageSize = SCHOOL_PAGE_SIZE,
   includeConfidential = false,
   scope: NotedSchoolScope = "all",
+  query = "",
 ) {
   const offset = (Math.max(1, page) - 1) * pageSize;
   const scopeWhere = notedSchoolScopeWhere(scope, includeConfidential);
+  const searchWhere = notedSchoolSearchWhere(query);
   const confidentialSelect = includeConfidential
     ? `
       s.group_application_account AS groupApplicationAccount,
@@ -291,9 +309,10 @@ export async function listNotedSchools(
     FROM schools s
     WHERE s.archived = 0
       AND ${scopeWhere}
+      ${searchWhere.clause}
     ORDER BY s.updated_at DESC, s.name_zh ASC
     LIMIT ? OFFSET ?
-  `).all(String(pageSize), String(offset)) as Array<{
+  `).all(...searchWhere.params, String(pageSize), String(offset)) as Array<{
     id: string;
     nameZh: string;
     province: string | null;
@@ -318,7 +337,8 @@ export async function listNotedSchools(
     SELECT COUNT(*) AS cnt FROM schools s
     WHERE s.archived = 0
       AND ${scopeWhere}
-  `).get() as { cnt: number };
+      ${searchWhere.clause}
+  `).get(...searchWhere.params) as { cnt: number };
 
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
 }

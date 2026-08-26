@@ -66,9 +66,10 @@ function getScopeFromParams(scope: string | undefined, canViewConfidential: bool
       : "info";
 }
 
-function getNotedSchoolsHref(page: number, scope: NotedSchoolScope) {
+function getNotedSchoolsHref(page: number, scope: NotedSchoolScope, searchQuery = "") {
   const params = new URLSearchParams();
   if (scope !== "all") params.set("scope", scope);
+  if (searchQuery) params.set("q", searchQuery);
   if (page > 1) params.set("page", String(page));
   const query = params.toString();
   return query ? `/schools/noted?${query}` : "/schools/noted";
@@ -168,17 +169,18 @@ function formatUpdatedAt(value: string | Date) {
 export default async function NotedSchoolsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; scope?: string }>;
+  searchParams: Promise<{ page?: string; scope?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireUser();
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const canEdit = canEditSchool(user.role);
   const scope = getScopeFromParams(params.scope, canViewConfidential);
+  const query = params.q?.trim() ?? "";
   const page = Math.max(1, Number(params.page) || 1);
   const [result, counts] = await Promise.all([
-    listNotedSchools(page, pageSize, canViewConfidential, scope),
-    getNotedSchoolScopeCounts(canViewConfidential),
+    listNotedSchools(page, pageSize, canViewConfidential, scope, query),
+    getNotedSchoolScopeCounts(canViewConfidential, query),
   ]);
   const { rows } = result;
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
@@ -193,13 +195,40 @@ export default async function NotedSchoolsPage({
         description="按业务场景浏览需要跟进的院校信息，默认按最近更新排序。"
       />
 
+      <section className="noted-school-search-panel" aria-label="搜索特别备注院校">
+        <form className="noted-school-search" method="get">
+          <label className="noted-school-search-field">
+            <span>搜索院校</span>
+            <input
+              defaultValue={query}
+              name="q"
+              placeholder="输入院校名称、省份或城市"
+              type="search"
+            />
+          </label>
+          {scope !== "all" ? <input name="scope" type="hidden" value={scope} /> : null}
+          <div className="noted-school-search-actions">
+            <button className="primary" type="submit">搜索</button>
+            {query ? (
+              <Link className="button" href={getNotedSchoolsHref(1, scope)}>
+                清除
+              </Link>
+            ) : null}
+          </div>
+        </form>
+        <p className="small muted">仅在当前特别备注院校中匹配院校名称、省份和城市。</p>
+      </section>
+
       <section className="noted-schools-summary">
         <div className="noted-schools-summary-count">
           <span className="small muted">当前分类</span>
           <strong>{result.total}</strong>
           <span className="small muted">所院校</span>
         </div>
-        <p className="small muted">{activeOption.label} · 每页最多 {pageSize} 所 · 点击详情查看完整信息</p>
+        <p className="small muted">
+          {query ? "搜索“" + query + "” · " : ""}
+          {activeOption.label} · 每页最多 {pageSize} 所 · 点击详情查看完整信息
+        </p>
       </section>
 
       {options.length > 0 ? (
@@ -208,7 +237,7 @@ export default async function NotedSchoolsPage({
             <Link
               aria-current={option.value === scope ? "page" : undefined}
               className={`noted-school-filter${option.value === scope ? " active" : ""}`}
-              href={getNotedSchoolsHref(1, option.value)}
+              href={getNotedSchoolsHref(1, option.value, query)}
               key={option.value}
             >
               {option.label}
@@ -219,7 +248,9 @@ export default async function NotedSchoolsPage({
       ) : null}
 
       {rows.length === 0 ? (
-        <EmptyState>暂无需要跟进的{activeOption.label}院校</EmptyState>
+        <EmptyState>
+          {query ? "暂无匹配“" + query + "”的" + activeOption.label + "院校" : "暂无需要跟进的" + activeOption.label + "院校"}
+        </EmptyState>
       ) : (
         <section className="noted-school-table-wrap" aria-label="院校备注清单">
           <table className="noted-school-table">
@@ -278,7 +309,7 @@ export default async function NotedSchoolsPage({
       {totalPages > 1 ? (
         <nav className="pagination" aria-label="院校备注分页">
           {page > 1 ? (
-            <Link className="pagination-link" href={getNotedSchoolsHref(page - 1, scope)}>
+            <Link className="pagination-link" href={getNotedSchoolsHref(page - 1, scope, query)}>
               上一页
             </Link>
           ) : null}
@@ -286,7 +317,7 @@ export default async function NotedSchoolsPage({
             paginationPage ? (
               <Link
                 className={`pagination-link${paginationPage === page ? " active" : ""}`}
-                href={getNotedSchoolsHref(paginationPage, scope)}
+                href={getNotedSchoolsHref(paginationPage, scope, query)}
                 key={paginationPage}
               >
                 {paginationPage}
@@ -298,7 +329,7 @@ export default async function NotedSchoolsPage({
             ),
           )}
           {page < totalPages ? (
-            <Link className="pagination-link" href={getNotedSchoolsHref(page + 1, scope)}>
+            <Link className="pagination-link" href={getNotedSchoolsHref(page + 1, scope, query)}>
               下一页
             </Link>
           ) : null}
