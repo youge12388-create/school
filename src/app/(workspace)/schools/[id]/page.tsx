@@ -319,10 +319,12 @@ export default async function SchoolDetailsPage({
       <PageHeading
         title={school.nameZh}
         description={school.name && school.name !== school.nameZh ? school.name : "学校知识库完整档案"}
-        action={<>
-          {canEdit ? <Link className="button primary" href={`/schools/${school.id}/edit`}>编辑学校</Link> : null}
-          <BackButton text="返回筛选结果" />
-        </>}
+        action={
+          <div className="page-heading-actions">
+            {canEdit ? <Link className="button primary" href={`/schools/${school.id}/edit`}>编辑学校</Link> : null}
+            <BackButton text="返回筛选结果" />
+          </div>
+        }
       />
 
       <section
@@ -348,20 +350,24 @@ export default async function SchoolDetailsPage({
         </div>
       </section>
 
-      <section className="school-ordinary-note-card">
-        <div className="school-ordinary-note-meta">
-          <span>备注</span>
+      <section className="card card-compact school-ordinary-note-card">
+        <div className="card-header school-knowledge-header">
+          <div>
+            <h3>备注</h3>
+          </div>
           {canEdit ? (
             <Link className="school-ordinary-note-edit" href={`/schools/${school.id}/edit#ordinary-note`}>
               {school.infoNote ? "编辑备注" : "添加备注"}
             </Link>
           ) : null}
         </div>
-        {school.infoNote ? (
-          <p className="school-ordinary-note-content">{school.infoNote}</p>
-        ) : (
-          <p className="school-ordinary-note-empty">暂无备注</p>
-        )}
+        <div className="card-body">
+          {school.infoNote ? (
+            <p className="school-ordinary-note-content">{school.infoNote}</p>
+          ) : (
+            <p className="school-ordinary-note-empty">暂无备注</p>
+          )}
+        </div>
       </section>
 
       {!marketManagerView ? (

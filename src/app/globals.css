@@ -266,17 +266,16 @@ tr td:last-child{border-bottom:0}
 .noted-school-search{align-items:stretch;flex-wrap:wrap}
 .noted-school-search-field{width:100%;max-width:none}
 .noted-school-search-actions{width:100%}
-}.school-ordinary-note-card{display:grid;gap:6px;margin:14px 0 18px;border:1px solid #e4ebf5;border-left:3px solid #8db4ff;border-radius:12px;background:#fbfdff;padding:14px 16px}
-.school-ordinary-note-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#35547a;font-size:13px;font-weight:700}
+}.school-ordinary-note-card{margin:16px 0 0}
 .school-ordinary-note-edit{color:var(--primary);font-size:13px;font-weight:600;text-decoration:none}
 .school-ordinary-note-edit:hover{text-decoration:underline}
-.school-ordinary-note-content{margin:0;color:#27384d;white-space:pre-wrap;line-height:1.65}
+.school-ordinary-note-content{margin:0;color:var(--text);white-space:pre-wrap;line-height:1.65}
 .school-ordinary-note-empty{margin:0;color:var(--muted);font-size:13px}
 .ordinary-note-editor{scroll-margin-top:88px;display:grid;gap:10px;margin:0 0 20px;border:1px solid #e4ebf5;border-left:3px solid #8db4ff;border-radius:12px;background:#fbfdff;padding:16px 18px}
 .ordinary-note-editor h3{font-size:16px}
 .ordinary-note-editor p{margin:0}
 .ordinary-note-editor textarea{min-height:108px;background:#fff}
-@media(max-width:760px){.school-ordinary-note-card{margin:14px 0;padding:13px}.ordinary-note-editor{padding:14px}}
+@media(max-width:760px){.school-ordinary-note-card{margin:16px 0 0}.ordinary-note-editor{padding:14px}}
 
 .confidential-school-fields{margin:0;border:0;padding:0}
 .confidential-school-fields legend{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--text);font-size:16px;font-weight:700}

@@ -298,6 +298,13 @@ label {
   font-size: 15px;
 }
 
+.page-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .grid {
   gap: 16px;
 }
@@ -1808,13 +1815,14 @@ tbody tr:hover {
 
 /* ===== 学校详情页紧凑调整 ===== */
 .school-overview-grid {
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .school-overview-card {
   min-height: 72px;
   padding: 12px 16px;
-  align-content: center;
+  align-content: start;
+  gap: 6px;
 }
 
 .school-overview-card strong {
