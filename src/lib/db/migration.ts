@@ -45,6 +45,13 @@ export function migrateDatabase(databaseFile?: string) {
         "utf8",
       ),
     },
+    {
+      name: "0005_school_cooperation_fee",
+      sql: readFileSync(
+        resolve(process.cwd(), "drizzle/0005_school_cooperation_fee.sql"),
+        "utf8",
+      ),
+    },
   ];
 
   database.exec(`

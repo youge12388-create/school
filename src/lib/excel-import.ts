@@ -74,6 +74,7 @@ const SCHOOL_PATCH_FIELDS = [
   "cooperationNote",
   "specialCaseNote",
   "applicationUpdateFrequency",
+  "cooperationFeeText",
 ] as const;
 
 const PROGRAM_TYPES = new Set(Object.keys(PROGRAM_TYPE_LABELS));
@@ -147,6 +148,7 @@ function toSchool(row: Record<string, unknown>) {
     ),
     cooperationNote: firstOptionalText(row, "合作备注"),
     specialCaseNote: firstOptionalText(row, "特殊情况备注"),
+    cooperationFeeText: firstOptionalText(row, "合作收费"),
     applicationUpdateFrequency: firstOptionalText(
       row,
       "申请更新频率",
@@ -193,6 +195,7 @@ function toProgramSchool(row: Record<string, unknown>) {
       学历生考核: row["学历生是否面试、笔试"] ?? row.学历生考核,
       合作备注: row.合作备注,
       特殊情况备注: row.特殊情况备注,
+      合作收费: row.合作收费,
       申请更新频率: row.学校申请更新频率 ?? row.申请更新频率,
     }),
   );
