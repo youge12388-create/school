@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 export function SchoolNoteSection({
   schoolId,
   note,
+  canEdit = true,
 }: {
   schoolId: string;
   note: string | null;
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -42,7 +44,7 @@ export function SchoolNoteSection({
     <div className="school-note-section">
       <div className="school-note-head">
         <h4>备注</h4>
-        {editing ? null : (
+        {editing ? null : canEdit ? (
           <button
             className="school-note-edit"
             type="button"
@@ -53,7 +55,7 @@ export function SchoolNoteSection({
           >
             {note ? "编辑备注" : "添加备注"}
           </button>
-        )}
+        ) : null}
       </div>
       {editing ? (
         <div className="school-note-editor">

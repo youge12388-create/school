@@ -2,14 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BackButton } from "@/components/back-button";
+import { EditModeBanner, EditModeProvider, EditModeToggle } from "@/components/edit-mode";
 import { ScrollToProgram } from "@/components/scroll-to-program";
 import { SchoolUpdateForm } from "@/components/school-update-form";
 import { SchoolUpdateItem } from "@/components/school-update-item";
+import { SchoolBasicCard, type BasicCardSchool } from "@/components/school-basic-card";
+import { SchoolConfidentialCard } from "@/components/school-confidential-card";
+import { SchoolProgramCard, type ProgramCardData } from "@/components/school-program-card";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
-import { SchoolNoteSection } from "@/components/school-note-section";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import {
+  canEditConfidentialSchoolFields,
   canEditSchool,
   canManageSchoolUpdates,
   canViewConfidentialSchoolFields,
@@ -20,15 +24,7 @@ import {
 } from "@/lib/permissions";
 import { getSchoolDetails, getSchoolUpdates } from "@/lib/queries";
 import { serializeSchoolUpdate } from "@/lib/school-updates";
-import { parseMajorItems } from "@/lib/screening-results";
-import {
-  formatDate,
-  formatMoney,
-  normalizeKeyword,
-  safeJson,
-} from "@/lib/utils";
-
-const UNKNOWN_TEXT = "数据库未有相关信息";
+import { safeJson } from "@/lib/utils";
 
 const SCHOOL_FIELDS = [
   "学校中文名",
@@ -48,30 +44,6 @@ const SCHOOL_FIELDS = [
   "合作项目",
 ] as const;
 
-// 合作关系：申请通道 + 合作说明
-const COOPERATION_RELATIONSHIP_GROUPS = [
-  {
-    title: "申请通道",
-    fields: ["团体申请账号", "是否可代收", "奖学金发放形式", "合作截止日期"],
-  },
-  {
-    title: "合作说明",
-    fields: ["招生偏向", "合作备注", "特殊情况备注"],
-  },
-] as const;
-
-// 机密字段：招生计划 + 考核安排（仅高级管理员可见）
-const CONFIDENTIAL_FIELD_GROUPS = [
-  {
-    title: "招生计划",
-    fields: ["公司招生名额", "学校招生计划", "学校申请更新频率"],
-  },
-  {
-    title: "考核安排",
-    fields: ["语言生面试、笔试", "学历生面试、笔试"],
-  },
-] as const;
-
 // 项目核心字段：4 列紧凑网格 always 显示（短文本，决策时一眼可见）
 const PROGRAM_CORE_FIELDS = [
   "项目类型",
@@ -88,9 +60,6 @@ const PROGRAM_CORE_FIELDS = [
   "奖学金申请费",
 ] as const;
 
-// 申请要求及材料：不折叠，重点信息
-const PROGRAM_MATERIAL_FIELD = "申请要求及材料";
-
 // 项目长字段：折叠区，避免多项目时下滑过长
 const PROGRAM_LONG_FIELDS = [
   "项目介绍",
@@ -103,25 +72,6 @@ const PROGRAM_LONG_FIELDS = [
   "费用备注",
 ] as const;
 
-function externalUrl(value: string) {
-  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
-}
-
-function hasValidDate(value: Date | null) {
-  return Boolean(value && Number.isFinite(value.getTime()));
-}
-
-function deadlineTone(deadlineDate: Date | null) {
-  if (!hasValidDate(deadlineDate)) return "gray" as const;
-  return deadlineDate!.getTime() >= Date.now() ? ("green" as const) : ("red" as const);
-}
-
-function deadlineLabel(deadlineDate: Date | null) {
-  if (!hasValidDate(deadlineDate)) return "截止日期未知";
-  return deadlineDate!.getTime() >= Date.now()
-    ? `截止 ${formatDate(deadlineDate)}`
-    : `已截止 ${formatDate(deadlineDate)}`;
-}
 function normalizeSearchText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "");
 }
@@ -149,85 +99,6 @@ function contextLabel(context: { type?: string; language?: string; major?: strin
   ].filter(Boolean).join(" · ");
 }
 
-function displayValue(value: unknown) {
-  if (value == null) return UNKNOWN_TEXT;
-  if (typeof value === "string") return value.trim() || UNKNOWN_TEXT;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return JSON.stringify(value);
-}
-
-function isLongField(label: string, value: unknown) {
-  return (
-    displayValue(value).length > 70 ||
-    [
-      "学校简介",
-      "合作项目",
-      "项目介绍",
-      "专业列表",
-      "专业方向",
-      "申请要求及材料",
-      "学期安排",
-      "申请时间说明",
-      "奖学金内容",
-      "奖学金备注",
-      "住宿费",
-      "费用备注",
-    ].includes(label)
-  );
-}
-
-function KnowledgeFieldGrid({
-  fields,
-  data,
-  hideEmpty = false,
-  targetMajor,
-}: {
-  fields: readonly string[];
-  data: Record<string, unknown>;
-  hideEmpty?: boolean;
-  targetMajor?: string;
-}) {
-  const visibleFields = hideEmpty
-    ? fields.filter((label) => displayValue(data[label]) !== UNKNOWN_TEXT)
-    : fields;
-  return (
-    <div className="knowledge-field-grid">
-      {visibleFields.map((label) => {
-        const value = data[label];
-        const text = displayValue(value);
-        const majorItems =
-          text !== UNKNOWN_TEXT && ["专业列表", "专业方向"].includes(label)
-            ? parseMajorItems(text)
-            : [];
-        return (
-          <div
-            className={`knowledge-field${isLongField(label, value) ? " knowledge-field-wide" : ""}`}
-            key={label}
-          >
-            <span>{label}</span>
-            {majorItems.length ? (
-              <ul className="major-chip-list" aria-label={`${label}，共 ${majorItems.length} 个`}>
-                {majorItems.map((major) => {
-                  const majorMatch = targetMajor && normalizeKeyword(major).includes(normalizeKeyword(targetMajor));
-                  return (
-                    <li className={`major-chip${majorMatch ? " highlight" : ""}`} key={major}>{major}</li>
-                  );
-                })}
-              </ul>
-            ) : label === "官网" && text !== UNKNOWN_TEXT ? (
-              <a href={externalUrl(text)} target="_blank" rel="noreferrer">
-                {text}
-              </a>
-            ) : (
-              <p className={text === UNKNOWN_TEXT ? "muted" : undefined}>{text}</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default async function SchoolDetailsPage({
   params,
   searchParams,
@@ -239,6 +110,7 @@ export default async function SchoolDetailsPage({
   const query = await searchParams;
   const user = await requireUser();
   const canEdit = canEditSchool(user.role);
+  const canEditConfidential = canEditConfidentialSchoolFields(user.role);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const canManageUpdates = canManageSchoolUpdates(user.role);
   const marketManagerView = isMarketManager(user.role);
@@ -276,30 +148,6 @@ export default async function SchoolDetailsPage({
     : programs;
   const activeContextLabel = contextLabel(screeningContext);
   const schoolRaw = safeJson<Record<string, unknown>>(school.rawJson, {});
-  const schoolKnowledge: Record<string, unknown> = {
-    ...schoolRaw,
-    学校中文名: school.nameZh,
-    学校名称: school.name,
-    学校分类: school.category,
-    省份: school.province,
-    城市: school.city,
-    官网: school.website,
-    QS排名: school.qsRanking,
-    排名信息: school.rankingInfo,
-    合作星级: school.partnershipRating,
-    CSCA:
-      school.cscaStatus === "REQUIRED"
-        ? "是"
-        : school.cscaStatus === "NOT_REQUIRED"
-          ? "否"
-          : null,
-    标签: school.tags,
-    LogoID: null,
-    CoverID: null,
-    学校简介: school.description,
-    合作项目: school.cooperationPrograms,
-    信息备注: school.infoNote,
-  };
   const cooperationKnowledge: Record<string, unknown> = {
     团体申请账号: school.groupApplicationAccount,
     是否可代收: school.collectionServiceText,
@@ -313,21 +161,42 @@ export default async function SchoolDetailsPage({
     招生偏向: school.recruitmentPreferenceText,
     合作备注: school.cooperationNote,
     特殊情况备注: school.specialCaseNote,
+    合作收费: school.cooperationFeeText,
   };
   const locationText = [school.province, school.city].filter(Boolean).join(" · ");
+  const basicCardSchool: BasicCardSchool = {
+    id: school.id,
+    nameZh: school.nameZh,
+    name: school.name,
+    category: school.category,
+    province: school.province,
+    city: school.city,
+    website: school.website,
+    qsRanking: school.qsRanking,
+    rankingInfo: school.rankingInfo,
+    partnershipRating: school.partnershipRating,
+    cscaStatus: school.cscaStatus,
+    tags: school.tags,
+    description: school.description,
+    cooperationPrograms: school.cooperationPrograms,
+    reviewStatus: school.reviewStatus,
+    infoNote: school.infoNote,
+  };
 
   return (
-    <>
+    <EditModeProvider>
       <PageHeading
         title={school.nameZh}
         description={school.name && school.name !== school.nameZh ? school.name : "学校知识库完整档案"}
         action={
           <div className="page-heading-actions">
-            {canEdit ? <Link className="button primary" href={`/schools/${school.id}/edit`}>编辑学校</Link> : null}
+            {canEdit ? <EditModeToggle /> : null}
             <BackButton text="返回筛选结果" />
           </div>
         }
       />
+
+      <EditModeBanner />
 
       <div className="detail-status-bar">
         {locationText ? (
@@ -387,77 +256,26 @@ export default async function SchoolDetailsPage({
         </section>
       ) : null}
 
-      <section className="card card-compact school-knowledge-card">
-        <div className="card-header school-knowledge-header">
-          <div>
-            <h3>院校基本信息</h3>
-          </div>
-          <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : school.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
-            {school.reviewStatus === "VERIFIED" ? "已复核" : school.reviewStatus === "NEEDS_REVIEW" ? "待复核" : "自动导入"}
-          </Badge>
-        </div>
-        <div className="card-body">
-          <KnowledgeFieldGrid targetMajor={targetMajor || undefined} fields={schoolFields} data={schoolKnowledge} hideEmpty />
-          {canEdit ? (
-            <SchoolNoteSection schoolId={school.id} note={school.infoNote} />
-          ) : school.infoNote ? (
-            <div className="school-note-section">
-              <div className="school-note-head">
-                <h4>备注</h4>
-              </div>
-              <p className="school-note-content">{school.infoNote}</p>
-            </div>
-          ) : null}
-        </div>
-      </section>
+      <SchoolBasicCard
+        school={basicCardSchool}
+        canEditNote={canEdit}
+        fields={schoolFields}
+      />
 
       {canViewConfidential ? (
         <>
-          <details className="card card-compact school-cooperation-card">
-            <summary className="card-header school-knowledge-header">
-              <div>
-                <h3>合作关系</h3>
-                <p className="small muted">
-                  申请通道与合作说明，仅内部管理员可见，不参与学生资格自动判断。点击展开。
-                </p>
-              </div>
-              <Badge tone="blue">内部资料</Badge>
-            </summary>
-            <div className="card-body cooperation-field-groups">
-              {COOPERATION_RELATIONSHIP_GROUPS.map((group) => (
-                <section className="cooperation-field-group" key={group.title}>
-                  <h4>{group.title}</h4>
-                  <KnowledgeFieldGrid
-                    data={cooperationKnowledge}
-                    fields={group.fields}
-                  />
-                </section>
-              ))}
-            </div>
-          </details>
-
-          <details className="card card-compact school-cooperation-card school-secret-card">
-            <summary className="card-header school-knowledge-header">
-              <div>
-                <h3>机密字段</h3>
-                <p className="small muted">
-                  招生计划与考核安排，仅高级管理员可见，点击展开。
-                </p>
-              </div>
-              <Badge tone="red">仅管理员</Badge>
-            </summary>
-            <div className="card-body cooperation-field-groups">
-              {CONFIDENTIAL_FIELD_GROUPS.map((group) => (
-                <section className="cooperation-field-group" key={group.title}>
-                  <h4>{group.title}</h4>
-                  <KnowledgeFieldGrid
-                    data={cooperationKnowledge}
-                    fields={group.fields}
-                  />
-                </section>
-              ))}
-            </div>
-          </details>
+          <SchoolConfidentialCard
+            schoolId={school.id}
+            section="cooperation"
+            data={cooperationKnowledge}
+            canEdit={canEditConfidential}
+          />
+          <SchoolConfidentialCard
+            schoolId={school.id}
+            section="secret"
+            data={cooperationKnowledge}
+            canEdit={canEditConfidential}
+          />
         </>
       ) : null}
 
@@ -508,74 +326,42 @@ export default async function SchoolDetailsPage({
               费用备注: program.feeNote,
               ...raw,
             };
+            const programCard: ProgramCardData = {
+              id: program.id,
+              schoolId: program.schoolId,
+              name: program.name,
+              programType: program.programType,
+              teachingLanguage: program.teachingLanguage,
+              duration: program.duration,
+              tuitionText: program.tuitionText,
+              firstYearCostMax: program.firstYearCostMax,
+              deadlineDate: program.deadlineDate
+                ? program.deadlineDate.getTime()
+                : null,
+              applicationTimeText: program.applicationTimeText,
+              majorText: program.majorText,
+              requirementsText: program.requirementsText,
+              introduction: program.introduction,
+              scholarshipContent: program.scholarshipContent,
+              reviewStatus: program.reviewStatus,
+            };
             return (
-              <details
-                id={`program-${program.id}`}
-                className="card card-compact school-program-card school-program-collapsible"
+              <SchoolProgramCard
                 key={program.id}
+                program={programCard}
+                index={index}
+                knowledge={programKnowledge}
+                marketManagerView={marketManagerView}
+                coreFields={programCoreFields}
+                longFields={programLongFields}
                 open={program.id === targetProgramId ? true : undefined}
-              >
-                <summary className="card-header school-program-header school-program-summary">
-                  <div className="school-program-summary-main">
-                    <span className="small muted">项目 {index + 1}</span>
-                    <h3>{program.name}</h3>
-                    {!marketManagerView ? (
-                      <div className="result-meta">
-                        <span>{PROGRAM_TYPE_LABELS[program.programType] ?? program.programType}</span>
-                        <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
-                        <span>首年上限：{formatMoney(program.firstYearCostMax)}</span>
-                      </div>
-                    ) : null}
-                    {marketManagerView && displayValue(programKnowledge["专业列表"]) !== UNKNOWN_TEXT ? (
-                      <p className="program-summary-major">{displayValue(programKnowledge["专业列表"])}</p>
-                    ) : null}
-                  </div>
-                  <div className="school-program-badges">
-                    <Badge tone={deadlineTone(program.deadlineDate)}>{deadlineLabel(program.deadlineDate)}</Badge>
-                    {!marketManagerView ? (
-                      <Badge tone={program.reviewStatus === "VERIFIED" ? "green" : program.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
-                        {program.reviewStatus === "VERIFIED" ? "已复核" : program.reviewStatus === "NEEDS_REVIEW" ? "待复核" : "自动解析"}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </summary>
-                <div className="school-program-expanded">
-                  {/* 核心字段：4 列紧凑网格，决策时一眼可见（空字段不渲染） */}
-                  <div className="program-core-grid">
-                    {programCoreFields.filter(
-                      (label) => displayValue(programKnowledge[label]) !== UNKNOWN_TEXT,
-                    ).map((label) => {
-                      const text = displayValue(programKnowledge[label]);
-                      return (
-                        <div className="detail-field" key={label}>
-                          <span className="label">{label}</span>
-                          <p className="value">{text}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* 申请要求及材料：重点信息（空时不渲染） */}
-                  {displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD]) !== UNKNOWN_TEXT ? (
-                    <div className="program-material-section">
-                      <h4>申请要求及材料</h4>
-                      <p className="program-material-body">{displayValue(programKnowledge[PROGRAM_MATERIAL_FIELD])}</p>
-                    </div>
-                  ) : null}
-                  {/* 其他长字段：折叠区，避免多项目时下滑过长 */}
-                  <details className="program-long-section">
-                    <summary>展开项目详情（项目介绍 / 专业 / 学期 / 奖学金 / 费用备注）</summary>
-                    <div className="program-long-body">
-                      <KnowledgeFieldGrid fields={programLongFields} data={programKnowledge} hideEmpty targetMajor={targetMajor} />
-                    </div>
-                  </details>
-                </div>
-              </details>
+              />
             );
           })
         ) : (
           <EmptyState>{hasScreeningContext ? "该学校没有符合当前筛选上下文的项目。" : "该学校暂无有效项目"}</EmptyState>
         )}
       </section>
-    </>
+    </EditModeProvider>
   );
 }
