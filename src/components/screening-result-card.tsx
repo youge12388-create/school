@@ -22,6 +22,13 @@ const labelByFit: Record<FitLevel, string> = {
 };
 type DetailLinkParams = Record<string, string | undefined>;
 
+// 市场经理视图：专业分组的授课语言后缀（对应总表"专业（中授/英授）"口径）
+const TEACHING_SUFFIX: Record<string, string> = {
+  CHINESE: "中",
+  ENGLISH: "英",
+  FRENCH: "法",
+};
+
 function buildSchoolDetailHref(result: RankedProgram, detailParams?: DetailLinkParams) {
   const { program } = result;
   const params = new URLSearchParams({ from: "screening" });
@@ -41,10 +48,12 @@ export function ScreeningResultCard({
   result,
   rank,
   detailParams,
+  marketManagerView = false,
 }: {
   result: RankedProgram;
   rank: number;
   detailParams?: DetailLinkParams;
+  marketManagerView?: boolean;
 }) {
   const { program } = result;
   const supervisorStatus = getSupervisorAcceptanceStatus(program);
@@ -63,6 +72,15 @@ export function ScreeningResultCard({
   const majors = parseMajorItems(program.majorText);
   const visibleMajors = majors.slice(0, 8);
   const hiddenMajorCount = majors.length - visibleMajors.length;
+  const teachingSuffix = TEACHING_SUFFIX[program.teachingLanguage] ?? "";
+  const interviewDetail = [
+    program.languageAssessmentText,
+    program.degreeAssessmentText,
+  ].filter(Boolean).join("；");
+  const scholarshipText = [
+    program.scholarshipCategory,
+    program.scholarshipContent,
+  ].filter(Boolean).join("：");
   return (
     <article className="card result-card">
       <div className="result-main">
@@ -82,17 +100,19 @@ export function ScreeningResultCard({
                 <Link className="result-school-link" href={schoolDetailHref}>
                   {program.schoolName}
                 </Link>
-                {supervisorBadge ? (
+                {!marketManagerView && supervisorBadge ? (
                   <Badge tone={supervisorBadge.tone}>{supervisorBadge.label}</Badge>
                 ) : null}
-                {enrollmentRegionBadge ? (
+                {!marketManagerView && enrollmentRegionBadge ? (
                   <Badge tone={enrollmentRegionBadge.tone}>{enrollmentRegionBadge.label}</Badge>
                 ) : null}
               </div>
               <div className="result-program-name">{program.programName}</div>
             </div>
             <div className="result-status">
-              <Badge tone={toneByFit[result.fitLevel]}>{labelByFit[result.fitLevel]}</Badge>
+              {!marketManagerView ? (
+                <Badge tone={toneByFit[result.fitLevel]}>{labelByFit[result.fitLevel]}</Badge>
+              ) : null}
               <Link className="button result-detail-link" href={schoolDetailHref}>
                 查看详情
               </Link>
@@ -100,7 +120,9 @@ export function ScreeningResultCard({
           </div>
           <div className="result-meta">
             <span>{PROGRAM_TYPE_LABELS[program.programType] ?? program.programType}</span>
-            <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
+            {!marketManagerView ? (
+              <span>{LANGUAGE_LABELS[program.teachingLanguage] ?? program.teachingLanguage}</span>
+            ) : null}
             <span>{[program.province, program.city].filter(Boolean).join(" · ") || "地区未知"}</span>
             <span>申请截止：{formatDate(program.deadlineDate)}</span>
             <span>
@@ -110,11 +132,15 @@ export function ScreeningResultCard({
                   ? "已截止"
                   : "截止日期未知"}
             </span>
-            <span className="result-money">首年上限：{formatMoney(program.firstYearCostMax)}</span>
+            {!marketManagerView ? (
+              <span className="result-money">首年上限：{formatMoney(program.firstYearCostMax)}</span>
+            ) : null}
           </div>
           {majors.length ? (
             <div className="result-majors">
-              <span className="result-major-label">专业方向</span>
+              <span className="result-major-label">
+                {marketManagerView && teachingSuffix ? `专业（${teachingSuffix}授）` : "专业方向"}
+              </span>
               <ul className="major-chip-list" aria-label={`专业方向，共 ${majors.length} 个`}>
                 {visibleMajors.map((major) => (
                   <li className="major-chip" key={major}>{major}</li>
@@ -127,10 +153,44 @@ export function ScreeningResultCard({
           ) : (
             <span className="small muted result-major-empty">暂无专业信息</span>
           )}
-          <label className="result-reason">
-            顾问推荐理由
-            <input name={`reason_${program.id}`} placeholder="可选，打印方案时显示" />
-          </label>
+          {marketManagerView ? (
+            <div className="result-market">
+              <div className="result-market-item">
+                <span className="result-market-label">学费</span>
+                <span>{program.tuitionText || "—"}</span>
+              </div>
+              <div className="result-market-item">
+                <span className="result-market-label">住宿费</span>
+                <span>{program.accommodationText || "—"}</span>
+              </div>
+              <div className="result-market-item">
+                <span className="result-market-label">奖学金</span>
+                <span>{scholarshipText || "—"}</span>
+              </div>
+              <div className="result-market-item">
+                <span className="result-market-label">可招生人数</span>
+                <span>
+                  {program.recruitmentQuotaText || program.recruitmentPlanText || "—"}
+                </span>
+              </div>
+              <div className="result-market-item">
+                <span className="result-market-label">是否面试</span>
+                <span title={interviewDetail || undefined}>
+                  {interviewDetail ? "是" : "—"}
+                </span>
+              </div>
+              <div className="result-market-item result-market-wide">
+                <span className="result-market-label">招生条件</span>
+                <span>{program.requirementsText || "—"}</span>
+              </div>
+            </div>
+          ) : null}
+          {!marketManagerView ? (
+            <label className="result-reason">
+              顾问推荐理由
+              <input name={`reason_${program.id}`} placeholder="可选，打印方案时显示" />
+            </label>
+          ) : null}
           <input type="hidden" name={`fit_${program.id}`} value={result.fitLevel} />
           <input
             type="hidden"
@@ -139,14 +199,16 @@ export function ScreeningResultCard({
           />
         </div>
       </div>
-      <div className="evidence-strip">
-        {result.evidence.map((item) => (
-          <div className={`evidence ${item.level.toLowerCase()}`} key={`${program.id}-${item.label}`}>
-            <strong>{item.label}</strong>
-            <span className="small">{item.detail}</span>
-          </div>
-        ))}
-      </div>
+      {!marketManagerView ? (
+        <div className="evidence-strip">
+          {result.evidence.map((item) => (
+            <div className={`evidence ${item.level.toLowerCase()}`} key={`${program.id}-${item.label}`}>
+              <strong>{item.label}</strong>
+              <span className="small">{item.detail}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }

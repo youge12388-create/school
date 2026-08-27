@@ -135,6 +135,7 @@ export async function listSchools(query = "", page = 1, pageSize = SCHOOL_PAGE_S
       s.name_zh AS nameZh,
       s.province AS province,
       s.city AS city,
+      s.info_note AS infoNote,
       s.qs_ranking AS qsRanking,
       s.partnership_rating AS partnershipRating,
       s.csca_status AS cscaStatus,
@@ -150,6 +151,7 @@ export async function listSchools(query = "", page = 1, pageSize = SCHOOL_PAGE_S
       nameZh: string;
       province: string | null;
       city: string | null;
+      infoNote: string | null;
       qsRanking: number | null;
       partnershipRating: string | null;
       cscaStatus: string;
@@ -451,6 +453,12 @@ export async function getProgramsForScreening() {
         p.deadline_date AS deadlineDate,
         p.deadline_status AS deadlineStatus,
         p.scholarship_category AS scholarshipCategory,
+        p.scholarship_content AS scholarshipContent,
+        p.tuition_text AS tuitionText,
+        s.company_recruitment_quota_text AS companyRecruitmentQuotaText,
+        s.school_recruitment_plan_text AS schoolRecruitmentPlanText,
+        s.language_student_assessment_text AS languageAssessmentText,
+        s.degree_student_assessment_text AS degreeAssessmentText,
         s.province AS province,
         s.city AS city,
         s.partnership_rating AS partnershipRating,
@@ -489,6 +497,12 @@ export async function getProgramsForScreening() {
       deadlineDate: number | null;
       deadlineStatus: string;
       scholarshipCategory: string | null;
+      scholarshipContent: string | null;
+      tuitionText: string;
+      companyRecruitmentQuotaText: string | null;
+      schoolRecruitmentPlanText: string | null;
+      languageAssessmentText: string | null;
+      degreeAssessmentText: string | null;
       province: string | null;
       city: string | null;
       partnershipRating: number;

@@ -57,6 +57,7 @@ export default async function SchoolsPage({
               {!marketManagerView ? <th>合作星级</th> : null}
               {!marketManagerView ? <th>CSCA</th> : null}
               <th>项目数</th>
+              {marketManagerView ? <th>备注</th> : null}
               {!marketManagerView ? <th>数据状态</th> : null}
             </tr>
           </thead>
@@ -89,6 +90,7 @@ export default async function SchoolsPage({
                   </td>
                 ) : null}
                 <td>{school.programCount}</td>
+                {marketManagerView ? <td>{school.infoNote ?? ""}</td> : null}
                 {!marketManagerView ? (
                   <td>
                     <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : "gray"}>
@@ -146,6 +148,12 @@ export default async function SchoolsPage({
                 <span className="mobile-school-meta-label">项目数</span>
                 <span className="mobile-school-meta-value">{school.programCount}</span>
               </div>
+              {marketManagerView ? (
+                <div className="mobile-school-note">
+                  <span className="mobile-school-meta-label">备注</span>
+                  <span className="mobile-school-meta-value">{school.infoNote ?? "—"}</span>
+                </div>
+              ) : null}
               {!marketManagerView ? (
                 <div>
                   <span className="mobile-school-meta-label">数据状态</span>

@@ -74,6 +74,12 @@ export type MatchProgram = {
   deadlineDate: Date | null;
   deadlineStatus: string;
   scholarshipCategory: string | null;
+  scholarshipContent?: string | null;
+  tuitionText?: string | null;
+  recruitmentQuotaText?: string | null;
+  recruitmentPlanText?: string | null;
+  languageAssessmentText?: string | null;
+  degreeAssessmentText?: string | null;
   province: string | null;
   city: string | null;
   partnershipRating: number;

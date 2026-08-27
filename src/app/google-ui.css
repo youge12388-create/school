@@ -2558,6 +2558,99 @@ button.school-note-edit:hover {
   background: var(--surface-2, #f1f3f4);
 }
 
+/* ===== 筛查结果卡片：市场经理推广字段块 ===== */
+.result-market {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 6px 18px;
+  margin: 8px 0 2px;
+  font-size: 13px;
+}
+
+.result-market-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.result-market-item span {
+  overflow-wrap: anywhere;
+}
+
+.result-market-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.result-market-wide {
+  grid-column: 1 / -1;
+}
+
+.mobile-school-note .mobile-school-meta-value {
+  white-space: normal;
+}
+
+/* ===== 卡片就地编辑 ===== */
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edit-mode-exit {
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.edit-mode-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: -10px 0 16px;
+  border: 1px solid #f3d9a4;
+  border-radius: var(--radius-sm);
+  background: #fdf5dc;
+  color: #7a5901;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.edit-mode-banner strong {
+  font-weight: 700;
+}
+
+.edit-mode-banner-dirty {
+  font-weight: 700;
+}
+
+.inline-edit-form {
+  display: grid;
+  gap: 14px;
+}
+
+.inline-edit-form .form-actions {
+  margin-top: 0;
+}
+
+.inline-edit-group h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline-edit-group + .inline-edit-group {
+  margin-top: 14px;
+}
+
 .update-item-editing {
   display: block;
   padding: 0;
