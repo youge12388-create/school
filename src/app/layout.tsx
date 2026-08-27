@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
 import "./globals.css";
 import "./google-ui.css";
@@ -15,11 +16,11 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         {children}
-        <script
+        <Script
           src="https://canhuo.site/widget.js"
           data-site-id="cmrexwgio0000by7f3izi80v5"
           data-api-host="https://canhuo.site"
-        ></script>
+        />
       </body>
     </html>
   );
