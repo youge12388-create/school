@@ -549,3 +549,15 @@ npm run dev
 - `src/app/layout.tsx` 在 `globals.css` 后引入 `google-ui.css`，因此后置样式覆盖旧视觉，不改业务逻辑。
 - 本轮 UI 重点：白色工作区、浅灰网格背景、Google 蓝主按钮、1px 分隔线、圆角卡片、统一表单和表格密度。
 - 如果后续继续深度重构 UI，建议逐步把旧 `globals.css` 中的重复规则合并进 `google-ui.css` 或反向整理成单一设计系统文件。
+
+## 14. 状态增量（2026-08-27，接手必读）
+
+详细记录见 `docs/PROJECT_STATE.md` 顶部同名小节，此处只列影响接手方式的增量：
+
+- **编辑方式已改变**：学校详情页为“全局编辑模式”——页头唯一入口切换浏览/编辑态，分区保存；原“编辑学校”整页表单仍在但不再是主入口。相关新文件：`src/components/edit-mode.tsx`（模式上下文）、`school-basic-card.tsx` / `school-confidential-card.tsx` / `school-program-card.tsx`（显示+编辑一体卡片）、`knowledge-fields.tsx`（客户端共享字段网格）、`src/lib/program-editor.ts`（项目保存共享逻辑）。
+- **新接口**：`PATCH /api/schools/[id]/basic`、`/confidential`（仅 ADMIN）、`/api/programs/[id]`、`/api/schools/[id]/note`。
+- **数据库迁移自动化**：应用首个连接建立前自动执行未应用迁移（幂等），服务器部署不再需要手工跑 `db:migrate`。
+- **市场经理视图**：筛查结果与学校库按推广字段过滤展示（详见 PROJECT_STATE）；筛查分组标题暂保留。
+- **合作收费字段**：`schools.cooperation_fee_text`（迁移 0005），机密体系内，导入/模板/手工录入已接入。
+- **本地账号**：管理员 `admin / admin123456`（仅本地库）；另有市场经理 `jingli / jingli123456` 可用于验证角色视图。
+- **Git**：所有工作已合并推送至 GitHub master（5e40eaad 及之后）；集成基线以远程 master 为准。
