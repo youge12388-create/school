@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function SchoolNoteSection({
@@ -16,16 +16,17 @@ export function SchoolNoteSection({
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [value, setValue] = useState(note ?? "");
+  const [savedAt, setSavedAt] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  async function save() {
+  async function save(formData: FormData) {
     setLoading(true);
     setMessage("");
     try {
       const response = await fetch(`/api/schools/${schoolId}/note`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ infoNote: value }),
+        body: JSON.stringify({ infoNote: String(formData.get("infoNote") ?? "") }),
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -45,28 +46,21 @@ export function SchoolNoteSection({
       <div className="school-note-head">
         <h4>备注</h4>
         {editing ? null : canEdit ? (
-          <button
-            className="school-note-edit"
-            type="button"
-            onClick={() => {
-              setValue(note ?? "");
-              setEditing(true);
-            }}
-          >
+          <button className="school-note-edit" type="button" onClick={() => setEditing(true)}>
             {note ? "编辑备注" : "添加备注"}
           </button>
         ) : null}
       </div>
       {editing ? (
-        <div className="school-note-editor">
+        <form ref={formRef} key={savedAt} action={save} className="school-note-editor">
           <textarea
+            name="infoNote"
             rows={4}
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
+            defaultValue={note ?? ""}
             placeholder="例如：每周同步申请进度；常见咨询口径；材料提交提醒。"
           />
           <div className="form-actions">
-            <button className="primary" disabled={loading} type="button" onClick={save}>
+            <button className="primary" disabled={loading} type="submit">
               {loading ? "保存中…" : "保存备注"}
             </button>
             <button disabled={loading} type="button" onClick={() => setEditing(false)}>
@@ -78,7 +72,7 @@ export function SchoolNoteSection({
               {message}
             </div>
           ) : null}
-        </div>
+        </form>
       ) : note ? (
         <p className="school-note-content">{note}</p>
       ) : null}

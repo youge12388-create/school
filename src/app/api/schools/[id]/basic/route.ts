@@ -77,7 +77,7 @@ export async function PATCH(
   };
   const oldSchool = sqlite
     .prepare(
-      "SELECT name_zh, name, category, province, city, website, partnership_rating, csca_status, qs_ranking, ranking_info, tags, description, cooperation_programs, review_status FROM schools WHERE id = ?",
+      "SELECT name_zh AS nameZh, name, category, province, city, website, partnership_rating AS partnershipRating, csca_status AS cscaStatus, qs_ranking AS qsRanking, ranking_info AS rankingInfo, tags, description, cooperation_programs AS cooperationPrograms, review_status AS reviewStatus FROM schools WHERE id = ?",
     )
     .get(id) as Record<string, unknown>;
 
