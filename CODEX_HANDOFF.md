@@ -38,7 +38,7 @@
 - 已导入真实 Excel 数据，并在导入时去掉 1 条完全重复项目。
 - 支持学校、项目、客户、申请、审计、数据导入等页面。
 - 支持管理员、顾问、数据管理员三类角色。
-- 登录系统已实现，当前测试账号按用户要求设为 `admin / admin`。
+- 登录系统已实现。本地测试账号：`admin / admin123456`（2026-08-27 重置；旧口令 `admin / admin` 已因密码策略要求至少 10 位而失效）。
 - 密码使用 `scrypt` 哈希。
 - 会话使用安全 Cookie。
 - 客户材料上传、下载、AES-256-GCM 加密存储已实现。
@@ -244,7 +244,7 @@ D:\codex-all\school-syt
 - 用户最新反馈后的改动需要继续验证：
   - 筛选页申请时间/截止时间筛选是否在浏览器里实际生效。
   - 新增客户是否可以从页面成功提交并跳转详情页。
-  - `admin / admin` 登录是否在当前运行进程中生效。
+  - 本地账号 `admin / admin123456` 登录是否正常（2026-08-27 重置后已通过 scrypt 哈希回验，可直接浏览器实测）。
 - `README.md`、`docs/ARCHITECTURE.md` 当前可用；如终端显示乱码，优先确认 PowerShell 编码和读取方式。
 - 数据管理员在系统内直接修正学校、项目、专业同义词和解析结果的能力还不完整。
 - 导入冲突复核队列还不完整。
@@ -262,7 +262,7 @@ D:\codex-all\school-syt
 - 文档已同步为 UTF-8；如个别终端仍显示乱码，先确认终端编码，再判断是否需要修正文案文件。
 - Drizzle sqlite-proxy 与 Node `node:sqlite` 的返回格式兼容性较脆弱。登录问题曾由 `all()` / `get()` 映射错误引起。
 - `src/app/actions.ts` 里仍有不少写操作走 Drizzle mutation，如果再出现写入失败，优先改为 `openRawDatabase()`。
-- 当前默认密码 `admin / admin` 只适合本地测试，真实使用前必须强制修改。
+- 当前本地密码 `admin / admin123456`（2026-08-27 重置）只适合本地测试，真实使用前必须强制修改。
 
 ### 中优先级
 
@@ -289,17 +289,35 @@ Copy-Item .env.example .env.local
 npm run db:migrate
 ```
 
-创建管理员：
+创建管理员（新账号，密码须符合策略：至少 10 个字符）：
 
 ```powershell
-npm run admin:create -- admin "系统管理员" "admin"
+npm run admin:create -- <用户名> "<显示名>" "<至少10位密码>"
 ```
 
-当前用户要求本地测试账号密码均为：
+重置已有账号密码：
+
+```powershell
+# 方式一：环境变量
+$env:ADMIN_PASSWORD = "<新密码>"; npm run admin:password -- <用户名>
+Remove-Item Env:\ADMIN_PASSWORD
+
+# 方式二：标准输入
+"<新密码>" | npm run admin:password -- <用户名>
+```
+
+当前本地开发库管理员账号（2026-08-27 通过 `npm run admin:password` 重置，并经 scrypt 哈希回验确认可登录）：
 
 ```text
-admin / admin
+用户名：admin
+密码：admin123456
 ```
+
+注意：
+
+- 该密码仅用于本地开发库 `data/app.db`，与生产服务器账号无关。
+- 旧口令 `admin / admin` 已失效，本文档及历史记录中更早的 `admin / admin` 表述均以本节为准。
+- 密码重置会清除该账号全部现有会话，并在审计日志中留下一条 `PASSWORD_RESET_CLI` 记录。
 
 启动开发服务：
 
@@ -468,7 +486,7 @@ npm run dev
 
 4. 重启开发服务，浏览器实测：
 
-   - 登录：`admin / admin`。
+   - 登录：`admin / admin123456`（详见第 9 节本地账号说明）。
    - 新增客户。
    - 筛选页截止日期状态、起始日期、结束日期。
    - 保存推荐方案。
@@ -519,7 +537,7 @@ npm run dev
 
 1. 确认当前未提交改动范围。
 2. 确认项目能 typecheck。
-3. 确认 `admin / admin` 可登录。
+3. 确认 `admin / admin123456` 可登录。
 4. 确认新增客户可用。
 5. 确认截止时间筛选可用。
 6. 再继续 UI 打磨和数据复核能力。
