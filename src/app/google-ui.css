@@ -1994,8 +1994,14 @@ button.school-note-edit:hover {
 }
 
 .school-cooperation-card > summary {
+  justify-content: flex-start;
   list-style: none;
   cursor: pointer;
+}
+
+/* 徽章推到最右，标题与箭头保持左对齐 */
+.school-cooperation-card > summary > .badge {
+  margin-left: auto;
 }
 
 .school-cooperation-card > summary::-webkit-details-marker {
@@ -2008,6 +2014,7 @@ button.school-note-edit:hover {
   display: inline-block;
   transition: transform 0.15s;
   margin-right: 8px;
+  margin-top: 3px;
   color: var(--primary);
 }
 
@@ -2385,10 +2392,20 @@ button.school-note-edit:hover {
 
 .update-item-head {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 4px 10px;
+  margin-bottom: 4px;
+}
+
+.update-item-head strong {
+  font-size: 14px;
+}
+
+.update-item-time {
+  color: var(--muted, #5f6368);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .update-content {
@@ -2398,39 +2415,60 @@ button.school-note-edit:hover {
   line-height: 1.6;
 }
 
-.update-attachments {
+.update-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
+  align-items: center;
+  gap: 2px 14px;
+  margin: 2px 0;
+  font-size: 13px;
 }
 
-.update-attachment-link {
-  font-size: 13px;
+.update-links a {
   color: var(--primary, #1a73e8);
+  overflow-wrap: anywhere;
+}
+
+.update-links a:hover {
   text-decoration: underline;
 }
 
 .update-secret {
-  margin-top: 10px;
+  max-width: 760px;
+  margin: 6px 0;
   border-radius: 8px;
-  background: #fef7e0;
-  padding: 10px 12px;
+  background: #fdf5dc;
+  padding: 8px 12px;
 }
 
 .update-secret-label {
   display: inline-block;
-  margin-bottom: 6px;
+  margin: 0 8px 4px 0;
   padding: 1px 8px;
   border-radius: 10px;
-  background: #fef7e0;
-  color: #b06000;
+  background: #f5e1a4;
+  color: #8a5a00;
   font-size: 11px;
   font-weight: 600;
 }
 
+.update-secret-content {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.update-secret .update-links {
+  margin: 4px 0 0;
+}
+
+.update-secret .small {
+  margin-top: 4px;
+}
+
 .update-personnel {
-  margin-top: 10px;
+  margin-top: 6px;
   color: var(--muted, #5f6368);
 }
 
@@ -2497,15 +2535,16 @@ button.school-note-edit:hover {
 
 .update-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 2px;
+  margin-left: auto;
 }
 
 .update-actions button {
-  padding: 5px 12px;
-  border: 1px solid var(--border-soft, #dadce0);
+  min-height: 0;
+  padding: 2px 8px;
+  border: 0;
   border-radius: 6px;
-  background: var(--surface, #fff);
+  background: none;
   color: var(--primary, #1a73e8);
   font-size: 12px;
   cursor: pointer;
