@@ -7,15 +7,6 @@ import type { SchoolUpdateView } from "@/lib/school-updates";
 
 import { SchoolUpdateForm } from "@/components/school-update-form";
 
-function formatDay(value: number | null | undefined) {
-  if (value == null) return "—";
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "—";
-  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate(),
-  ).padStart(2, "0")}`;
-}
-
 function formatDateTime(value: number | null | undefined) {
   if (value == null) return "—";
   const date = new Date(value);
@@ -88,9 +79,6 @@ export function SchoolUpdateItem({
 
   return (
     <article className={`update-item${hasSecret ? " has-secret" : ""}`}>
-      <div className="update-item-date">
-        <span>{formatDay(view.createdAt)}</span>
-      </div>
       <div className="update-item-body">
         <div className="update-item-head">
           <strong>{view.title ?? "院校信息更新"}</strong>

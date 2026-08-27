@@ -6,6 +6,7 @@ import { ScrollToProgram } from "@/components/scroll-to-program";
 import { SchoolUpdateForm } from "@/components/school-update-form";
 import { SchoolUpdateItem } from "@/components/school-update-item";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { SchoolNoteSection } from "@/components/school-note-section";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import {
@@ -313,6 +314,7 @@ export default async function SchoolDetailsPage({
     合作备注: school.cooperationNote,
     特殊情况备注: school.specialCaseNote,
   };
+  const locationText = [school.province, school.city].filter(Boolean).join(" · ");
 
   return (
     <>
@@ -327,55 +329,30 @@ export default async function SchoolDetailsPage({
         }
       />
 
-      <section
-        className={
-          marketManagerView
-            ? "grid cols-2 school-overview-grid"
-            : "grid cols-3 school-overview-grid"
-        }
-      >
-        <div className="card school-overview-card">
-          <span>地区</span>
-          <strong>{[school.province, school.city].filter(Boolean).join(" · ") || UNKNOWN_TEXT}</strong>
-        </div>
-      {!marketManagerView ? (
-          <div className="card school-overview-card">
-            <span>QS 排名</span>
-            <strong>{school.qsRanking ?? UNKNOWN_TEXT}</strong>
+      <div className="detail-status-bar">
+        {locationText ? (
+          <div className="status-item">
+            <span>地区</span>
+            <strong>{locationText}</strong>
           </div>
         ) : null}
-        <div className="card school-overview-card">
+        {school.qsRanking ? (
+          <div className="status-item">
+            <span>QS 排名</span>
+            <strong>{school.qsRanking}</strong>
+          </div>
+        ) : null}
+        <div className="status-item">
           <span>知识库项目</span>
           <strong>{visiblePrograms.length} / {programs.length} 个</strong>
         </div>
-      </section>
-
-      <section className="card card-compact school-ordinary-note-card">
-        <div className="card-header school-knowledge-header">
-          <div>
-            <h3>备注</h3>
-          </div>
-          {canEdit ? (
-            <Link className="school-ordinary-note-edit" href={`/schools/${school.id}/edit#ordinary-note`}>
-              {school.infoNote ? "编辑备注" : "添加备注"}
-            </Link>
-          ) : null}
-        </div>
-        <div className="card-body">
-          {school.infoNote ? (
-            <p className="school-ordinary-note-content">{school.infoNote}</p>
-          ) : (
-            <p className="school-ordinary-note-empty">暂无备注</p>
-          )}
-        </div>
-      </section>
+      </div>
 
       {!marketManagerView ? (
         <section className="card card-compact school-updates-card">
         <div className="card-header school-knowledge-header">
           <div>
             <h3>最近更新</h3>
-            <p className="small muted">院校动态与重要变更，按时间倒序展示。</p>
           </div>
           <Badge tone="blue">{updateItems.length} 条动态</Badge>
         </div>
@@ -414,14 +391,23 @@ export default async function SchoolDetailsPage({
         <div className="card-header school-knowledge-header">
           <div>
             <h3>院校基本信息</h3>
-            <p className="small muted">以下内容来自你上传的高校汇总知识库原始记录。</p>
           </div>
           <Badge tone={school.reviewStatus === "VERIFIED" ? "green" : school.reviewStatus === "NEEDS_REVIEW" ? "amber" : "blue"}>
             {school.reviewStatus === "VERIFIED" ? "已复核" : school.reviewStatus === "NEEDS_REVIEW" ? "待复核" : "自动导入"}
           </Badge>
         </div>
         <div className="card-body">
-          <KnowledgeFieldGrid targetMajor={targetMajor || undefined} fields={schoolFields} data={schoolKnowledge} />
+          <KnowledgeFieldGrid targetMajor={targetMajor || undefined} fields={schoolFields} data={schoolKnowledge} hideEmpty />
+          {canEdit ? (
+            <SchoolNoteSection schoolId={school.id} note={school.infoNote} />
+          ) : school.infoNote ? (
+            <div className="school-note-section">
+              <div className="school-note-head">
+                <h4>备注</h4>
+              </div>
+              <p className="school-note-content">{school.infoNote}</p>
+            </div>
+          ) : null}
         </div>
       </section>
 
