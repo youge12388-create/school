@@ -6,6 +6,7 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { drizzle, type AsyncRemoteCallback } from "drizzle-orm/sqlite-proxy";
 
 import * as schema from "./schema";
+import { migrateDatabase } from "./migration";
 
 export function getDatabasePath() {
   return resolve(
@@ -15,9 +16,17 @@ export function getDatabasePath() {
 
 let sqliteInstance: DatabaseSync | null = null;
 
+// 每次进程内首次建连前应用未执行的迁移，
+// 保证任何部署路径（脚本/面板/手工）都不会遗漏数据库结构变更。
+let migrationsEnsured = false;
+
 function createDatabase() {
   const databasePath = getDatabasePath();
   mkdirSync(dirname(databasePath), { recursive: true });
+  if (!migrationsEnsured) {
+    migrateDatabase(databasePath);
+    migrationsEnsured = true;
+  }
   const database = new DatabaseSync(databasePath);
   database.exec("PRAGMA journal_mode = WAL");
   database.exec("PRAGMA foreign_keys = ON");
