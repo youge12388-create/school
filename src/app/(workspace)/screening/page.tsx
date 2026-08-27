@@ -3,6 +3,7 @@ import { ClearScreeningFilters } from "@/components/clear-screening-filters";
 import { MajorPicker, type MajorCatalog } from "@/components/major-picker";
 import { ScreeningResultCard } from "@/components/screening-result-card";
 import { EmptyState, PageHeading } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import {
   parseSchoolTier,
@@ -11,6 +12,7 @@ import {
   type RankedProgram,
   type ScreeningCriteria,
 } from "@/lib/matcher";
+import { isMarketManager } from "@/lib/permissions";
 import { getMajorCatalog, getProgramsForScreening, listCustomerOptions } from "@/lib/queries";
 import { partitionScreeningResults } from "@/lib/screening-results";
 import { asNumber } from "@/lib/utils";
@@ -161,11 +163,13 @@ function ResultSection({
   results,
   ranks,
   detailParams,
+  marketManagerView,
 }: {
   fitLevel: Exclude<FitLevel, "NOT_MATCHED">;
   results: RankedProgram[];
   ranks: Map<string, number>;
   detailParams: Record<string, string | undefined>;
+  marketManagerView: boolean;
 }) {
   if (!results.length) return null;
   const section = fitSection[fitLevel];
@@ -183,6 +187,7 @@ function ResultSection({
           result={result}
           rank={ranks.get(result.program.id) ?? 0}
           detailParams={detailParams}
+          marketManagerView={marketManagerView}
           key={result.program.id}
         />
       ))}
@@ -196,6 +201,8 @@ export default async function ScreeningPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  const user = await requireUser();
+  const marketManagerView = isMarketManager(user.role);
   const criteria = toCriteria(params);
   const hasSearch = hasSearchCriteria(params);
   const showAcademicFilters = hasAnyParam(params, academicFilterKeys);
@@ -455,9 +462,9 @@ export default async function ScreeningPage({
               <span>⏰ 已截止 {expiredResults.length}</span>
             </div>
 
-            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} />
-            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} />
-            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} />
+            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} />
+            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} />
+            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} />
 
                         {expiredResults.length ? (
               <details className="card screening-collapsible-group">
@@ -471,6 +478,7 @@ export default async function ScreeningPage({
                       result={result}
                       rank={ranks.get(result.program.id) ?? 0}
                       detailParams={detailParams}
+                      marketManagerView={marketManagerView}
                       key={result.program.id}
                     />
                   ))}
@@ -490,6 +498,7 @@ export default async function ScreeningPage({
                       result={result}
                       rank={ranks.get(result.program.id) ?? 0}
                       detailParams={detailParams}
+                      marketManagerView={marketManagerView}
                       key={result.program.id}
                     />
                   ))}

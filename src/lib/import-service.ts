@@ -101,6 +101,7 @@ export const manualEntrySchema = z.object({
   cooperationNote: manualText(2000),
   specialCaseNote: manualText(2000),
   applicationUpdateFrequency: manualText(500),
+  cooperationFeeText: manualText(1000),
 });
 
 export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
@@ -367,6 +368,7 @@ function upsertSchool(
     "cooperation_note",
     "special_case_note",
     "application_update_frequency",
+    "cooperation_fee_text",
   ];
   const operationalValues = [
     school.groupApplicationAccount,
@@ -381,6 +383,7 @@ function upsertSchool(
     school.cooperationNote,
     school.specialCaseNote,
     school.applicationUpdateFrequency,
+    school.cooperationFeeText,
   ];
 
   if (!existing) {
@@ -683,6 +686,7 @@ function buildManualSchool(input: ManualEntryInput): SchoolImportRow {
     cooperationNote: input.cooperationNote || null,
     specialCaseNote: input.specialCaseNote || null,
     applicationUpdateFrequency: input.applicationUpdateFrequency || null,
+    cooperationFeeText: input.cooperationFeeText || null,
     rawJson: JSON.stringify(input),
   };
 }

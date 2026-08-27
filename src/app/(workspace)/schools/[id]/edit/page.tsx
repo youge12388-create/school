@@ -192,6 +192,11 @@ export default async function SchoolEditPage({
                 </div>
               </div>
               <div style={{ marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 8, fontWeight: 600 }}>合作收费</h4>
+                <label style={{ marginBottom: 10 }}>
+                  合作收费
+                  <textarea name="cooperationFeeText" defaultValue={school.cooperationFeeText ?? ""} rows={2} placeholder="合作分成、收费口径等，仅高级管理员可见" />
+                </label>
                 <h4 style={{ marginBottom: 8, fontWeight: 600 }}>合作说明</h4>
                 <label style={{ marginBottom: 10 }}>
                   招生偏向

@@ -298,6 +298,13 @@ label {
   font-size: 15px;
 }
 
+.page-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .grid {
   gap: 16px;
 }
@@ -1159,28 +1166,10 @@ tbody tr:hover {
 }
 
 /* School details */
-.school-overview-grid {
-  margin-bottom: 16px;
-}
-
-.school-overview-card {
-  display: grid;
-  min-height: 116px;
-  align-content: space-between;
-  padding: 18px;
-}
-
-.school-overview-card span,
 .school-facts span {
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
-}
-
-.school-overview-card strong {
-  font-size: 24px;
-  font-weight: 650;
-  letter-spacing: -0.03em;
 }
 
 .school-detail-grid,
@@ -1268,6 +1257,64 @@ tbody tr:hover {
 
 .school-knowledge-card {
   margin-top: 16px;
+}
+
+.school-note-section {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 12px;
+}
+
+.school-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.school-note-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.school-note-edit {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.school-note-edit:hover {
+  text-decoration: underline;
+}
+
+button.school-note-edit {
+  min-height: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+
+button.school-note-edit:hover {
+  background: none;
+}
+
+.school-note-editor {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.school-note-editor .form-actions {
+  margin-top: 0;
+}
+
+.school-note-content {
+  margin: 6px 0 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  line-height: 1.65;
 }
 
 .school-cooperation-card {
@@ -1807,24 +1854,6 @@ tbody tr:hover {
 }
 
 /* ===== 学校详情页紧凑调整 ===== */
-.school-overview-grid {
-  margin-bottom: 12px;
-}
-
-.school-overview-card {
-  min-height: 72px;
-  padding: 12px 16px;
-  align-content: center;
-}
-
-.school-overview-card strong {
-  font-size: 18px;
-}
-
-.school-overview-card span {
-  font-size: 11px;
-}
-
 .school-programs-section {
   margin-top: 16px;
 }
@@ -1965,8 +1994,14 @@ tbody tr:hover {
 }
 
 .school-cooperation-card > summary {
+  justify-content: flex-start;
   list-style: none;
   cursor: pointer;
+}
+
+/* 徽章推到最右，标题与箭头保持左对齐 */
+.school-cooperation-card > summary > .badge {
+  margin-left: auto;
 }
 
 .school-cooperation-card > summary::-webkit-details-marker {
@@ -1979,6 +2014,7 @@ tbody tr:hover {
   display: inline-block;
   transition: transform 0.15s;
   margin-right: 8px;
+  margin-top: 3px;
   color: var(--primary);
 }
 
@@ -2323,36 +2359,30 @@ tbody tr:hover {
 .update-timeline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+  margin-left: 4px;
+  border-left: 1px solid var(--border-soft, #dadce0);
+  padding-left: 18px;
 }
 
 .update-item {
-  display: flex;
-  gap: 12px;
-  border: 1px solid var(--border-soft, #dadce0);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: var(--surface, #fff);
+  position: relative;
+  background: transparent;
 }
 
-.update-item.has-secret {
-  border-left: 3px solid #f9ab00;
+.update-item::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: -23px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--primary, #1a73e8);
 }
 
-.update-item-date {
-  flex: 0 0 46px;
-  text-align: center;
-}
-
-.update-item-date span {
-  display: inline-block;
-  min-width: 44px;
-  padding: 6px 4px;
-  border-radius: 8px;
-  background: var(--surface-2, #f1f3f4);
-  color: var(--muted, #5f6368);
-  font-size: 12px;
-  font-weight: 600;
+.update-item.has-secret::before {
+  background: #f9ab00;
 }
 
 .update-item-body {
@@ -2362,10 +2392,20 @@ tbody tr:hover {
 
 .update-item-head {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 4px 10px;
+  margin-bottom: 4px;
+}
+
+.update-item-head strong {
+  font-size: 14px;
+}
+
+.update-item-time {
+  color: var(--muted, #5f6368);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .update-content {
@@ -2375,38 +2415,60 @@ tbody tr:hover {
   line-height: 1.6;
 }
 
-.update-attachments {
+.update-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
+  align-items: center;
+  gap: 2px 14px;
+  margin: 2px 0;
+  font-size: 13px;
 }
 
-.update-attachment-link {
-  font-size: 13px;
+.update-links a {
   color: var(--primary, #1a73e8);
+  overflow-wrap: anywhere;
+}
+
+.update-links a:hover {
   text-decoration: underline;
 }
 
 .update-secret {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #f9ab00;
+  max-width: 760px;
+  margin: 6px 0;
+  border-radius: 8px;
+  background: #fdf5dc;
+  padding: 8px 12px;
 }
 
 .update-secret-label {
   display: inline-block;
-  margin-bottom: 6px;
+  margin: 0 8px 4px 0;
   padding: 1px 8px;
   border-radius: 10px;
-  background: #fef7e0;
-  color: #b06000;
+  background: #f5e1a4;
+  color: #8a5a00;
   font-size: 11px;
   font-weight: 600;
 }
 
+.update-secret-content {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.update-secret .update-links {
+  margin: 4px 0 0;
+}
+
+.update-secret .small {
+  margin-top: 4px;
+}
+
 .update-personnel {
-  margin-top: 16px;
+  margin-top: 6px;
   color: var(--muted, #5f6368);
 }
 
@@ -2419,16 +2481,17 @@ tbody tr:hover {
 .update-form-toggle > summary {
   cursor: pointer;
   display: inline-block;
-  padding: 8px 14px;
-  border: 1px solid var(--primary, #1a73e8);
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   color: var(--primary, #1a73e8);
   font-size: 13px;
   font-weight: 600;
 }
 
 .update-form-toggle > summary:hover {
-  background: var(--surface-2, #f1f3f4);
+  background: none;
+  text-decoration: underline;
 }
 
 .update-form {
@@ -2439,35 +2502,49 @@ tbody tr:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--border-soft, #dadce0);
-  border-radius: 8px;
-  background: var(--surface-2, #f8f9fa);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .update-form-more {
-  border-top: 1px dashed var(--border-soft, #dadce0);
-  padding-top: 10px;
+  border-top: 1px solid var(--border-soft, #dadce0);
+  padding-top: 12px;
 }
 
 .update-form-more > summary {
   cursor: pointer;
   font-size: 13px;
-  color: var(--muted, #5f6368);
-  margin-bottom: 8px;
+  color: var(--primary, #1a73e8);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.update-form-more .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.update-form-attachment {
+  grid-column: 1 / -1;
+}
+
+.update-form-main .form-actions {
+  margin-top: 0;
 }
 
 .update-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 2px;
+  margin-left: auto;
 }
 
 .update-actions button {
-  padding: 5px 12px;
-  border: 1px solid var(--border-soft, #dadce0);
+  min-height: 0;
+  padding: 2px 8px;
+  border: 0;
   border-radius: 6px;
-  background: var(--surface, #fff);
+  background: none;
   color: var(--primary, #1a73e8);
   font-size: 12px;
   cursor: pointer;
@@ -2479,6 +2556,99 @@ tbody tr:hover {
 
 .update-actions button:hover {
   background: var(--surface-2, #f1f3f4);
+}
+
+/* ===== 筛查结果卡片：市场经理推广字段块 ===== */
+.result-market {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 6px 18px;
+  margin: 8px 0 2px;
+  font-size: 13px;
+}
+
+.result-market-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.result-market-item span {
+  overflow-wrap: anywhere;
+}
+
+.result-market-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.result-market-wide {
+  grid-column: 1 / -1;
+}
+
+.mobile-school-note .mobile-school-meta-value {
+  white-space: normal;
+}
+
+/* ===== 卡片就地编辑 ===== */
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edit-mode-exit {
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.edit-mode-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: -10px 0 16px;
+  border: 1px solid #f3d9a4;
+  border-radius: var(--radius-sm);
+  background: #fdf5dc;
+  color: #7a5901;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.edit-mode-banner strong {
+  font-weight: 700;
+}
+
+.edit-mode-banner-dirty {
+  font-weight: 700;
+}
+
+.inline-edit-form {
+  display: grid;
+  gap: 14px;
+}
+
+.inline-edit-form .form-actions {
+  margin-top: 0;
+}
+
+.inline-edit-group h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline-edit-group + .inline-edit-group {
+  margin-top: 14px;
 }
 
 .update-item-editing {

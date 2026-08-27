@@ -7,15 +7,6 @@ import type { SchoolUpdateView } from "@/lib/school-updates";
 
 import { SchoolUpdateForm } from "@/components/school-update-form";
 
-function formatDay(value: number | null | undefined) {
-  if (value == null) return "—";
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "—";
-  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate(),
-  ).padStart(2, "0")}`;
-}
-
 function formatDateTime(value: number | null | undefined) {
   if (value == null) return "—";
   const date = new Date(value);
@@ -27,6 +18,35 @@ function formatDateTime(value: number | null | undefined) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function UpdateLinks({
+  url,
+  attachments,
+}: {
+  url: string | null | undefined;
+  attachments: { id: string; originalName: string }[];
+}) {
+  if (!url && !attachments.length) return null;
+  return (
+    <div className="update-links">
+      {url ? (
+        <a href={url} target="_blank" rel="noreferrer">
+          {url}
+        </a>
+      ) : null}
+      {attachments.map((attachment) => (
+        <a
+          href={`/api/school-updates/attachments/${attachment.id}`}
+          target="_blank"
+          rel="noreferrer"
+          key={attachment.id}
+        >
+          {attachment.originalName}
+        </a>
+      ))}
+    </div>
+  );
 }
 
 export function SchoolUpdateItem({
@@ -53,6 +73,13 @@ export function SchoolUpdateItem({
       view.secretUpdatedAt ||
       secretAttachments.length,
   );
+  const personnelText =
+    [
+      view.submitter ? `提交人 ${view.submitter}` : null,
+      view.publicOperator ? `操作人 ${view.publicOperator}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null;
 
   async function remove() {
     if (!window.confirm("确认删除这条更新记录？")) return;
@@ -88,98 +115,46 @@ export function SchoolUpdateItem({
 
   return (
     <article className={`update-item${hasSecret ? " has-secret" : ""}`}>
-      <div className="update-item-date">
-        <span>{formatDay(view.createdAt)}</span>
-      </div>
       <div className="update-item-body">
         <div className="update-item-head">
           <strong>{view.title ?? "院校信息更新"}</strong>
-          <span className="small muted">{formatDateTime(view.createdAt)}</span>
+          <span className="update-item-time">{formatDateTime(view.createdAt)}</span>
+          {canManage ? (
+            <div className="update-actions">
+              <button type="button" onClick={() => setEditing(true)}>
+                编辑
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={remove}
+                className="danger"
+              >
+                删除
+              </button>
+            </div>
+          ) : null}
         </div>
         {view.publicContent ? (
           <p className="update-content">{view.publicContent}</p>
         ) : null}
-        {view.publicUrl ? (
-          <p className="small">
-            <a href={view.publicUrl} target="_blank" rel="noreferrer">
-              {view.publicUrl}
-            </a>
-          </p>
-        ) : null}
-        {publicAttachments.length ? (
-          <div className="update-attachments">
-            {publicAttachments.map((attachment) => (
-              <a
-                className="update-attachment-link"
-                href={`/api/school-updates/attachments/${attachment.id}`}
-                target="_blank"
-                rel="noreferrer"
-                key={attachment.id}
-              >
-                {attachment.originalName}
-              </a>
-            ))}
-          </div>
-        ) : null}
-        {view.secretContent !== undefined ? (
-          <>
-            {hasSecret ? (
-              <div className="update-secret">
-                <span className="update-secret-label">内部备注</span>
-                {view.secretContent ? (
-                  <p className="update-content">{view.secretContent}</p>
-                ) : null}
-                {view.secretUrl ? (
-                  <p className="small">
-                    <a href={view.secretUrl} target="_blank" rel="noreferrer">
-                      {view.secretUrl}
-                    </a>
-                  </p>
-                ) : null}
-                {secretAttachments.length ? (
-                  <div className="update-attachments">
-                    {secretAttachments.map((attachment) => (
-                      <a
-                        className="update-attachment-link"
-                        href={`/api/school-updates/attachments/${attachment.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        key={attachment.id}
-                      >
-                        {attachment.originalName}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-                {view.secretOperator ? (
-                  <p className="small muted">内部备注人：{view.secretOperator}</p>
-                ) : null}
-              </div>
+        <UpdateLinks url={view.publicUrl} attachments={publicAttachments} />
+        {view.secretContent !== undefined && hasSecret ? (
+          <div className="update-secret">
+            <span className="update-secret-label">内部备注</span>
+            {view.secretContent ? (
+              <p className="update-secret-content">{view.secretContent}</p>
             ) : null}
-            <p className="small muted update-personnel">
-              {[
-                view.submitter ? `提交人 ${view.submitter}` : null,
-                view.publicOperator ? `操作人 ${view.publicOperator}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || null}
-            </p>
-          </>
-        ) : null}
-        {canManage ? (
-          <div className="update-actions">
-            <button type="button" onClick={() => setEditing(true)}>
-              编辑
-            </button>
-            <button
-              type="button"
-              disabled={deleting}
-              onClick={remove}
-              className="danger"
-            >
-              删除
-            </button>
+            <UpdateLinks url={view.secretUrl} attachments={secretAttachments} />
+            {view.secretOperator ? (
+              <p className="small muted">
+                内部备注人：{view.secretOperator}
+              </p>
+            ) : null}
           </div>
+        ) : null}
+        {view.secretContent !== undefined && personnelText ? (
+          <p className="small muted update-personnel">{personnelText}</p>
         ) : null}
       </div>
     </article>

@@ -23,9 +23,11 @@ export async function POST(request: Request) {
   }
   const update = sqlite
     .prepare(
-      "SELECT id FROM school_updates WHERE id = ? AND archived = 0",
+      `SELECT su.id, s.name_zh AS nameZh
+       FROM school_updates su JOIN schools s ON s.id = su.school_id
+       WHERE su.id = ? AND su.archived = 0`,
     )
-    .get(schoolUpdateId);
+    .get(schoolUpdateId) as { id: string; nameZh: string } | undefined;
   if (!update) {
     return Response.json({ error: "更新记录不存在" }, { status: 404 });
   }
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
     action: "SCHOOL_UPDATE_ATTACHMENT_UPLOADED",
     entityType: "SCHOOL_UPDATE",
     entityId: schoolUpdateId,
-    details: { attachmentId: id, groupName, size: file.size },
+    details: { nameZh: update.nameZh, groupName, fileName: file.name },
   });
   return Response.json(
     {

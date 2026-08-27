@@ -132,6 +132,7 @@ export const schools = sqliteTable(
     cooperationNote: text("cooperation_note"),
     specialCaseNote: text("special_case_note"),
     applicationUpdateFrequency: text("application_update_frequency"),
+    cooperationFeeText: text("cooperation_fee_text"),
     rawJson: text("raw_json"),
     sourceBatchId: text("source_batch_id").references(() => importBatches.id),
     reviewStatus: text("review_status", {

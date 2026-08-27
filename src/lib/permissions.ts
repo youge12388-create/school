@@ -41,6 +41,7 @@ export const CONFIDENTIAL_SCHOOL_FIELDS: readonly string[] = [
   "cooperationNote",
   "specialCaseNote",
   "applicationUpdateFrequency",
+  "cooperationFeeText",
 ] as const;
 
 // Excel 原始行/维护模板里的机密列名，导入与导出时按这些键清洗。
@@ -62,6 +63,7 @@ export const CONFIDENTIAL_RAW_KEYS: readonly string[] = [
   "特殊情况备注",
   "申请更新频率",
   "学校申请更新频率",
+  "合作收费",
 ] as const;
 
 export const CONFIDENTIAL_TEMPLATE_HEADERS: readonly string[] = [
@@ -77,6 +79,7 @@ export const CONFIDENTIAL_TEMPLATE_HEADERS: readonly string[] = [
   "合作备注",
   "特殊情况备注",
   "学校申请更新频率",
+  "合作收费",
 ] as const;
 
 // 市场经理只读可见的院校字段。

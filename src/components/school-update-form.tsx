@@ -155,7 +155,7 @@ export function SchoolUpdateForm({
                 placeholder="https://"
               />
             </label>
-            <label>
+            <label className="update-form-attachment">
               普通附件（图片）
               <input
                 name="publicAttachment"
@@ -191,7 +191,7 @@ export function SchoolUpdateForm({
                 placeholder="https://"
               />
             </label>
-            <label>
+            <label className="update-form-attachment">
               内部附件
               <input
                 name="secretAttachment"

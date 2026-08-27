@@ -48,31 +48,33 @@ export async function PATCH(
   const { id } = await context.params;
   const existing = sqlite
     .prepare(
-      "SELECT id, school_id AS schoolId FROM school_updates WHERE id = ? AND archived = 0",
+      `SELECT su.id AS id, s.name_zh AS nameZh, su.title AS title
+       FROM school_updates su JOIN schools s ON s.id = su.school_id
+       WHERE su.id = ? AND su.archived = 0`,
     )
-    .get(id) as { id: string; schoolId: string } | undefined;
+    .get(id) as { id: string; nameZh: string; title: string | null } | undefined;
   if (!existing) {
     return Response.json({ error: "更新记录不存在" }, { status: 404 });
   }
   const body = (await request.json()) as Record<string, unknown>;
   const input = stripSchoolUpdateInput(body, user.role);
+  const changed = UPDATE_COLUMNS.filter((column) => column in input);
+  if (!changed.length) {
+    return Response.json({ error: "没有可更新的字段" }, { status: 400 });
+  }
   const sets: string[] = [];
   const values: (string | number | null)[] = [];
-  for (const column of UPDATE_COLUMNS) {
-    if (!(column in input)) continue;
+  for (const column of changed) {
     const value =
       column === "submittedAt" ||
       column === "publicUpdatedAt" ||
       column === "secretUpdatedAt"
         ? toMs(input[column])
         : typeof input[column] === "string"
-          ? input[column].trim() || null
+          ? (input[column] as string).trim() || null
           : null;
     sets.push(`${UPDATE_COLUMN_MAP[column]} = ?`);
     values.push(value as string | number | null);
-  }
-  if (!sets.length) {
-    return Response.json({ error: "没有可更新的字段" }, { status: 400 });
   }
   values.push(Date.now(), id);
   sqlite
@@ -83,7 +85,7 @@ export async function PATCH(
     action: "SCHOOL_UPDATE_UPDATED",
     entityType: "SCHOOL_UPDATE",
     entityId: id,
-    details: { schoolId: existing.schoolId, changed: sets },
+    details: { nameZh: existing.nameZh, title: existing.title, changed },
   });
   return Response.json({ id });
 }
@@ -96,9 +98,11 @@ export async function DELETE(
   const { id } = await context.params;
   const existing = sqlite
     .prepare(
-      "SELECT id, school_id AS schoolId FROM school_updates WHERE id = ? AND archived = 0",
+      `SELECT su.id AS id, s.name_zh AS nameZh, su.title AS title
+       FROM school_updates su JOIN schools s ON s.id = su.school_id
+       WHERE su.id = ? AND su.archived = 0`,
     )
-    .get(id) as { id: string; schoolId: string } | undefined;
+    .get(id) as { id: string; nameZh: string; title: string | null } | undefined;
   if (!existing) {
     return Response.json({ error: "更新记录不存在" }, { status: 404 });
   }
@@ -110,7 +114,7 @@ export async function DELETE(
     action: "SCHOOL_UPDATE_DELETED",
     entityType: "SCHOOL_UPDATE",
     entityId: id,
-    details: { schoolId: existing.schoolId },
+    details: { nameZh: existing.nameZh, title: existing.title },
   });
   return Response.json({ id });
 }

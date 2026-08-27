@@ -40,6 +40,9 @@ function insertSchool(
   databaseFile: string,
   id: string,
   notes: {
+    nameZh?: string;
+    province?: string | null;
+    city?: string | null;
     infoNote?: string | null;
     groupApplicationAccount?: string | null;
     scholarshipDisbursementText?: string | null;
@@ -59,7 +62,7 @@ function insertSchool(
   database
     .prepare(`
       INSERT INTO schools (
-        id, name_zh, name, info_note, group_application_account,
+        id, name_zh, name, province, city, info_note, group_application_account,
         scholarship_disbursement_text, collection_service_text,
         cooperation_deadline_text, company_recruitment_quota_text,
         school_recruitment_plan_text, recruitment_preference_text,
@@ -67,12 +70,14 @@ function insertSchool(
         cooperation_note, special_case_note, application_update_frequency,
         archived
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `)
     .run(
       id,
+      notes.nameZh ?? id,
       id,
-      id,
+      notes.province ?? null,
+      notes.city ?? null,
       notes.infoNote ?? null,
       notes.groupApplicationAccount ?? null,
       notes.scholarshipDisbursementText ?? null,
@@ -91,6 +96,26 @@ function insertSchool(
 }
 
 describe("listNotedSchools", () => {
+  it("filters noted schools by name and location", async () => {
+    insertSchool(databaseFile, "beijing", {
+      nameZh: "北京大学",
+      province: "北京",
+      city: "海淀区",
+      infoNote: "需要跟进",
+    });
+    insertSchool(databaseFile, "shenzhen", {
+      nameZh: "深圳大学",
+      province: "广东",
+      city: "深圳",
+      infoNote: "需要跟进",
+    });
+
+    const { listNotedSchools } = await import("@/lib/queries");
+    const result = await listNotedSchools(1, 20, true, "all", "海淀");
+
+    expect(result.rows.map((row) => row.id)).toEqual(["beijing"]);
+    expect(result.total).toBe(1);
+  }, 15000);
   it("returns only schools with any school-level note", async () => {
     insertSchool(databaseFile, "a", { infoNote: "有信息备注" });
     insertSchool(databaseFile, "b", { cooperationNote: "有合作备注" });
