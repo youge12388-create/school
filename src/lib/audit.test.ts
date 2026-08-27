@@ -22,6 +22,14 @@ describe("AUDIT_ACTION_LABELS", () => {
   it("PROGRAM_UPDATED 中文标签", () => {
     expect(AUDIT_ACTION_LABELS["PROGRAM_UPDATED"]).toBe("更新项目");
   });
+
+  it("SCHOOL_UPDATE_DELETED 中文标签", () => {
+    expect(AUDIT_ACTION_LABELS["SCHOOL_UPDATE_DELETED"]).toBe("删除院校动态");
+  });
+
+  it("SCHOOL_UPDATES_IMPORTED 中文标签", () => {
+    expect(AUDIT_ACTION_LABELS["SCHOOL_UPDATES_IMPORTED"]).toBe("导入院校动态");
+  });
 });
 
 describe("formatAuditObject", () => {
@@ -49,6 +57,14 @@ describe("formatAuditObject", () => {
   it("无匹配字段时只返回对象类型", () => {
     const result = formatAuditObject("APPLICATION", { id: "abc" });
     expect(result).toBe("申请");
+  });
+
+  it("院校动态包含学校中文名", () => {
+    const result = formatAuditObject("SCHOOL_UPDATE", {
+      nameZh: "清华大学",
+      title: "招生简章更新",
+    });
+    expect(result).toBe("院校动态 清华大学");
   });
 });
 
@@ -89,6 +105,49 @@ describe("formatAuditDetails", () => {
 
   it("无详情时返回 —", () => {
     expect(formatAuditDetails("SCHOOL_UPDATED", null)).toBe("—");
+  });
+
+  it("动态导入显示统计摘要", () => {
+    const result = formatAuditDetails("SCHOOL_UPDATES_IMPORTED", {
+      imported: 6,
+      updated: 2,
+      skipped: 1,
+    });
+    expect(result).toBe("导入 6，更新 2，跳过 1");
+  });
+
+  it("新建动态显示标题", () => {
+    const result = formatAuditDetails("SCHOOL_UPDATE_CREATED", {
+      nameZh: "清华大学",
+      title: "2026 招生简章",
+    });
+    expect(result).toBe("《2026 招生简章》");
+  });
+
+  it("编辑动态显示标题和修改字段", () => {
+    const result = formatAuditDetails("SCHOOL_UPDATE_UPDATED", {
+      nameZh: "清华大学",
+      title: "2026 招生简章",
+      changed: ["publicContent", "secretContent"],
+    });
+    expect(result).toBe("《2026 招生简章》 修改：publicContent、secretContent");
+  });
+
+  it("删除动态无标题时返回中文标签", () => {
+    const result = formatAuditDetails("SCHOOL_UPDATE_DELETED", {
+      nameZh: "清华大学",
+      title: null,
+    });
+    expect(result).toBe("删除院校动态");
+  });
+
+  it("上传附件显示分组与文件名", () => {
+    const result = formatAuditDetails("SCHOOL_UPDATE_ATTACHMENT_UPLOADED", {
+      nameZh: "清华大学",
+      groupName: "SECRET",
+      fileName: "录取名单.pdf",
+    });
+    expect(result).toBe("机密附件：录取名单.pdf");
   });
 });
 

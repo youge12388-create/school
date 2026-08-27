@@ -45,8 +45,8 @@ export async function POST(
   const user = await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
   const { id } = await context.params;
   const school = sqlite
-    .prepare("SELECT id FROM schools WHERE id = ? AND archived = 0")
-    .get(id);
+    .prepare("SELECT id, name_zh AS nameZh FROM schools WHERE id = ? AND archived = 0")
+    .get(id) as { id: string; nameZh: string } | undefined;
   if (!school) {
     return Response.json({ error: "学校不存在" }, { status: 404 });
   }
@@ -85,7 +85,7 @@ export async function POST(
     action: "SCHOOL_UPDATE_CREATED",
     entityType: "SCHOOL_UPDATE",
     entityId: updateId,
-    details: { schoolId: id },
+    details: { nameZh: school.nameZh, title: optionalText(input.title) },
   });
   const created = (await getSchoolUpdates(id)).find(
     (item) => item.update.id === updateId,

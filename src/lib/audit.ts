@@ -26,6 +26,11 @@ export const AUDIT_ACTIONS = [
   "RECOMMENDATION_SAVED",
   "DOCUMENT_UPLOADED",
   "DOCUMENT_DOWNLOADED",
+  "SCHOOL_UPDATE_CREATED",
+  "SCHOOL_UPDATE_UPDATED",
+  "SCHOOL_UPDATE_DELETED",
+  "SCHOOL_UPDATES_IMPORTED",
+  "SCHOOL_UPDATE_ATTACHMENT_UPLOADED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -39,6 +44,7 @@ export const AUDIT_ENTITY_TYPES = [
   "IMPORT_BATCH",
   "RECOMMENDATION",
   "DOCUMENT",
+  "SCHOOL_UPDATE",
 ] as const;
 
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
@@ -52,6 +58,7 @@ export const ENTITY_TYPE_LABELS: Record<AuditEntityType, string> = {
   IMPORT_BATCH: "导入批次",
   RECOMMENDATION: "推荐方案",
   DOCUMENT: "文件",
+  SCHOOL_UPDATE: "院校动态",
 };
 
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
@@ -77,6 +84,11 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   RECOMMENDATION_SAVED: "保存推荐方案",
   DOCUMENT_UPLOADED: "上传文件",
   DOCUMENT_DOWNLOADED: "下载文件",
+  SCHOOL_UPDATE_CREATED: "新增院校动态",
+  SCHOOL_UPDATE_UPDATED: "更新院校动态",
+  SCHOOL_UPDATE_DELETED: "删除院校动态",
+  SCHOOL_UPDATES_IMPORTED: "导入院校动态",
+  SCHOOL_UPDATE_ATTACHMENT_UPLOADED: "上传动态附件",
 };
 
 export type AuditInput = {
@@ -157,6 +169,40 @@ export function formatAuditDetails(
   }
   if (action === "DOCUMENT_UPLOADED" && "category" in details) {
     return `分类：${details.category}`;
+  }
+  if (
+    action === "SCHOOL_UPDATE_CREATED" ||
+    action === "SCHOOL_UPDATE_UPDATED" ||
+    action === "SCHOOL_UPDATE_DELETED"
+  ) {
+    const parts: string[] = [];
+    if (typeof details.title === "string" && details.title) {
+      parts.push(`《${details.title}》`);
+    }
+    const changed = (details as Record<string, unknown>).changed;
+    if (Array.isArray(changed) && changed.length) {
+      parts.push(`修改：${changed.join("、")}`);
+    }
+    return parts.join(" ") || actionLabel || action;
+  }
+  if (action === "SCHOOL_UPDATE_ATTACHMENT_UPLOADED") {
+    const groupLabel =
+      details.groupName === "SECRET"
+        ? "机密"
+        : details.groupName === "PUBLIC"
+          ? "公开"
+          : String(details.groupName ?? "");
+    return details.fileName
+      ? `${groupLabel}附件：${details.fileName}`
+      : `分组：${groupLabel}`;
+  }
+  if (action === "SCHOOL_UPDATES_IMPORTED") {
+    const s = details as Record<string, number>;
+    const parts: string[] = [];
+    if (s.imported) parts.push(`导入 ${s.imported}`);
+    if (s.updated) parts.push(`更新 ${s.updated}`);
+    if (s.skipped) parts.push(`跳过 ${s.skipped}`);
+    return parts.length ? parts.join("，") : "—";
   }
   if (action === "IMPORT_CONFIRMED") {
     const s = details as Record<string, number>;

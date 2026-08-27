@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { AUDIT_ACTION_LABELS, ENTITY_TYPE_LABELS } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { isMarketManager } from "@/lib/permissions";
 import { getDashboardData } from "@/lib/queries";
@@ -115,7 +116,7 @@ export default async function DashboardPage() {
                 <td>
                   <strong>{log.displayName ?? "系统"}</strong>
                   <div className="small muted">
-                    {log.action} · {log.entityType}
+                    {AUDIT_ACTION_LABELS[log.action] || log.action} · {ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType}
                   </div>
                 </td>
                 <td className="small nowrap">{formatDate(log.createdAt)}</td>
@@ -151,7 +152,7 @@ export default async function DashboardPage() {
               <div key={log.id} className="mobile-list-item">
                 <div>
                   <strong>{log.displayName ?? "系统"}</strong>
-                  <div className="small muted">{log.action} · {log.entityType}</div>
+                  <div className="small muted">{AUDIT_ACTION_LABELS[log.action] || log.action} · {ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType}</div>
                 </div>
                 <span className="small muted">{formatDate(log.createdAt)}</span>
               </div>
