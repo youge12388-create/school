@@ -32,6 +32,7 @@ tmp_patch.js
 /data/codex-screening-dev.*
 /backups/
 *.pem
+/scripts/baota-release.env
 
 # editor and OS
 .DS_Store

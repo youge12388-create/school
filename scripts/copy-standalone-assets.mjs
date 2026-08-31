@@ -12,6 +12,15 @@ await cp(path.join(nextRoot, "static"), path.join(standaloneRoot, ".next", "stat
   force: true,
 });
 
+// Runtime database initialization reads the migration SQL files relative to
+// the standalone server's working directory. Releases therefore need these
+// versioned assets alongside server.js, while the mutable SQLite database
+// itself remains outside the release tree.
+await cp(path.join(projectRoot, "drizzle"), path.join(standaloneRoot, "drizzle"), {
+  recursive: true,
+  force: true,
+});
+
 const publicDir = path.join(projectRoot, "public");
 try {
   await access(publicDir);
@@ -23,4 +32,4 @@ try {
   if (error?.code !== "ENOENT") throw error;
 }
 
-console.log("Standalone assets copied: .next/static and public");
+console.log("Standalone assets copied: .next/static, public, and drizzle");

@@ -52,8 +52,8 @@ if (Test-Path $PidFile) {
   if ($sPid -match "^\d+$") {
     $proc = Get-Process -Id $sPid -ErrorAction SilentlyContinue
     if ($proc -and $proc.ProcessName -eq "node") {
-      Log "Stopping existing service (PID $oldPid)..."
-      Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
+      Log "Stopping existing service (PID $sPid)..."
+      Stop-Process -Id $sPid -Force -ErrorAction SilentlyContinue
       Start-Sleep -Seconds 2
     }
   }
