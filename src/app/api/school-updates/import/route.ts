@@ -23,6 +23,8 @@ export async function POST(request: Request) {
   }
   const buffer = Buffer.from(await file.arrayBuffer());
   const parsed = parseSchoolUpdateWorkbook(buffer);
-  const summary = importSchoolUpdateRows(parsed.rows, user.id);
-  return Response.json({ summary, skippedRows: parsed.skipped });
+  const result = importSchoolUpdateRows(parsed.rows, user.id);
+  return Response.json({
+    summary: { ...result, skippedRows: parsed.skipped },
+  });
 }
