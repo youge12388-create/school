@@ -1,54 +1,359 @@
-#!/bin/bash
-# 一键部署脚本 - 宝塔终端 / Linux 服务器用
-# 在项目目录下执行: bash scripts/deploy.sh
+#!/usr/bin/env bash
 
-set -e
+# 宝塔生产环境唯一发布入口。
+#
+# 这个脚本只适用于当前生产拓扑：
+#   /opt/school-opt
+#   宝塔 Node 项目 school_syt
+#   /www/server/nodejs/v24.18.0/bin
+#
+# 它不会创建 systemd、独立 PM2、nohup 进程，也不会终止 3000 端口上的进程。
+# 宝塔 API 配置不完整时会在 git pull 前失败退出，避免产生双重托管。
 
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$APP_DIR"
+set -Eeuo pipefail
 
-echo "========================================"
-echo " 学校筛查系统 - 一键部署"
-echo "========================================"
-echo "项目目录: $APP_DIR"
-echo ""
+readonly APP_DIR="/opt/school-opt"
+readonly PROJECT_NAME="school_syt"
+readonly NODE_DIR="/www/server/nodejs/v24.18.0/bin"
+readonly NODE_BIN="$NODE_DIR/node"
+readonly NPM_BIN="$NODE_DIR/npm"
+readonly HEALTH_URL="https://check.medicalchinaway.com/login"
+readonly PANEL_MODEL="/www/server/panel/class/projectModel/nodejsModel.py"
+readonly RELEASE_CONFIG="${BT_RELEASE_CONFIG:-/root/.config/school_syt/baota-release.env}"
+readonly LOCK_FILE="/var/lock/school_syt-baota-release.lock"
+readonly HEALTH_ATTEMPTS=30
+readonly HEALTH_DELAY_SECONDS=2
 
-# 1. 拉取最新代码
-echo "[1/4] 拉取最新代码..."
-git pull
-echo ""
+APP_OWNER=""
+PREVIOUS_COMMIT=""
+ROLLBACK_REQUIRED=0
+ROLLBACK_ATTEMPTED=0
+RELEASE_COMPLETE=0
 
-# 2. 安装依赖
-echo "[2/4] 安装依赖..."
-npm ci --omit=dev
-echo ""
+log() {
+  printf '[school_syt deploy] %s\n' "$*"
+}
 
-# 3. 构建
-echo "[3/4] 构建项目..."
-npm run build
-echo ""
+fail() {
+  printf '[school_syt deploy] ERROR: %s\n' "$*" >&2
+  exit 1
+}
 
-# 4. 重启服务
-echo "[4/4] 重启服务..."
-if systemctl is-active --quiet school-syt 2>/dev/null; then
-    systemctl restart school-syt
-    echo "已通过 systemctl 重启 school-syt 服务"
-elif pm2 list 2>/dev/null | grep -q school-syt; then
-    pm2 restart school-syt
-    echo "已通过 pm2 重启 school-syt 服务"
-else
-    echo "未检测到 systemd 或 pm2 服务，尝试查找并重启 next 进程..."
-    PID=$(lsof -ti:3000 2>/dev/null)
-    if [ -n "$PID" ]; then
-        kill "$PID"
-        echo "已停止旧进程 (PID: $PID)"
+usage() {
+  cat <<'EOF'
+Usage:
+  bash scripts/deploy.sh --check   # validate the protected Baota API configuration
+  bash scripts/deploy.sh           # pull, install, build, restart through Baota, and health-check
+
+The script only supports /opt/school-opt and the Baota Node project school_syt.
+It releases from the 'master' branch only; checkout 'master' before running it.
+It requires the root-owned configuration described in scripts/baota-release.env.example.
+EOF
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "Required command is unavailable: $1"
+}
+
+acquire_release_lock() {
+  require_command flock
+  exec 9>"$LOCK_FILE" || fail "Cannot open the release lock: $LOCK_FILE"
+  flock -n 9 || fail "Another school_syt release is already running."
+}
+
+as_app_owner() {
+  runuser -u "$APP_OWNER" -- env \
+    "PATH=$NODE_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    "$@"
+}
+
+require_secure_file() {
+  local file="$1"
+  local owner
+  local mode
+
+  [[ "$file" == /* ]] || fail "Protected file path must be absolute: $file"
+  [[ -f "$file" && ! -L "$file" ]] || fail "Protected file is missing or is a symlink: $file"
+
+  owner="$(stat -c '%u' "$file")"
+  mode="$(stat -c '%a' "$file")"
+  [[ "$owner" == "0" ]] || fail "Protected file must be owned by root: $file"
+  [[ "$mode" == "600" ]] || fail "Protected file must have mode 600: $file (actual: $mode)"
+}
+
+assert_master_branch() {
+  local current_branch
+  current_branch="$(as_app_owner git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)"
+  if [[ "$current_branch" != "master" ]]; then
+    fail "Refusing to release from branch '${current_branch}'. Only 'master' is allowed; run 'git checkout master'."
+  fi
+}
+
+load_baota_api_configuration() {
+  [[ "$(id -u)" == "0" ]] || fail "Run this production release as root through the Baota terminal."
+  require_secure_file "$RELEASE_CONFIG"
+
+  # The configuration file is root-owned and mode 600, so sourcing its two
+  # variables does not make a repository file executable configuration.
+  # shellcheck disable=SC1090
+  source "$RELEASE_CONFIG"
+
+  : "${BT_PANEL_URL:?BT_PANEL_URL is required in $RELEASE_CONFIG}"
+  : "${BT_API_KEY_FILE:?BT_API_KEY_FILE is required in $RELEASE_CONFIG}"
+
+  BT_PANEL_URL="${BT_PANEL_URL%/}"
+  [[ "$BT_PANEL_URL" =~ ^https?://127\.0\.0\.1(:[0-9]{1,5})?(/[^[:space:]]*)?$ ]] || \
+    fail "BT_PANEL_URL must target 127.0.0.1 so the API key never leaves this server."
+
+  require_secure_file "$BT_API_KEY_FILE"
+  BT_API_KEY="$(tr -d '\r\n' < "$BT_API_KEY_FILE")"
+  [[ -n "$BT_API_KEY" ]] || fail "Baota API key file is empty: $BT_API_KEY_FILE"
+}
+
+validate_environment() {
+  [[ -d "$APP_DIR/.git" ]] || fail "Expected Git working tree was not found: $APP_DIR"
+  cd "$APP_DIR"
+  [[ "$(pwd -P)" == "$APP_DIR" ]] || fail "Resolved working directory is not $APP_DIR"
+
+  APP_OWNER="$(stat -c '%U' "$APP_DIR")"
+  [[ "$APP_OWNER" != "UNKNOWN" ]] || fail "Could not resolve the owner of $APP_DIR"
+  id "$APP_OWNER" >/dev/null 2>&1 || fail "The owner of $APP_DIR is not a valid local user: $APP_OWNER"
+
+  [[ -x "$NODE_BIN" && -x "$NPM_BIN" ]] || \
+    fail "Expected Baota Node v24.18.0 binaries were not found under $NODE_DIR"
+  [[ "$("$NODE_BIN" --version)" == "v24.18.0" ]] || \
+    fail "Expected Node v24.18.0 at $NODE_BIN"
+
+  require_command git
+  require_command curl
+  require_command md5sum
+  require_command stat
+  require_command grep
+  require_command mktemp
+  require_command runuser
+
+  as_app_owner git diff --quiet || fail "Tracked production files have unstaged changes; resolve them before publishing."
+  as_app_owner git diff --cached --quiet || fail "Tracked production files have staged changes; resolve them before publishing."
+  [[ -z "$(as_app_owner git status --porcelain --untracked-files=all)" ]] || \
+    fail "Production working tree has untracked files; resolve them before publishing."
+
+  [[ -f "$PANEL_MODEL" ]] || fail "Baota Node project controller was not found: $PANEL_MODEL"
+  grep -q 'def restart_project' "$PANEL_MODEL" || \
+    fail "This Baota version has no detectable Node-project restart endpoint; restart it from the Baota UI."
+  grep -q 'def get_project_list' "$PANEL_MODEL" || \
+    fail "This Baota version has no detectable Node-project query endpoint; verify school_syt from the Baota UI."
+}
+
+baota_api_request() {
+  local endpoint="$1"
+  local data="$2"
+  local response_file="$3"
+  local request_time
+  local key_hash
+  local request_token
+
+  request_time="$(date +%s)"
+  key_hash="$(printf '%s' "$BT_API_KEY" | md5sum | awk '{print $1}')"
+  request_token="$(printf '%s' "${request_time}${key_hash}" | md5sum | awk '{print $1}')"
+
+  # Baota installations commonly use a self-signed certificate for the panel.
+  # --insecure is limited to an API URL validated as 127.0.0.1 above, so the
+  # token is never sent over the public network.
+  curl \
+    --silent \
+    --show-error \
+    --fail \
+    --insecure \
+    --max-time 15 \
+    --request POST \
+    "$BT_PANEL_URL$endpoint" \
+    --form-string "request_token=$request_token" \
+    --form-string "request_time=$request_time" \
+    --form-string "data=$data" \
+    --output "$response_file"
+}
+
+verify_baota_project() {
+  local response_file
+
+  response_file="$(mktemp)"
+  if ! baota_api_request "/project/nodejs/get_project_list" '{"p":1,"limit":100,"search":""}' "$response_file"; then
+    rm -f "$response_file"
+    fail "Baota API preflight failed. Check its local URL, API token, API IP whitelist (127.0.0.1), and security entry."
+  fi
+
+  if ! "$NODE_BIN" -e '
+    const fs = require("node:fs");
+    const payload = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const projectName = process.argv[2];
+    const includesProject = (value) => {
+      if (Array.isArray(value)) return value.some(includesProject);
+      if (!value || typeof value !== "object") return false;
+      if (value.name === projectName || value.project_name === projectName) return true;
+      return Object.values(value).some(includesProject);
+    };
+    if (payload?.status !== true || !includesProject(payload)) {
+      const message = payload?.error_msg ?? payload?.message ?? "unknown Baota API response";
+      console.error(`Baota did not confirm Node project ${projectName}: ${String(message)}`);
+      process.exit(1);
+    }
+  ' "$response_file" "$PROJECT_NAME"; then
+    rm -f "$response_file"
+    fail "Baota API preflight could not confirm project $PROJECT_NAME."
+  fi
+
+  rm -f "$response_file"
+  log "Baota API preflight confirmed project $PROJECT_NAME."
+}
+
+restart_baota_project() {
+  local response_file
+
+  response_file="$(mktemp)"
+  log "Requesting Baota to restart project $PROJECT_NAME..."
+  if ! baota_api_request "/project/nodejs/restart_project" "{\"project_name\":\"$PROJECT_NAME\"}" "$response_file"; then
+    rm -f "$response_file"
+    return 1
+  fi
+
+  if ! "$NODE_BIN" -e '
+    const fs = require("node:fs");
+    const payload = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    if (payload?.status !== true) {
+      const message = payload?.error_msg ?? payload?.message ?? "unknown Baota API response";
+      console.error(String(message));
+      process.exit(1);
+    }
+  ' "$response_file"; then
+    rm -f "$response_file"
+    return 1
+  fi
+
+  rm -f "$response_file"
+}
+
+wait_for_health() {
+  local attempt
+
+  for ((attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt += 1)); do
+    if curl --silent --show-error --fail --max-time 5 "$HEALTH_URL" >/dev/null; then
+      return 0
     fi
-    nohup env HOSTNAME=0.0.0.0 PORT=3000 node .next/standalone/server.js > data/logs/deploy-$(date +%Y%m%d-%H%M%S).log 2>&1 &
-    echo "已启动新进程"
-fi
-echo ""
+    sleep "$HEALTH_DELAY_SECONDS"
+  done
 
-echo "========================================"
-echo " 部署完成！"
-echo " 请 Ctrl+F5 硬刷新浏览器查看效果"
-echo "========================================"
+  return 1
+}
+
+rollback() {
+  local previous_commit="$1"
+  local reason="$2"
+
+  ROLLBACK_ATTEMPTED=1
+  log "Release failed: $reason"
+  log "Restoring Git commit $previous_commit; persistent data is never changed by this script."
+
+  if ! as_app_owner git reset --hard "$previous_commit"; then
+    fail "Rollback could not restore the previous Git commit. The running project was not replaced automatically."
+  fi
+  if ! as_app_owner "$NPM_BIN" ci --no-audit --no-fund; then
+    fail "Rollback restored source code but could not restore dependencies. Check the running Baota project before another restart."
+  fi
+  if ! as_app_owner "$NPM_BIN" run build; then
+    fail "Rollback restored source code but the previous build failed. Check the running Baota project before another restart."
+  fi
+  if ! restart_baota_project; then
+    fail "Rollback build completed but Baota did not confirm the restart. Restart school_syt from the Baota UI."
+  fi
+  if ! wait_for_health; then
+    fail "Rollback restart was requested but $HEALTH_URL did not become healthy."
+  fi
+
+  log "Rollback completed and $HEALTH_URL is healthy again."
+}
+
+on_exit() {
+  local status="$?"
+
+  trap - EXIT INT TERM
+  if [[ "$status" -ne 0 && "$ROLLBACK_REQUIRED" -eq 1 && "$ROLLBACK_ATTEMPTED" -eq 0 && "$RELEASE_COMPLETE" -eq 0 ]]; then
+    ROLLBACK_ATTEMPTED=1
+    log "Release ended unexpectedly (exit $status); starting protected rollback."
+    rollback "$PREVIOUS_COMMIT" "unexpected interruption or command failure"
+  fi
+  exit "$status"
+}
+
+on_interrupt() {
+  exit 130
+}
+
+on_terminate() {
+  exit 143
+}
+
+main() {
+  case "${1:-}" in
+    --help|-h)
+      usage
+      return 0
+      ;;
+    --check|"")
+      ;;
+    *)
+      usage >&2
+      return 2
+      ;;
+  esac
+
+  acquire_release_lock
+  load_baota_api_configuration
+  validate_environment
+  verify_baota_project
+  assert_master_branch
+
+  if [[ "${1:-}" == "--check" ]]; then
+    log "Preflight passed. No source code, dependency, process, or data change was made."
+    return 0
+  fi
+
+  PREVIOUS_COMMIT="$(as_app_owner git rev-parse HEAD)"
+
+  log "Pulling the current branch with fast-forward-only protection..."
+  if ! as_app_owner git pull --ff-only; then
+    fail "git pull failed before the release changed. Resolve the Git state and try again."
+  fi
+
+  ROLLBACK_REQUIRED=1
+  trap on_exit EXIT
+  trap on_interrupt INT
+  trap on_terminate TERM
+
+  log "Installing the complete locked dependency set for the production build..."
+  if ! as_app_owner "$NPM_BIN" ci --no-audit --no-fund; then
+    rollback "$PREVIOUS_COMMIT" "npm ci failed"
+    exit 1
+  fi
+
+  log "Building the Next.js production bundle..."
+  if ! as_app_owner "$NPM_BIN" run build; then
+    rollback "$PREVIOUS_COMMIT" "npm run build failed"
+    exit 1
+  fi
+
+  if ! restart_baota_project; then
+    rollback "$PREVIOUS_COMMIT" "Baota did not confirm the project restart"
+    exit 1
+  fi
+
+  log "Waiting for $HEALTH_URL..."
+  if ! wait_for_health; then
+    rollback "$PREVIOUS_COMMIT" "health check failed"
+    exit 1
+  fi
+
+  RELEASE_COMPLETE=1
+  log "Release completed successfully at commit $(as_app_owner git rev-parse --short HEAD)."
+}
+
+main "$@"
