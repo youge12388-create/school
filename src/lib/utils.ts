@@ -64,6 +64,14 @@ export function normalizeKeyword(value: string) {
     .replace(/[（）()【】[\]\s·•、，,。./\\_-]/g, "");
 }
 
+// 仅接受 http/https 链接（供网址类字段入参与渲染兜底，防 javascript: 等注入）。
+export function safeHttpUrl(value: unknown): string | null {
+  const text = asText(value);
+  if (!text) return null;
+  if (!/^https?:\/\/[^\s<>"']+$/i.test(text)) return null;
+  return text;
+}
+
 export function safeJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
   try {

@@ -14,6 +14,14 @@ export const IMPORT_ROLES: readonly UserRole[] = [
 
 export const AUDIT_ROLES: readonly UserRole[] = ["ADMIN", "DATA_MANAGER"];
 
+// 客户域敏感操作（材料上传/下载、跟进、改派、归档、申请状态、推荐方案）：
+// 客户资料全员可读（团队共享），但写/下载操作仅限顾问与管理类角色。
+export const CUSTOMER_CASE_ROLES: readonly UserRole[] = [
+  "ADMIN",
+  "ADVISOR",
+  "DATA_MANAGER",
+];
+
 export const USER_MANAGER_ROLES: readonly UserRole[] = ["ADMIN"];
 
 // 院校信息更新：机密人员 = 高级管理员 + 数据管理员，可查看/上传机密更新与人员字段。
@@ -108,6 +116,10 @@ export function canViewAudit(role: UserRole) {
 
 export function canManageUsers(role: UserRole) {
   return USER_MANAGER_ROLES.includes(role);
+}
+
+export function canHandleCustomerCases(role: UserRole) {
+  return CUSTOMER_CASE_ROLES.includes(role);
 }
 
 export function canViewConfidentialSchoolFields(role: UserRole) {

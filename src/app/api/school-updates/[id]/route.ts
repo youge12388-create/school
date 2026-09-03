@@ -3,6 +3,7 @@ import { writeAudit } from "@/lib/audit";
 import { sqlite } from "@/lib/db";
 import { SCHOOL_UPDATE_MANAGER_ROLES } from "@/lib/permissions";
 import { stripSchoolUpdateInput } from "@/lib/school-updates";
+import { safeHttpUrl } from "@/lib/utils";
 
 const UPDATE_COLUMNS = [
   "title",
@@ -62,6 +63,17 @@ export async function PATCH(
   if (!changed.length) {
     return Response.json({ error: "没有可更新的字段" }, { status: 400 });
   }
+  // 网址列只接受 http/https（防 javascript: 等 scheme 注入）。
+  for (const column of ["publicUrl", "secretUrl"] as const) {
+    if (!(column in input)) continue;
+    const raw = typeof input[column] === "string" ? input[column].trim() : "";
+    if (raw && !safeHttpUrl(raw)) {
+      return Response.json(
+        { error: "网址必须以 http:// 或 https:// 开头" },
+        { status: 400 },
+      );
+    }
+  }
   const sets: string[] = [];
   const values: (string | number | null)[] = [];
   for (const column of changed) {
@@ -109,6 +121,12 @@ export async function DELETE(
   sqlite
     .prepare("UPDATE school_updates SET archived = 1, updated_at = ? WHERE id = ?")
     .run(Date.now(), id);
+  // 附件行一并归档，避免孤儿行累积且不可访问。
+  sqlite
+    .prepare(
+      "UPDATE school_update_attachments SET archived = 1 WHERE school_update_id = ? AND archived = 0",
+    )
+    .run(id);
   writeAudit({
     userId: user.id,
     action: "SCHOOL_UPDATE_DELETED",

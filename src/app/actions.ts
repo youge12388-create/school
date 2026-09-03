@@ -12,9 +12,10 @@ import {
   type ContractStatus,
 } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { requireRole, requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import {
   canEditConfidentialSchoolFields,
+  CUSTOMER_CASE_ROLES,
   SCHOOL_EDITOR_ROLES,
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
@@ -36,7 +37,7 @@ import { invalidateMajorCatalog } from "@/lib/queries";
 import { asText, newId, normalizeKeyword, parseDateInput } from "@/lib/utils";
 
 export async function addFollowUpAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
   const customerId = asText(formData.get("customerId"));
   const content = asText(formData.get("content"));
   if (!customerId || !content) throw new Error("客户和沟通内容不能为空");
@@ -66,7 +67,7 @@ export async function addFollowUpAction(formData: FormData) {
 }
 
 export async function updateCustomerManagementAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
   const customerId = asText(formData.get("customerId"));
   const ownerId = asText(formData.get("ownerId"));
   const contractStatus = asText(formData.get("contractStatus")) as ContractStatus;
@@ -96,7 +97,7 @@ export async function updateCustomerManagementAction(formData: FormData) {
   revalidatePath("/customers");
 }
 export async function archiveCustomerAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
   const customerId = asText(formData.get("customerId"));
   await db
     .update(customers)
@@ -112,7 +113,7 @@ export async function archiveCustomerAction(formData: FormData) {
 }
 
 export async function createApplicationAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
   const customerId = asText(formData.get("customerId"));
   const programId = asText(formData.get("programId"));
   if (!customerId || !programId) throw new Error("客户和项目不能为空");
@@ -143,7 +144,7 @@ export async function createApplicationAction(formData: FormData) {
 }
 
 export async function updateApplicationStatusAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
   const applicationId = asText(formData.get("applicationId"));
   const toStatus = asText(formData.get("toStatus")) as ApplicationStatus;
   const reason = asText(formData.get("reason"));
@@ -510,7 +511,7 @@ export async function updateProgramAction(formData: FormData) {
   revalidatePath(`/schools/${oldProgram.schoolId}`);
 }
 export async function saveRecommendationAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
   const customerId = asText(formData.get("customerId"));
   const title = asText(formData.get("title"));
   const criteriaJson = asText(formData.get("criteriaJson"));

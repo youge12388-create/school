@@ -7,7 +7,8 @@ import {
   IMPORT_ROLES,
 } from "@/lib/permissions";
 
-// 与参照表“高校项目汇总-中文(20260704).xlsx”表头完全对齐（37列）
+// 与参照表“高校项目汇总-中文(20260704).xlsx”表头对齐；
+// “合作收费”为 4de647e1 补充的机密列，导入解析按表头名取值，顺序不影响。
 const HEADERS = [
   "序号",
   "院校分类",
@@ -46,6 +47,7 @@ const HEADERS = [
   "合作备注",
   "特殊情况备注",
   "学校申请更新频率",
+  "合作收费",
 ];
 
 export async function GET() {

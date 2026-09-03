@@ -40,11 +40,28 @@ export async function PATCH(
   if (!keys.length) {
     return Response.json({ error: "没有可保存的机密字段" }, { status: 400 });
   }
-  const values = keys.map((key) => asText(body[key]) || null);
+  // 先读旧值做真实 diff，避免整卡全字段上报导致审计失真。
+  const oldRow = sqlite
+    .prepare(
+      `SELECT ${keys
+        .map((key) => `${CONFIDENTIAL_COLUMNS[key]} AS ${key}`)
+        .join(", ")} FROM schools WHERE id = ?`,
+    )
+    .get(id) as Record<string, unknown>;
+  const changed: string[] = [];
+  for (const key of keys) {
+    const oldValue = oldRow?.[key] ?? null;
+    const newValue = asText(body[key]) || null;
+    if ((oldValue ?? "") !== (newValue ?? "")) changed.push(key);
+  }
+  if (!changed.length) {
+    return Response.json({ id, changed: [] });
+  }
+  const values = changed.map((key) => asText(body[key]) || null);
   sqlite
     .prepare(
       `UPDATE schools SET
-       ${keys.map((key) => `${CONFIDENTIAL_COLUMNS[key]} = ?`).join(", ")},
+       ${changed.map((key) => `${CONFIDENTIAL_COLUMNS[key]} = ?`).join(", ")},
        updated_at = ?
        WHERE id = ?`,
     )
@@ -54,7 +71,7 @@ export async function PATCH(
     action: "SCHOOL_UPDATED",
     entityType: "SCHOOL",
     entityId: id,
-    details: { nameZh: school.name_zh, changed: keys },
+    details: { nameZh: school.name_zh, changed },
   });
   revalidatePath(`/schools/${id}`);
   revalidatePath("/schools");

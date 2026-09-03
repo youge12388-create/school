@@ -1,12 +1,12 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { sessions, users } from "@/lib/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { asText } from "@/lib/utils";
 
@@ -28,6 +28,12 @@ export async function changePasswordAction(formData: FormData) {
     .update(users)
     .set({ passwordHash: await hashPassword(newPassword), updatedAt: new Date() })
     .where(eq(users.id, user.id));
+  // 改密后吊销除当前会话外的全部会话，防止被盗会话继续有效。
+  if (user.sessionId) {
+    await db
+      .delete(sessions)
+      .where(and(eq(sessions.userId, user.id), ne(sessions.id, user.sessionId)));
+  }
   await writeAudit({
     userId: user.id,
     action: "PASSWORD_CHANGED",

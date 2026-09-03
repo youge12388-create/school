@@ -31,9 +31,14 @@ function UpdateLinks({
   return (
     <div className="update-links">
       {url ? (
-        <a href={url} target="_blank" rel="noreferrer">
-          {url}
-        </a>
+        /^https?:\/\//i.test(url) ? (
+          <a href={url} target="_blank" rel="noreferrer">
+            {url}
+          </a>
+        ) : (
+          // 非 http(s) 链接不渲染为可点击链接（防 javascript: 等 scheme）。
+          <span className="small muted">{url}</span>
+        )
       ) : null}
       {attachments.map((attachment) => (
         <a

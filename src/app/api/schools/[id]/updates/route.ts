@@ -9,11 +9,17 @@ import {
   serializeSchoolUpdate,
   stripSchoolUpdateInput,
 } from "@/lib/school-updates";
-import { asText, newId } from "@/lib/utils";
+import { asText, newId, safeHttpUrl } from "@/lib/utils";
 
 function optionalText(value: unknown) {
   const text = asText(value);
   return text || null;
+}
+
+// 网址列只接受 http/https，防 javascript: 等 scheme 注入（导入与手工编辑同一规则）。
+function validateUrlField(value: string | null): string | null {
+  if (!value) return null;
+  return safeHttpUrl(value);
 }
 
 function optionalMs(value: unknown) {
@@ -53,6 +59,17 @@ export async function POST(
   const body = (await request.json()) as Record<string, unknown>;
   const input = stripSchoolUpdateInput(body, user.role);
   const now = Date.now();
+  const publicUrl = validateUrlField(optionalText(input.publicUrl));
+  const secretUrl = validateUrlField(optionalText(input.secretUrl));
+  if (
+    (optionalText(input.publicUrl) && !publicUrl) ||
+    (optionalText(input.secretUrl) && !secretUrl)
+  ) {
+    return Response.json(
+      { error: "网址必须以 http:// 或 https:// 开头" },
+      { status: 400 },
+    );
+  }
   const updateId = newId();
   sqlite
     .prepare(
@@ -70,11 +87,11 @@ export async function POST(
       optionalText(input.submitter),
       optionalMs(input.submittedAt),
       optionalText(input.publicContent),
-      optionalText(input.publicUrl),
+      publicUrl,
       optionalText(input.publicOperator),
       optionalMs(input.publicUpdatedAt),
       optionalText(input.secretContent),
-      optionalText(input.secretUrl),
+      secretUrl,
       optionalText(input.secretOperator),
       optionalMs(input.secretUpdatedAt),
       now,

@@ -36,7 +36,7 @@ import {
 export async function getDashboardData() {
   const today = new Date();
   const thirtyDays = new Date(today.getTime() + 30 * 86400000);
-  const schoolCountRow = sqlite.prepare(`SELECT COUNT(DISTINCT s.id) as cnt FROM schools s INNER JOIN programs p ON p.school_id = s.id WHERE s.archived = 0 AND p.archived = 0`).get() as { cnt: number };
+  const schoolCountRow = sqlite.prepare(`SELECT COUNT(*) as cnt FROM schools WHERE archived = 0`).get() as { cnt: number };
   const [programCount] = await db.select({ value: count() }).from(programs).where(eq(programs.archived, false));
   const [customerCount] = await db.select({ value: count() }).from(customers).where(eq(customers.archived, false));
   const [reviewCount] = await db

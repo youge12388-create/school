@@ -278,7 +278,8 @@ export function SchoolProgramCard({
                   );
                 })}
             </div>
-            {displayValue(knowledge["申请要求及材料"]) !== "数据库未有相关信息" ? (
+            {!marketManagerView &&
+            displayValue(knowledge["申请要求及材料"]) !== "数据库未有相关信息" ? (
               <div className="program-material-section">
                 <h4>申请要求及材料</h4>
                 <p className="program-material-body">{displayValue(knowledge["申请要求及材料"])}</p>

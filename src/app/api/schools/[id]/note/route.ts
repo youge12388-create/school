@@ -21,16 +21,23 @@ export async function PATCH(
   }
   const body = (await request.json()) as Record<string, unknown>;
   const infoNote = asText(body.infoNote) || null;
-  sqlite
-    .prepare("UPDATE schools SET info_note = ?, updated_at = ? WHERE id = ?")
-    .run(infoNote, Date.now(), id);
-  writeAudit({
-    userId: user.id,
-    action: "SCHOOL_UPDATED",
-    entityType: "SCHOOL",
-    entityId: id,
-    details: { nameZh: school.name_zh, changed: ["infoNote"] },
-  });
+  const existingNote = sqlite
+    .prepare("SELECT info_note AS infoNote FROM schools WHERE id = ?")
+    .get(id) as { infoNote: string | null } | undefined;
+  const changed =
+    (existingNote?.infoNote ?? "") !== (infoNote ?? "");
+  if (changed) {
+    sqlite
+      .prepare("UPDATE schools SET info_note = ?, updated_at = ? WHERE id = ?")
+      .run(infoNote, Date.now(), id);
+    writeAudit({
+      userId: user.id,
+      action: "SCHOOL_UPDATED",
+      entityType: "SCHOOL",
+      entityId: id,
+      details: { nameZh: school.name_zh, changed: ["infoNote"] },
+    });
+  }
   revalidatePath(`/schools/${id}`);
   revalidatePath("/schools");
   revalidatePath("/schools/noted");

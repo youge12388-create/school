@@ -44,38 +44,8 @@ describe("school update excel import", () => {
 
   function workbookBuffer() {
     const sheet = XLSX.utils.aoa_to_sheet([
-      [
-        "data_id",
-        "标题",
-        "院校名称 School name",
-        "更新内容",
-        "网址",
-        "更新时间",
-        "操作人",
-        "机密更新内容",
-        "机密网址",
-        "机密更新时间",
-        "机密操作人",
-        "提交人",
-        "提交时间",
-        "更新时间",
-      ],
-      [
-        "",
-        "",
-        "",
-        "最新信息更新",
-        "",
-        "",
-        "",
-        "机密信息更新",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-      ],
+      ["院校信息更新台账"],
+      [...SCHOOL_UPDATE_TEMPLATE_HEADERS],
       [
         "data-001",
         "招生政策",
@@ -131,10 +101,11 @@ describe("school update excel import", () => {
   });
 
   it("skips schools that are not in the knowledge base", () => {
+    const blank = () => Array.from({ length: SCHOOL_UPDATE_TEMPLATE_HEADERS.length }, () => "");
     const sheet = XLSX.utils.aoa_to_sheet([
-      ["", "", "院校名称"],
-      ["", "", ""],
-      ["", "", "不存在的学校"],
+      ["院校信息更新台账"],
+      [...SCHOOL_UPDATE_TEMPLATE_HEADERS],
+      ["", "", "不存在的学校", ...blank().slice(3)],
     ]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "院校信息更新");
@@ -145,6 +116,56 @@ describe("school update excel import", () => {
     const summary = importSchoolUpdateRows(parsed.rows, "user-import", db);
     expect(summary).toMatchObject({ imported: 0, schoolNotFound: 1 });
     db.close();
+  });
+
+  it("rejects workbooks whose headers do not match the current template", () => {
+    // 旧 15 列模板（含“附件”列）或自制表头必须被拒绝，避免整行错列/串写。
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ["院校信息更新台账"],
+      [
+        "序号",
+        "标题",
+        "院校名称",
+        "更新内容",
+        "附件",
+        "网址",
+        "更新时间",
+        "操作人",
+        "机密更新内容",
+        "机密附件",
+        "机密网址",
+        "机密更新时间",
+        "机密操作人",
+        "提交人",
+        "提交时间",
+      ],
+      ["data-001", "招生政策", "南宁高中"],
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "院校信息更新");
+    expect(() =>
+      parseSchoolUpdateWorkbook(
+        XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }),
+      ),
+    ).toThrow(/请下载最新模板/);
+  });
+
+  it("parses dates typed as text strings instead of dropping them", () => {
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ["院校信息更新台账"],
+      [...SCHOOL_UPDATE_TEMPLATE_HEADERS],
+      ["data-text-date", "", "南宁高中", "", "", "2026-03-01 10:30", "", "", "", "", "", "", "2026/3/5", ""],
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "院校信息更新");
+    const parsed = parseSchoolUpdateWorkbook(
+      XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }),
+    );
+    expect(parsed.rows).toHaveLength(1);
+    const row = parsed.rows[0];
+    expect(row.publicUpdatedAt?.getFullYear()).toBe(2026);
+    expect(row.publicUpdatedAt?.getHours()).toBe(10);
+    expect(row.submittedAt?.getMonth()).toBe(2); // 2026-03-05
   });
 
   it("builds a maintenance template with headers and no data rows", () => {

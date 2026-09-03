@@ -326,6 +326,10 @@ export default async function SchoolDetailsPage({
               费用备注: program.feeNote,
               ...raw,
             };
+            // 市场经理只读视图不注入含内部口径的长文本字段（rawJson 可能覆盖同名键）。
+            if (marketManagerView) {
+              delete programKnowledge["申请要求及材料"];
+            }
             const programCard: ProgramCardData = {
               id: program.id,
               schoolId: program.schoolId,

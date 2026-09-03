@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 
 import { z } from "zod";
@@ -38,6 +44,10 @@ export type ImportPreview = {
     programs: Record<PreviewEntry["action"], number>;
     sourceDuplicates: number;
     needsReview: number;
+    /** 同文件内同名学校多行字段冲突（保留首值）的行数 */
+    fileConflicts: number;
+    /** 缺学校中文名/项目类型而被跳过的行数（含程序行） */
+    fileSkipped: number;
   };
   entries: PreviewEntry[];
 };
@@ -162,7 +172,12 @@ export function createImportPreview(
   },
   options: ImportServiceOptions = {},
 ) {
-  let schoolResult: { schools: SchoolImportRow[]; sourceHash: string };
+  let schoolResult: {
+    schools: SchoolImportRow[];
+    sourceHash: string;
+    conflicts: number;
+    emptyRows: number;
+  };
   let programResult: ReturnType<typeof parseProgramWorkbook> | null;
 
   if (input.fileBuffer) {
@@ -172,7 +187,7 @@ export function createImportPreview(
   } else if (input.schoolBuffer || input.programBuffer) {
     schoolResult = input.schoolBuffer
       ? parseSchoolWorkbook(input.schoolBuffer)
-      : { schools: [], sourceHash: "" };
+      : { schools: [], conflicts: 0, emptyRows: 0, sourceHash: "" };
     programResult = input.programBuffer
       ? parseProgramWorkbook(input.programBuffer)
       : null;
@@ -228,6 +243,11 @@ export function createImportPreview(
     programs: emptyCounts(),
     sourceDuplicates: programResult?.duplicates ?? 0,
     needsReview: 0,
+    fileConflicts: schoolResult.conflicts + (programResult?.conflicts ?? 0),
+    fileSkipped:
+      schoolResult.emptyRows +
+      (programResult?.emptyRows ?? 0) +
+      (programResult?.droppedPrograms ?? 0),
   };
   const entries: PreviewEntry[] = [];
 
@@ -290,6 +310,12 @@ export function createImportPreview(
   mkdirSync(importDir, { recursive: true });
   const previewPath = resolve(importDir, `${batchId}.json`);
   writeFileSync(previewPath, JSON.stringify(preview), "utf8");
+  try {
+    // 预览 JSON 可能含机密列，仅允许本进程/所有者读取。
+    chmodSync(previewPath, 0o600);
+  } catch {
+    // Windows 无 POSIX 权限位，忽略即可。
+  }
 
   const db = openRawDatabase(options.databaseFile);
   db.prepare(
@@ -481,7 +507,7 @@ function upsertSchool(
       .prepare(
         `UPDATE schools SET
          ${coreColumns.map((column) => `${column} = COALESCE(?, ${column})`).join(", ")},
-         review_status = 'AUTO_PARSED' WHERE id = ?`,
+         review_status = 'AUTO_PARSED', archived = 0 WHERE id = ?`,
       )
       .run(...coreValues, existing.id);
   }
@@ -502,7 +528,7 @@ function upsertSchool(
        ${operationalColumns
          .map((column) => `${column} = COALESCE(?, ${column})`)
          .join(", ")},
-       raw_json = ?, source_batch_id = ?, updated_at = ?
+       raw_json = ?, source_batch_id = ?, archived = 0, updated_at = ?
        WHERE id = ?`,
     )
     .run(

@@ -1,6 +1,32 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+
+// 迁移前把数据库备份到 backups/migration-<时间戳>/app.db（WAL 全部落盘后
+// 用 VACUUM INTO 生成一致性快照），失败只告警不阻断迁移，避免磁盘异常导致停摆。
+function backupBeforeMigration(database: DatabaseSync, databasePath: string) {
+  if (!existsSync(databasePath)) return;
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "");
+  const backupRoot = resolve(process.cwd(), "backups", `migration-${stamp}`);
+  try {
+    mkdirSync(backupRoot, { recursive: true });
+    database.exec("PRAGMA wal_checkpoint(FULL)");
+    // VACUUM INTO 要求目标文件不存在；同秒多次迁移（如测试/双实例）时追加序号。
+    let target = resolve(backupRoot, "app.db");
+    for (let attempt = 0; attempt < 10 && existsSync(target); attempt += 1) {
+      target = resolve(backupRoot, `app-${attempt}.db`);
+    }
+    database.exec(`VACUUM INTO '${target.replaceAll("'", "''")}'`);
+    console.log(`[migrate] 已备份数据库到 ${target}`);
+  } catch (error) {
+    // 双实例/测试并发迁移同一库时可能出现 "already exists" 类竞争错误，
+    // 迁移本身有 busy_timeout + 幂等保护，此时静默跳过备份即可。
+    const message = error instanceof Error ? error.message : "";
+    if (!/already exists/.test(message)) {
+      console.warn("[migrate] 迁移前备份失败，继续迁移：", error);
+    }
+  }
+}
 
 export function migrateDatabase(databaseFile?: string) {
   const path = resolve(
@@ -9,6 +35,7 @@ export function migrateDatabase(databaseFile?: string) {
   mkdirSync(dirname(path), { recursive: true });
   const database = new DatabaseSync(path);
   database.exec("PRAGMA foreign_keys = ON");
+  database.exec("PRAGMA busy_timeout = 5000");
   const migrations = [
     {
       name: "0000_initial",
@@ -60,6 +87,17 @@ export function migrateDatabase(databaseFile?: string) {
       applied_at INTEGER NOT NULL
     )
   `);
+
+  let hasPending = false;
+  for (const migration of migrations) {
+    const applied = database
+      .prepare("SELECT name FROM __migrations WHERE name = ?")
+      .get(migration.name);
+    if (applied) continue;
+    hasPending = true;
+    break;
+  }
+  if (hasPending) backupBeforeMigration(database, path);
 
   for (const migration of migrations) {
     const applied = database

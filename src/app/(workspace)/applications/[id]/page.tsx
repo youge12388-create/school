@@ -8,6 +8,8 @@ import {
   type ApplicationStatus,
 } from "@/lib/constants";
 import { getApplication } from "@/lib/queries";
+import { canHandleCustomerCases } from "@/lib/permissions";
+import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 
 export default async function ApplicationDetailPage({
@@ -16,6 +18,8 @@ export default async function ApplicationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await requireUser();
+  const canHandleCase = canHandleCustomerCases(user.role);
   const data = await getApplication(id);
   if (!data) notFound();
   const application = data.application;
@@ -58,27 +62,29 @@ export default async function ApplicationDetailPage({
       </section>
 
       {/* 调整状态：操作卡，视觉权重低 */}
-      <section className="detail-action-card detail-section">
-        <div className="card-header"><h3>调整状态</h3></div>
-        <div className="card-body">
-          <form action={updateApplicationStatusAction} className="application-status-form">
-            <input type="hidden" name="applicationId" value={id} />
-            <label>
-              新状态
-              <select name="toStatus" defaultValue={application.status}>
-                {APPLICATION_STATUSES.map((status) => (
-                  <option value={status} key={status}>{APPLICATION_STATUS_LABELS[status]}</option>
-                ))}
-              </select>
-            </label>
-            <div className="form-actions"><button className="primary" type="submit">保存状态</button></div>
-            <label className="wide">
-              调整原因
-              <textarea name="reason" required placeholder="回退、跳转和正常推进均需记录原因" />
-            </label>
-          </form>
-        </div>
-      </section>
+      {canHandleCase ? (
+        <section className="detail-action-card detail-section">
+          <div className="card-header"><h3>调整状态</h3></div>
+          <div className="card-body">
+            <form action={updateApplicationStatusAction} className="application-status-form">
+              <input type="hidden" name="applicationId" value={id} />
+              <label>
+                新状态
+                <select name="toStatus" defaultValue={application.status}>
+                  {APPLICATION_STATUSES.map((status) => (
+                    <option value={status} key={status}>{APPLICATION_STATUS_LABELS[status]}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="form-actions"><button className="primary" type="submit">保存状态</button></div>
+              <label className="wide">
+                调整原因
+                <textarea name="reason" required placeholder="回退、跳转和正常推进均需记录原因" />
+              </label>
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       {/* 状态时间线 */}
       <section className="card card-compact detail-section">

@@ -201,10 +201,16 @@ function toProgramSchool(row: Record<string, unknown>) {
   );
 }
 
-function mergeSchoolRows(rows: SchoolImportRow[]) {
+function mergeSchoolRows(
+  rows: SchoolImportRow[],
+  stats: { conflicts: number; emptyRows: number },
+) {
   const schools = new Map<string, SchoolImportRow>();
   for (const row of rows) {
-    if (!row.nameZh) continue;
+    if (!row.nameZh) {
+      stats.emptyRows += 1;
+      continue;
+    }
     const existing = schools.get(row.nameZh);
     if (!existing) {
       schools.set(row.nameZh, row);
@@ -212,15 +218,19 @@ function mergeSchoolRows(rows: SchoolImportRow[]) {
     }
     const merged = { ...existing };
     const target = merged as unknown as Record<string, unknown>;
+    let rowHasConflict = false;
     for (const field of SCHOOL_PATCH_FIELDS) {
       const current = existing[field];
       const incoming = row[field];
       if (incoming == null || incoming === "") continue;
       if (current != null && current !== "" && current !== incoming) {
+        // 同文件内同名学校字段冲突：保留首个值，但计入统计供用户复核。
+        rowHasConflict = true;
         continue;
       }
       target[field] = incoming;
     }
+    if (rowHasConflict) stats.conflicts += 1;
     target.rawJson = JSON.stringify({
       ...JSON.parse(existing.rawJson),
       ...JSON.parse(row.rawJson),
@@ -326,22 +336,32 @@ export function parseSchoolWorkbook(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const rows = sheetRows(workbook, "高校汇总", 0);
   validateHeaders(rows, SCHOOL_HEADERS, "高校汇总");
-  const schools = mergeSchoolRows(rows.map(toSchool));
-  return { schools, sourceHash: createHash("sha256").update(buffer).digest("hex") };
+  const stats = { conflicts: 0, emptyRows: 0 };
+  const schools = mergeSchoolRows(rows.map(toSchool), stats);
+  return {
+    schools,
+    conflicts: stats.conflicts,
+    emptyRows: stats.emptyRows,
+    sourceHash: createHash("sha256").update(buffer).digest("hex"),
+  };
 }
 
 export function parseProgramWorkbook(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const rows = sheetRows(workbook, "高校项目", 1);
   validateHeaders(rows, PROGRAM_HEADERS, "高校项目");
-  const schools = mergeSchoolRows(rows.map(toProgramSchool));
-  const parsed = rows
-    .map(toProgram)
-    .filter((row) => row.schoolName && row.rawProgramType);
+  const stats = { conflicts: 0, emptyRows: 0 };
+  const schools = mergeSchoolRows(rows.map(toProgramSchool), stats);
+  const programRows = rows.map(toProgram);
+  const parsedRows = programRows.filter(
+    (row) => row.schoolName && row.rawProgramType,
+  );
+  // 缺学校中文名或项目类型的行此前被静默丢弃，现计入统计供用户复核。
+  const droppedPrograms = programRows.length - parsedRows.length;
   const seen = new Set<string>();
   const programs: ProgramImportRow[] = [];
   let duplicates = 0;
-  for (const row of parsed) {
+  for (const row of parsedRows) {
     if (seen.has(row.fingerprint)) {
       duplicates += 1;
       continue;
@@ -386,13 +406,22 @@ export function parseProgramWorkbook(buffer: Buffer) {
     schools,
     programs,
     duplicates,
+    conflicts: stats.conflicts,
+    emptyRows: stats.emptyRows,
+    droppedPrograms,
     sourceHash: createHash("sha256").update(buffer).digest("hex"),
   };
 }
 
 /** 智能解析：自动尝试高校汇总和高校项目两张表，缺失不报错 */
 export function parseImportFile(buffer: Buffer) {
-  let schoolResult = { schools: [] as SchoolImportRow[], sourceHash: "" };
+  const emptySchoolResult = {
+    schools: [] as SchoolImportRow[],
+    conflicts: 0,
+    emptyRows: 0,
+    sourceHash: "",
+  };
+  let schoolResult: ReturnType<typeof parseSchoolWorkbook> = emptySchoolResult;
   let programResult: ReturnType<typeof parseProgramWorkbook> | null = null;
 
   try { schoolResult = parseSchoolWorkbook(buffer); } catch { /* 无高校汇总表 */ }

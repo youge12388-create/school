@@ -18,6 +18,8 @@ readonly NODE_DIR="/www/server/nodejs/v24.18.0/bin"
 readonly NODE_BIN="$NODE_DIR/node"
 readonly NPM_BIN="$NODE_DIR/npm"
 readonly HEALTH_URL="https://check.medicalchinaway.com/login"
+# 进程级健康检查：/api/health 返回进程 startedAt，用于确认 Baota 重启真正切到了新进程。
+readonly HEALTH_JSON_URL="https://check.medicalchinaway.com/api/health"
 readonly PANEL_MODEL="/www/server/panel/class/projectModel/nodejsModel.py"
 readonly RELEASE_CONFIG="${BT_RELEASE_CONFIG:-/root/.config/school_syt/baota-release.env}"
 readonly LOCK_FILE="/var/lock/school_syt-baota-release.lock"
@@ -29,6 +31,8 @@ PREVIOUS_COMMIT=""
 ROLLBACK_REQUIRED=0
 ROLLBACK_ATTEMPTED=0
 RELEASE_COMPLETE=0
+# 发起 Baota 重启请求的时刻（毫秒）。新进程的 startedAt 必须 >= 该值才算重启生效。
+RESTART_EPOCH_MS=0
 
 log() {
   printf '[school_syt deploy] %s\n' "$*"
@@ -232,16 +236,39 @@ restart_baota_project() {
   rm -f "$response_file"
 }
 
+# 等待“重启确实生效”：/api/health 返回的 startedAt >= 重启请求时刻才算成功，
+# 否则即使旧实例仍响应 /login 也会判失败（避免误报发布成功）。
+# 旧版本代码没有 /api/health（404/405）时回退到登录页可达性检查（回滚场景兼容）。
 wait_for_health() {
   local attempt
+  local http_code
+  local health_file
+  local started_at
 
   for ((attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt += 1)); do
-    if curl --silent --show-error --fail --max-time 5 "$HEALTH_URL" >/dev/null; then
-      return 0
+    http_code="$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code}' "$HEALTH_JSON_URL")"
+    if [[ "$http_code" == "200" ]]; then
+      health_file="$(mktemp)"
+      if curl --silent --show-error --max-time 5 "$HEALTH_JSON_URL" -o "$health_file"; then
+        started_at="$("$NODE_BIN" -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p?.startedAt ?? ""))' "$health_file" 2>/dev/null || true)"
+        rm -f "$health_file"
+        if [[ -n "$started_at" ]] && [[ "$started_at" -ge "$RESTART_EPOCH_MS" ]]; then
+          log "Process restart confirmed (startedAt=$started_at >= $RESTART_EPOCH_MS)."
+          return 0
+        fi
+      else
+        rm -f "$health_file"
+      fi
+    elif [[ "$http_code" == "404" || "$http_code" == "405" ]]; then
+      # 回滚目标是旧代码（无 /api/health）：退回登录页可达性检查。
+      if curl --silent --show-error --fail --max-time 5 "$HEALTH_URL" >/dev/null; then
+        return 0
+      fi
     fi
     sleep "$HEALTH_DELAY_SECONDS"
   done
 
+  log "Health endpoint $HEALTH_JSON_URL did not report a restarted process within the timeout."
   return 1
 }
 
@@ -262,11 +289,12 @@ rollback() {
   if ! as_app_owner "$NPM_BIN" run build; then
     fail "Rollback restored source code but the previous build failed. Check the running Baota project before another restart."
   fi
+  RESTART_EPOCH_MS="$(date +%s%3N)"
   if ! restart_baota_project; then
     fail "Rollback build completed but Baota did not confirm the restart. Restart school_syt from the Baota UI."
   fi
   if ! wait_for_health; then
-    fail "Rollback restart was requested but $HEALTH_URL did not become healthy."
+    fail "Rollback restart was requested but the process restart could not be confirmed."
   fi
 
   log "Rollback completed and $HEALTH_URL is healthy again."
@@ -275,7 +303,7 @@ rollback() {
 on_exit() {
   local status="$?"
 
-  trap - EXIT INT TERM
+  trap - EXIT INT TERM HUP
   if [[ "$status" -ne 0 && "$ROLLBACK_REQUIRED" -eq 1 && "$ROLLBACK_ATTEMPTED" -eq 0 && "$RELEASE_COMPLETE" -eq 0 ]]; then
     ROLLBACK_ATTEMPTED=1
     log "Release ended unexpectedly (exit $status); starting protected rollback."
@@ -328,6 +356,8 @@ main() {
   trap on_exit EXIT
   trap on_interrupt INT
   trap on_terminate TERM
+  # 宝塔 Web 终端断连会发 SIGHUP；不 trap 则 EXIT 陷阱不执行、发布半成功无回滚。
+  trap on_terminate HUP
 
   log "Installing the complete locked dependency set for the production build..."
   if ! as_app_owner "$NPM_BIN" ci --no-audit --no-fund; then
@@ -341,14 +371,21 @@ main() {
     exit 1
   fi
 
+  # 重启后首次请求可能触发自动迁移（改库结构），发布前先备份数据库。
+  log "Backing up the SQLite database before restart..."
+  if ! as_app_owner "$NPM_BIN" run backup >/dev/null 2>&1; then
+    log "WARN: npm run backup failed. The in-process pre-migration backup still applies; continuing."
+  fi
+
+  RESTART_EPOCH_MS="$(date +%s%3N)"
   if ! restart_baota_project; then
     rollback "$PREVIOUS_COMMIT" "Baota did not confirm the project restart"
     exit 1
   fi
 
-  log "Waiting for $HEALTH_URL..."
+  log "Waiting for the restarted process at $HEALTH_JSON_URL..."
   if ! wait_for_health; then
-    rollback "$PREVIOUS_COMMIT" "health check failed"
+    rollback "$PREVIOUS_COMMIT" "process restart health check failed"
     exit 1
   fi
 

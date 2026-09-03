@@ -17,6 +17,8 @@ import {
   type ApplicationStatus,
 } from "@/lib/constants";
 import { getCustomer, listCustomerOwners, listPrograms } from "@/lib/queries";
+import { canHandleCustomerCases } from "@/lib/permissions";
+import { requireUser } from "@/lib/auth";
 import { formatDate, formatMoney } from "@/lib/utils";
 
 export default async function CustomerDetailPage({
@@ -25,6 +27,8 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await requireUser();
+  const canHandleCase = canHandleCustomerCases(user.role);
   const data = await getCustomer(id);
   if (!data) notFound();
   const [programOptions, owners] = await Promise.all([
@@ -39,10 +43,12 @@ export default async function CustomerDetailPage({
         title={customer.name}
         description={`${customer.customerNo} · ${customer.nationality || "国籍未录入"}`}
         action={
-          <form action={archiveCustomerAction}>
-            <input type="hidden" name="customerId" value={id} />
-            <button className="danger" type="submit">归档客户</button>
-          </form>
+          canHandleCase ? (
+            <form action={archiveCustomerAction}>
+              <input type="hidden" name="customerId" value={id} />
+              <button className="danger" type="submit">归档客户</button>
+            </form>
+          ) : null
         }
       />
 
@@ -141,25 +147,29 @@ export default async function CustomerDetailPage({
           </div>
           <div className="card-body">
             <div className="detail-action-card">
-              <form action={addFollowUpAction}>
-                <input type="hidden" name="customerId" value={id} />
-                <div className="form-grid">
-                  <label>
-                    渠道
-                    <select name="channel">
-                      <option>企业微信</option>
-                      <option>微信</option>
-                      <option>电话</option>
-                      <option>邮件</option>
-                      <option>面谈</option>
-                      <option>其他</option>
-                    </select>
-                  </label>
-                  <label>计划跟进日期<input name="nextFollowUpAt" type="date" /></label>
-                  <label className="wide">沟通内容<textarea name="content" required /></label>
-                </div>
-                <div className="form-actions"><button type="submit">添加记录</button></div>
-              </form>
+              {canHandleCase ? (
+                <form action={addFollowUpAction}>
+                  <input type="hidden" name="customerId" value={id} />
+                  <div className="form-grid">
+                    <label>
+                      渠道
+                      <select name="channel">
+                        <option>企业微信</option>
+                        <option>微信</option>
+                        <option>电话</option>
+                        <option>邮件</option>
+                        <option>面谈</option>
+                        <option>其他</option>
+                      </select>
+                    </label>
+                    <label>计划跟进日期<input name="nextFollowUpAt" type="date" /></label>
+                    <label className="wide">沟通内容<textarea name="content" required /></label>
+                  </div>
+                  <div className="form-actions"><button type="submit">添加记录</button></div>
+                </form>
+              ) : (
+                <p className="small muted">当前角色为只读视图，无法新增跟进记录。</p>
+              )}
             </div>
             <div className="detail-timeline" style={{ marginTop: 14 }}>
               {data.followUps.map((item) => (
@@ -181,34 +191,38 @@ export default async function CustomerDetailPage({
           </div>
           <div className="card-body">
             <div className="detail-action-card">
-              <form action="/api/documents/upload" method="post" encType="multipart/form-data">
-                <input type="hidden" name="customerId" value={id} />
-                <div className="form-grid">
-                  <label>
-                    材料类别
-                    <select name="category">
-                      <option>护照</option>
-                      <option>成绩单</option>
-                      <option>毕业证</option>
-                      <option>语言证书</option>
-                      <option>体检表</option>
-                      <option>无犯罪记录</option>
-                      <option>其他</option>
-                    </select>
-                  </label>
-                  <label>选择文件
-                    <input
-                      name="file"
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
-                      capture="environment"
-                      required
-                    />
-                  </label>
-                </div>
-                <p className="small muted">支持 PDF / JPG / PNG / DOCX / XLSX，单文件 ≤ 20 MB，落盘前加密。</p>
-                <div className="form-actions"><button type="submit">加密上传</button></div>
-              </form>
+              {canHandleCase ? (
+                <form action="/api/documents/upload" method="post" encType="multipart/form-data">
+                  <input type="hidden" name="customerId" value={id} />
+                  <div className="form-grid">
+                    <label>
+                      材料类别
+                      <select name="category">
+                        <option>护照</option>
+                        <option>成绩单</option>
+                        <option>毕业证</option>
+                        <option>语言证书</option>
+                        <option>体检表</option>
+                        <option>无犯罪记录</option>
+                        <option>其他</option>
+                      </select>
+                    </label>
+                    <label>选择文件
+                      <input
+                        name="file"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
+                        capture="environment"
+                        required
+                      />
+                    </label>
+                  </div>
+                  <p className="small muted">支持 PDF / JPG / PNG / DOCX / XLSX，单文件 ≤ 20 MB，落盘前加密。</p>
+                  <div className="form-actions"><button type="submit">加密上传</button></div>
+                </form>
+              ) : (
+                <p className="small muted">当前角色为只读视图，无法上传客户材料。</p>
+              )}
             </div>
             <div style={{ marginTop: 12 }}>
               {data.documents.length ? (
@@ -219,7 +233,11 @@ export default async function CustomerDetailPage({
                         <strong>{document.category}</strong>
                         <div className="small muted">{document.originalName} · {Math.ceil(document.size / 1024)} KB</div>
                       </div>
-                      <a className="button" href={`/api/documents/${document.id}`}>下载</a>
+                      {canHandleCase ? (
+                        <a className="button" href={`/api/documents/${document.id}`}>下载</a>
+                      ) : (
+                        <span className="small muted">仅顾问可下载</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -254,49 +272,58 @@ export default async function CustomerDetailPage({
             ) : <EmptyState>尚未创建申请</EmptyState>}
           </div>
         </div>
-        <div className="detail-action-card">
-          <div className="card-header"><h3>调整管理状态 / 新建申请</h3></div>
-          <div className="card-body">
-            <form action={updateCustomerManagementAction} style={{ marginBottom: 14 }}>
-              <input type="hidden" name="customerId" value={id} />
-              <div className="customer-management-fields">
+        {canHandleCase ? (
+          <div className="detail-action-card">
+            <div className="card-header"><h3>调整管理状态 / 新建申请</h3></div>
+            <div className="card-body">
+              <form action={updateCustomerManagementAction} style={{ marginBottom: 14 }}>
+                <input type="hidden" name="customerId" value={id} />
+                <div className="customer-management-fields">
+                  <label>
+                    负责老师
+                    <select name="ownerId" defaultValue={customer.ownerId || ""} required>
+                      {owners.map((owner) => (
+                        <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    签约状态
+                    <select name="contractStatus" defaultValue={customer.contractStatus}>
+                      {CONTRACT_STATUSES.map((status) => (
+                        <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="primary" type="submit">更新</button>
+                </div>
+              </form>
+              <form action={createApplicationAction}>
+                <input type="hidden" name="customerId" value={id} />
                 <label>
-                  负责老师
-                  <select name="ownerId" defaultValue={customer.ownerId || ""} required>
-                    {owners.map((owner) => (
-                      <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+                  申请项目
+                  <select name="programId" required>
+                    <option value="">请选择</option>
+                    {programOptions.map((program) => (
+                      <option value={program.id} key={program.id}>
+                        {program.schoolName} · {PROGRAM_TYPE_LABELS[program.programType]} · {LANGUAGE_LABELS[program.teachingLanguage]}
+                      </option>
                     ))}
                   </select>
                 </label>
-                <label>
-                  签约状态
-                  <select name="contractStatus" defaultValue={customer.contractStatus}>
-                    {CONTRACT_STATUSES.map((status) => (
-                      <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
-                    ))}
-                  </select>
-                </label>
-                <button className="primary" type="submit">更新</button>
-              </div>
-            </form>
-            <form action={createApplicationAction}>
-              <input type="hidden" name="customerId" value={id} />
-              <label>
-                申请项目
-                <select name="programId" required>
-                  <option value="">请选择</option>
-                  {programOptions.map((program) => (
-                    <option value={program.id} key={program.id}>
-                      {program.schoolName} · {PROGRAM_TYPE_LABELS[program.programType]} · {LANGUAGE_LABELS[program.teachingLanguage]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ marginTop: 10 }}>备注<textarea name="notes" /></label>
-              <div className="form-actions"><button type="submit">创建申请</button></div>
-            </form>
+                <label style={{ marginTop: 10 }}>备注<textarea name="notes" /></label>
+                <div className="form-actions"><button type="submit">创建申请</button></div>
+              </form>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="detail-action-card">
+            <div className="card-header"><h3>调整管理状态 / 新建申请</h3></div>
+            <div className="card-body">
+              <p className="small muted">当前角色为只读视图，无法改派负责老师、调整签约状态或创建申请。</p>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="card card-compact detail-section">

@@ -12,6 +12,8 @@ type Preview = {
     programs: Record<string, number>;
     sourceDuplicates: number;
     needsReview: number;
+    fileConflicts?: number;
+    fileSkipped?: number;
   };
   entries: Array<{ key: string; action: string; details: string }>;
 };
@@ -110,6 +112,12 @@ function ExcelImportPanel() {
               </div>
               <p style={{ marginTop: 12 }}>
                 源文件完全重复行：{preview.summary.sourceDuplicates}；待人工复核项目：{preview.summary.needsReview}
+                {preview.summary.fileConflicts
+                  ? `；文件内同名冲突行：${preview.summary.fileConflicts}（保留首个值）`
+                  : ""}
+                {preview.summary.fileSkipped
+                  ? `；缺关键信息跳过行：${preview.summary.fileSkipped}`
+                  : ""}
               </p>
               <div className="table-wrap" style={{ maxHeight: 310, marginTop: 12 }}>
                 <table>
