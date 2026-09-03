@@ -8,7 +8,7 @@
 #   /www/server/nodejs/v24.18.0/bin
 #
 # 它不会创建 systemd、独立 PM2、nohup 进程，也不会终止 3000 端口上的进程。
-# 宝塔 API 配置不完整时会在 git pull 前失败退出，避免产生双重托管。
+# 宝塔 Node 项目控制器不可用时会在 git pull 前失败退出，避免产生双重托管。
 
 set -Eeuo pipefail
 
@@ -21,7 +21,7 @@ readonly HEALTH_URL="https://check.medicalchinaway.com/login"
 # 进程级健康检查：/api/health 返回进程 startedAt，用于确认 Baota 重启真正切到了新进程。
 readonly HEALTH_JSON_URL="https://check.medicalchinaway.com/api/health"
 readonly PANEL_MODEL="/www/server/panel/class/projectModel/nodejsModel.py"
-readonly RELEASE_CONFIG="${BT_RELEASE_CONFIG:-/root/.config/school_syt/baota-release.env}"
+readonly PANEL_PYTHON="/www/server/panel/pyenv/bin/python"
 readonly LOCK_FILE="/var/lock/school_syt-baota-release.lock"
 readonly HEALTH_ATTEMPTS=30
 readonly HEALTH_DELAY_SECONDS=2
@@ -46,12 +46,12 @@ fail() {
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/deploy.sh --check   # validate the protected Baota API configuration
+  bash scripts/deploy.sh --check   # validate the local Baota Node-project controller
   bash scripts/deploy.sh           # pull, install, build, restart through Baota, and health-check
 
 The script only supports /opt/school-opt and the Baota Node project school_syt.
 It releases from the 'master' branch only; checkout 'master' before running it.
-It requires the root-owned configuration described in scripts/baota-release.env.example.
+It invokes the installed Baota Node-project controller directly; no panel API token is required.
 EOF
 }
 
@@ -71,20 +71,6 @@ as_app_owner() {
     "$@"
 }
 
-require_secure_file() {
-  local file="$1"
-  local owner
-  local mode
-
-  [[ "$file" == /* ]] || fail "Protected file path must be absolute: $file"
-  [[ -f "$file" && ! -L "$file" ]] || fail "Protected file is missing or is a symlink: $file"
-
-  owner="$(stat -c '%u' "$file")"
-  mode="$(stat -c '%a' "$file")"
-  [[ "$owner" == "0" ]] || fail "Protected file must be owned by root: $file"
-  [[ "$mode" == "600" ]] || fail "Protected file must have mode 600: $file (actual: $mode)"
-}
-
 assert_master_branch() {
   local current_branch
   current_branch="$(as_app_owner git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)"
@@ -93,25 +79,14 @@ assert_master_branch() {
   fi
 }
 
-load_baota_api_configuration() {
+validate_baota_controller() {
   [[ "$(id -u)" == "0" ]] || fail "Run this production release as root through the Baota terminal."
-  require_secure_file "$RELEASE_CONFIG"
-
-  # The configuration file is root-owned and mode 600, so sourcing its two
-  # variables does not make a repository file executable configuration.
-  # shellcheck disable=SC1090
-  source "$RELEASE_CONFIG"
-
-  : "${BT_PANEL_URL:?BT_PANEL_URL is required in $RELEASE_CONFIG}"
-  : "${BT_API_KEY_FILE:?BT_API_KEY_FILE is required in $RELEASE_CONFIG}"
-
-  BT_PANEL_URL="${BT_PANEL_URL%/}"
-  [[ "$BT_PANEL_URL" =~ ^https?://127\.0\.0\.1(:[0-9]{1,5})?(/[^[:space:]]*)?$ ]] || \
-    fail "BT_PANEL_URL must target 127.0.0.1 so the API key never leaves this server."
-
-  require_secure_file "$BT_API_KEY_FILE"
-  BT_API_KEY="$(tr -d '\r\n' < "$BT_API_KEY_FILE")"
-  [[ -n "$BT_API_KEY" ]] || fail "Baota API key file is empty: $BT_API_KEY_FILE"
+  [[ -f "$PANEL_MODEL" ]] || fail "Baota Node project controller was not found: $PANEL_MODEL"
+  [[ -x "$PANEL_PYTHON" ]] || fail "Baota Python runtime was not found: $PANEL_PYTHON"
+  grep -q 'def restart_project' "$PANEL_MODEL" || \
+    fail "This Baota version has no detectable Node-project restart controller; restart it from the Baota UI."
+  grep -q 'def get_project_list' "$PANEL_MODEL" || \
+    fail "This Baota version has no detectable Node-project query controller; verify school_syt from the Baota UI."
 }
 
 validate_environment() {
@@ -130,7 +105,6 @@ validate_environment() {
 
   require_command git
   require_command curl
-  require_command md5sum
   require_command stat
   require_command grep
   require_command mktemp
@@ -141,99 +115,63 @@ validate_environment() {
   [[ -z "$(as_app_owner git status --porcelain --untracked-files=all)" ]] || \
     fail "Production working tree has untracked files; resolve them before publishing."
 
-  [[ -f "$PANEL_MODEL" ]] || fail "Baota Node project controller was not found: $PANEL_MODEL"
-  grep -q 'def restart_project' "$PANEL_MODEL" || \
-    fail "This Baota version has no detectable Node-project restart endpoint; restart it from the Baota UI."
-  grep -q 'def get_project_list' "$PANEL_MODEL" || \
-    fail "This Baota version has no detectable Node-project query endpoint; verify school_syt from the Baota UI."
 }
 
-baota_api_request() {
-  local endpoint="$1"
-  local data="$2"
-  local response_file="$3"
-  local request_time
-  local key_hash
-  local request_token
+baota_node_project_call() {
+  local action="$1"
 
-  request_time="$(date +%s)"
-  key_hash="$(printf '%s' "$BT_API_KEY" | md5sum | awk '{print $1}')"
-  request_token="$(printf '%s' "${request_time}${key_hash}" | md5sum | awk '{print $1}')"
+  "$PANEL_PYTHON" - "$action" "$PROJECT_NAME" <<'PY'
+import sys
 
-  # Baota installations commonly use a self-signed certificate for the panel.
-  # --insecure is limited to an API URL validated as 127.0.0.1 above, so the
-  # token is never sent over the public network.
-  curl \
-    --silent \
-    --show-error \
-    --fail \
-    --insecure \
-    --max-time 15 \
-    --request POST \
-    "$BT_PANEL_URL$endpoint" \
-    --form-string "request_token=$request_token" \
-    --form-string "request_time=$request_time" \
-    --form-string "data=$data" \
-    --output "$response_file"
+sys.path.insert(0, "/www/server/panel/class")
+from projectModel.nodejsModel import main as NodeProjectModel
+
+action, project_name = sys.argv[1:]
+
+
+class PanelRequest:
+    def __init__(self, **values):
+        self.__dict__.update(values)
+
+    def __contains__(self, name):
+        return hasattr(self, name)
+
+
+def includes_project(value):
+    if isinstance(value, dict):
+        if value.get("name") == project_name or value.get("project_name") == project_name:
+            return True
+        return any(includes_project(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(includes_project(item) for item in value)
+    return False
+
+
+controller = NodeProjectModel()
+if action == "verify":
+    payload = controller.get_project_list(PanelRequest(p=1, limit=100, search=""))
+    if not includes_project(payload):
+        raise SystemExit(f"Baota did not confirm Node project {project_name}.")
+elif action == "restart":
+    payload = controller.restart_project(PanelRequest(project_name=project_name))
+    if not isinstance(payload, dict) or payload.get("status") is not True:
+        message = payload.get("msg") if isinstance(payload, dict) else repr(payload)
+        raise SystemExit(f"Baota could not restart {project_name}: {message}")
+else:
+    raise SystemExit(f"Unsupported Baota action: {action}")
+PY
 }
 
 verify_baota_project() {
-  local response_file
-
-  response_file="$(mktemp)"
-  if ! baota_api_request "/project/nodejs/get_project_list" '{"p":1,"limit":100,"search":""}' "$response_file"; then
-    rm -f "$response_file"
-    fail "Baota API preflight failed. Check its local URL, API token, API IP whitelist (127.0.0.1), and security entry."
+  if ! baota_node_project_call verify; then
+    fail "Baota's local Node-project controller could not confirm $PROJECT_NAME."
   fi
-
-  if ! "$NODE_BIN" -e '
-    const fs = require("node:fs");
-    const payload = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-    const projectName = process.argv[2];
-    const includesProject = (value) => {
-      if (Array.isArray(value)) return value.some(includesProject);
-      if (!value || typeof value !== "object") return false;
-      if (value.name === projectName || value.project_name === projectName) return true;
-      return Object.values(value).some(includesProject);
-    };
-    if (payload?.status !== true || !includesProject(payload)) {
-      const message = payload?.error_msg ?? payload?.message ?? "unknown Baota API response";
-      console.error(`Baota did not confirm Node project ${projectName}: ${String(message)}`);
-      process.exit(1);
-    }
-  ' "$response_file" "$PROJECT_NAME"; then
-    rm -f "$response_file"
-    fail "Baota API preflight could not confirm project $PROJECT_NAME."
-  fi
-
-  rm -f "$response_file"
-  log "Baota API preflight confirmed project $PROJECT_NAME."
+  log "Baota controller confirmed project $PROJECT_NAME."
 }
 
 restart_baota_project() {
-  local response_file
-
-  response_file="$(mktemp)"
   log "Requesting Baota to restart project $PROJECT_NAME..."
-  if ! baota_api_request "/project/nodejs/restart_project" "{\"project_name\":\"$PROJECT_NAME\"}" "$response_file"; then
-    rm -f "$response_file"
-    return 1
-  fi
-
-  if ! "$NODE_BIN" -e '
-    const fs = require("node:fs");
-    const payload = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-    if (payload?.status !== true) {
-      const message = payload?.error_msg ?? payload?.message ?? "unknown Baota API response";
-      console.error(String(message));
-      process.exit(1);
-    }
-  ' "$response_file"; then
-    rm -f "$response_file"
-    return 1
-  fi
-
-  rm -f "$response_file"
+  baota_node_project_call restart
 }
 
 # 等待“重启确实生效”：/api/health 返回的 startedAt >= 重启请求时刻才算成功，
@@ -335,7 +273,7 @@ main() {
   esac
 
   acquire_release_lock
-  load_baota_api_configuration
+  validate_baota_controller
   validate_environment
   verify_baota_project
   assert_master_branch
