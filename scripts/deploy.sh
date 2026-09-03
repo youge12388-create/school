@@ -181,32 +181,45 @@ wait_for_health() {
   local attempt
   local http_code
   local health_file
+  local health_url
   local started_at
+  local last_observation="no HTTP response"
 
   for ((attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt += 1)); do
-    http_code="$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code}' "$HEALTH_JSON_URL")"
+    # A short connection reset is expected while Baota is replacing the Node
+    # process. Do not let `set -e` turn that transient state into a rollback.
+    # The query value also avoids an intermediary returning a stale response.
+    health_url="${HEALTH_JSON_URL}?release_check=${RESTART_EPOCH_MS}-${attempt}"
+    if ! http_code="$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code}' "$health_url")"; then
+      http_code="000"
+    fi
     if [[ "$http_code" == "200" ]]; then
       health_file="$(mktemp)"
-      if curl --silent --show-error --max-time 5 "$HEALTH_JSON_URL" -o "$health_file"; then
+      if curl --silent --show-error --max-time 5 "$health_url" -o "$health_file"; then
         started_at="$("$NODE_BIN" -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p?.startedAt ?? ""))' "$health_file" 2>/dev/null || true)"
         rm -f "$health_file"
         if [[ -n "$started_at" ]] && [[ "$started_at" -ge "$RESTART_EPOCH_MS" ]]; then
           log "Process restart confirmed (startedAt=$started_at >= $RESTART_EPOCH_MS)."
           return 0
         fi
+        last_observation="HTTP 200, startedAt=${started_at:-missing}"
       else
         rm -f "$health_file"
+        last_observation="HTTP 200, but the health response could not be read"
       fi
     elif [[ "$http_code" == "404" || "$http_code" == "405" ]]; then
       # 回滚目标是旧代码（无 /api/health）：退回登录页可达性检查。
       if curl --silent --show-error --fail --max-time 5 "$HEALTH_URL" >/dev/null; then
         return 0
       fi
+      last_observation="HTTP $http_code, login fallback was unavailable"
+    else
+      last_observation="HTTP $http_code"
     fi
     sleep "$HEALTH_DELAY_SECONDS"
   done
 
-  log "Health endpoint $HEALTH_JSON_URL did not report a restarted process within the timeout."
+  log "Health endpoint $HEALTH_JSON_URL did not report a restarted process within the timeout (last observation: $last_observation)."
   return 1
 }
 
