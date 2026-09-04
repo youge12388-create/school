@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
-# 宝塔生产环境唯一发布入口。
+# 宝塔生产环境唯一发布入口（云端构建方案）。
 #
 # 这个脚本只适用于当前生产拓扑：
 #   /opt/school-opt
 #   宝塔 Node 项目 school_syt
 #   /www/server/nodejs/v24.18.0/bin
+#
+# 发布流程（不在服务器上执行 npm ci / next build）：
+#   1) git pull --ff-only（固定 master）
+#   2) 从 GitHub Releases 下载 GitHub Actions 为本次 commit 构建的
+#      standalone 产物（build-<sha>/standalone.tar.gz，公开仓库免凭证）
+#   3) 校验并交换 .next/standalone（旧包保留为 .next/standalone.old）
+#   4) 通过宝塔本地 Node 项目控制器重启 school_syt
+#   5) /api/health 进程级健康检查；任一步失败自动回滚：
+#      git reset 回旧提交 + 用 .old 备份还原旧运行时包再重启。
 #
 # 它不会创建 systemd、独立 PM2、nohup 进程，也不会终止 3000 端口上的进程。
 # 宝塔 Node 项目控制器不可用时会在 git pull 前失败退出，避免产生双重托管。
@@ -25,6 +34,10 @@ readonly PANEL_PYTHON="/www/server/panel/pyenv/bin/python"
 readonly LOCK_FILE="/var/lock/school_syt-baota-release.lock"
 readonly HEALTH_ATTEMPTS=30
 readonly HEALTH_DELAY_SECONDS=2
+readonly ARTIFACT_FILE="$APP_DIR/standalone-release.tar.gz"
+readonly STANDALONE_DIR="$APP_DIR/.next/standalone"
+readonly STANDALONE_NEW="$APP_DIR/.next/standalone.new"
+readonly STANDALONE_OLD="$APP_DIR/.next/standalone.old"
 
 APP_OWNER=""
 PREVIOUS_COMMIT=""
@@ -47,11 +60,14 @@ usage() {
   cat <<'EOF'
 Usage:
   bash scripts/deploy.sh --check   # validate the local Baota Node-project controller
-  bash scripts/deploy.sh           # pull, install, build, restart through Baota, and health-check
+  bash scripts/deploy.sh           # pull, download the Actions-built standalone
+                                   # artifact, restart through Baota, and health-check
 
 The script only supports /opt/school-opt and the Baota Node project school_syt.
 It releases from the 'master' branch only; checkout 'master' before running it.
-It invokes the installed Baota Node-project controller directly; no panel API token is required.
+It never builds on the server: the standalone bundle comes from the GitHub
+Actions release for the same commit (repo must be public, or a token must be
+available). It invokes the installed Baota Node-project controller directly.
 EOF
 }
 
@@ -109,6 +125,7 @@ validate_environment() {
   require_command grep
   require_command mktemp
   require_command runuser
+  require_command tar
 
   as_app_owner git diff --quiet || fail "Tracked production files have unstaged changes; resolve them before publishing."
   as_app_owner git diff --cached --quiet || fail "Tracked production files have staged changes; resolve them before publishing."
@@ -176,7 +193,7 @@ restart_baota_project() {
 
 # 等待“重启确实生效”：/api/health 返回的 startedAt >= 重启请求时刻才算成功，
 # 否则即使旧实例仍响应 /login 也会判失败（避免误报发布成功）。
-# 旧版本代码没有 /api/health（404/405）时回退到登录页可达性检查（回滚场景兼容）。
+# 回滚目标若是无 /api/health 的旧代码（404/405）则退回登录页可达性检查。
 wait_for_health() {
   local attempt
   local http_code
@@ -223,26 +240,90 @@ wait_for_health() {
   return 1
 }
 
+# 解析 origin 得到 GitHub owner/repo（兼容 https 与 git@ 两种 remote 写法）。
+release_repo_slug() {
+  local url
+  url="$(as_app_owner git -C "$APP_DIR" config --get remote.origin.url)"
+  case "$url" in
+    https://github.com/*) url="${url#https://github.com/}" ;;
+    git@github.com:*) url="${url#git@github.com:}" ;;
+  esac
+  url="${url%.git}"
+  [[ "$url" == */* && -n "${url%%/*}" && -n "${url#*/}" ]] || \
+    fail "Cannot parse GitHub owner/repo from remote.origin.url: $url"
+  printf '%s\n' "$url"
+}
+
+# 下载 GitHub Actions 为指定 commit 构建的 standalone 产物。
+# 失败时返回非零（不改变仓库与运行目录），由调用方决定回滚动作。
+download_artifact() {
+  local commit="$1"
+  local slug
+  local repo_url
+  slug="$(release_repo_slug)"
+  repo_url="https://github.com/${slug}/releases/download/build-${commit}/standalone.tar.gz"
+  log "Downloading standalone artifact: $repo_url"
+
+  rm -f "$ARTIFACT_FILE"
+  if ! curl --fail --silent --show-error --location --max-time 600 "$repo_url" -o "$ARTIFACT_FILE"; then
+    rm -f "$ARTIFACT_FILE"
+    log "Artifact for commit $commit is not available yet."
+    return 1
+  fi
+  if [[ "$(stat -c '%s' "$ARTIFACT_FILE")" -lt 1000000 ]]; then
+    rm -f "$ARTIFACT_FILE"
+    log "Artifact for commit $commit looks truncated (under 1 MB)."
+    return 1
+  fi
+  if ! as_app_owner tar -tzf "$ARTIFACT_FILE" >/dev/null 2>&1; then
+    rm -f "$ARTIFACT_FILE"
+    log "Artifact for commit $commit is not a valid tar archive."
+    return 1
+  fi
+  log "Artifact downloaded and validated ($(stat -c '%s' "$ARTIFACT_FILE") bytes)."
+}
+
+# 把下载的产物交换为当前运行包：旧包挪到 .old，健康检查通过后才删除。
+install_artifact() {
+  log "Swapping .next/standalone with the downloaded bundle..."
+  as_app_owner rm -rf "$STANDALONE_NEW"
+  as_app_owner mkdir -p "$STANDALONE_NEW"
+  as_app_owner tar -xzf "$ARTIFACT_FILE" -C "$STANDALONE_NEW"
+  as_app_owner bash -c "
+    cd '$APP_DIR' || exit 1
+    rm -rf '$STANDALONE_OLD'
+    if [[ -d '$STANDALONE_DIR' ]]; then
+      mv '$STANDALONE_DIR' '$STANDALONE_OLD'
+    fi
+    mv '$STANDALONE_NEW' '$STANDALONE_DIR'
+  "
+  log "New standalone bundle is in place."
+}
+
 rollback() {
   local previous_commit="$1"
   local reason="$2"
 
   ROLLBACK_ATTEMPTED=1
   log "Release failed: $reason"
-  log "Restoring Git commit $previous_commit; persistent data is never changed by this script."
+  log "Restoring Git commit $previous_commit and the previous runtime bundle; persistent data is never changed."
 
   if ! as_app_owner git reset --hard "$previous_commit"; then
     fail "Rollback could not restore the previous Git commit. The running project was not replaced automatically."
   fi
-  if ! as_app_owner "$NPM_BIN" ci --no-audit --no-fund; then
-    fail "Rollback restored source code but could not restore dependencies. Check the running Baota project before another restart."
+  if ! as_app_owner bash -c "
+      cd '$APP_DIR' || exit 1
+      rm -rf '$STANDALONE_DIR'
+      if [[ -d '$STANDALONE_OLD' ]]; then
+        mv '$STANDALONE_OLD' '$STANDALONE_DIR'
+      fi
+    "; then
+    fail "Rollback restored source code but could not restore the previous runtime bundle. Restart school_syt from the Baota UI."
   fi
-  if ! as_app_owner "$NPM_BIN" run build; then
-    fail "Rollback restored source code but the previous build failed. Check the running Baota project before another restart."
-  fi
+
   RESTART_EPOCH_MS="$(date +%s%3N)"
   if ! restart_baota_project; then
-    fail "Rollback build completed but Baota did not confirm the restart. Restart school_syt from the Baota UI."
+    fail "Rollback bundle restored but Baota did not confirm the restart. Restart school_syt from the Baota UI."
   fi
   if ! wait_for_health; then
     fail "Rollback restart was requested but the process restart could not be confirmed."
@@ -303,6 +384,19 @@ main() {
     fail "git pull failed before the release changed. Resolve the Git state and try again."
   fi
 
+  local new_commit
+  new_commit="$(as_app_owner git rev-parse HEAD)"
+  if [[ "$new_commit" == "$PREVIOUS_COMMIT" ]]; then
+    log "Already at commit $new_commit; nothing new to release."
+    return 0
+  fi
+
+  # 产物下载失败：代码已拉取但运行包未动、进程未动，直接还原 Git 状态退出。
+  if ! download_artifact "$new_commit"; then
+    as_app_owner git reset --hard "$PREVIOUS_COMMIT" || true
+    fail "Standalone artifact for commit $new_commit was not downloaded. Wait for the GitHub Actions build (or re-run it) and try again. Git was restored to $PREVIOUS_COMMIT."
+  fi
+
   ROLLBACK_REQUIRED=1
   trap on_exit EXIT
   trap on_interrupt INT
@@ -310,23 +404,14 @@ main() {
   # 宝塔 Web 终端断连会发 SIGHUP；不 trap 则 EXIT 陷阱不执行、发布半成功无回滚。
   trap on_terminate HUP
 
-  log "Installing the complete locked dependency set for the production build..."
-  if ! as_app_owner "$NPM_BIN" ci --no-audit --no-fund; then
-    rollback "$PREVIOUS_COMMIT" "npm ci failed"
-    exit 1
-  fi
-
-  log "Building the Next.js production bundle..."
-  if ! as_app_owner "$NPM_BIN" run build; then
-    rollback "$PREVIOUS_COMMIT" "npm run build failed"
-    exit 1
-  fi
-
   # 重启后首次请求可能触发自动迁移（改库结构），发布前先备份数据库。
   log "Backing up the SQLite database before restart..."
   if ! as_app_owner "$NPM_BIN" run backup >/dev/null 2>&1; then
     log "WARN: npm run backup failed. The in-process pre-migration backup still applies; continuing."
   fi
+
+  install_artifact
+  rm -f "$ARTIFACT_FILE"
 
   RESTART_EPOCH_MS="$(date +%s%3N)"
   if ! restart_baota_project; then
@@ -341,6 +426,7 @@ main() {
   fi
 
   RELEASE_COMPLETE=1
+  as_app_owner rm -rf "$STANDALONE_OLD"
   log "Release completed successfully at commit $(as_app_owner git rev-parse --short HEAD)."
 }
 

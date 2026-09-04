@@ -2,6 +2,24 @@
 
 面向在华留学顾问的本地 Web 系统，用于维护学校项目知识库、筛选项目、管理客户、跟进申请流程并加密保存申请材料。
 
+## 当前生产发布（宝塔，云端构建方案）
+
+当前生产环境只使用宝塔 Node 项目托管：项目目录为 `/opt/school-opt`，项目名为 `school_syt`，Node 为 `/www/server/nodejs/v24.18.0/bin`，健康检查地址为 `https://check.medicalchinaway.com/login`。
+
+在宝塔终端以 root 身份先运行预检查，再发布：
+
+```bash
+cd /opt/school-opt
+bash scripts/deploy.sh --check
+bash scripts/deploy.sh
+```
+
+**服务器不执行构建。** 每次推送到 GitHub `master` 后，`.github/workflows/build-standalone.yml`（GitHub Actions）会在云端完成 `npm ci` + `next build`，并把 `.next/standalone` 发布为 `build-<commit>` 的 Release 产物（仓库为公开仓库，服务器免凭证下载）。`scripts/deploy.sh` 只做：调用宝塔本地 Node 项目控制器确认 `school_syt` 存在 → `git pull --ff-only` → 下载本次 commit 对应的 standalone 产物并校验 → 备份数据库 → 交换 `.next/standalone`（旧包保留为 `.old`）→ 宝塔控制器重启 → `/api/health` 进程级健康检查；任一步失败或进程被中断时，自动恢复发布前 Git 提交、用 `.old` 还原旧运行包并再次重启。它不依赖面板 HTTP API 路由或令牌，以 `/opt/school-opt` 现有所有者执行 Git，避免把宝塔项目文件改成 root 所有；不会创建 systemd、独立 PM2 或 nohup 进程，也不会写入或回滚 `data/`。
+
+> 注意：发布前请确认 GitHub Actions 已为当前 `master` 提交产出 Release（约几分钟）。`deploy.sh` 找不到对应产物时会还原 Git 并安全退出，不会影响正在运行的服务。
+
+旧的腾讯云/systemd 教程仅是历史记录，不能用于当前生产环境。
+
 ## 当前数据
 
 首次导入已完成：
@@ -13,7 +31,7 @@
 
 系统不会把原表未写明的信息推断为“符合”或“不符合”，统一显示“数据库未有相关信息”。
 
-## 一键部署（推荐）
+## 本地 Windows 一键部署（仅本机）
 
 以下脚本自动完成安装依赖、构建、数据库迁移、启动生产服务并打开浏览器：
 

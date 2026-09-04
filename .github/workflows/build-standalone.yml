@@ -1,0 +1,49 @@
+name: build-standalone
+
+# 云端构建方案：在 GitHub Actions 里完成 npm ci + next build，
+# 把 .next/standalone 打成 release 产物（standalone-<sha>.tar.gz）。
+# 宝塔服务器不再执行构建，只下载对应 commit 的产物并重启 ——
+# 彻底规避 VPS 内存不足导致整机 OOM 崩溃的问题。
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build standalone bundle
+        # postbuild (scripts/copy-standalone-assets.mjs) copies
+        # .next/static, public and drizzle into .next/standalone.
+        run: npm run build
+
+      - name: Package standalone artifact
+        run: tar -C .next/standalone -czf standalone.tar.gz .
+
+      - name: Publish GitHub release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.sha }}"
+          gh release delete "$TAG" --repo "${{ github.repository }}" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" standalone.tar.gz \
+            --repo "${{ github.repository }}" \
+            --title "Standalone build ${{ github.sha }}" \
+            --notes "Next.js standalone production build for commit ${{ github.sha }}. Consumed by scripts/deploy.sh on the Baota server." >/dev/null
