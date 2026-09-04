@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useT } from "@/lib/i18n/locale-context";
+import { useT, useTm } from "@/lib/i18n/locale-context";
 
 export function SchoolNoteSection({
   schoolId,
@@ -21,6 +21,7 @@ export function SchoolNoteSection({
   const [savedAt] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
+  const tm = useTm();
 
   async function save(formData: FormData) {
     setLoading(true);
@@ -38,7 +39,7 @@ export function SchoolNoteSection({
       setEditing(false);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo } from "react";
 
-import { makeT, makeTv, type UiLocale } from "./dict";
+import { makeMessageT, makeT, makeTv, type UiLocale } from "./dict";
 
 const LocaleContext = createContext<UiLocale>("zh");
 
@@ -31,4 +31,10 @@ export function useT() {
 export function useTv() {
   const locale = useContext(LocaleContext);
   return useMemo(() => makeTv(locale), [locale]);
+}
+
+/** Like useT, but also best-effort translates server messages with variables. */
+export function useTm() {
+  const locale = useContext(LocaleContext);
+  return useMemo(() => makeMessageT(locale), [locale]);
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEditMode } from "@/components/edit-mode";
 import { KnowledgeFieldGrid, UNKNOWN_TEXT, displayValue } from "@/components/knowledge-fields";
 import { Badge } from "@/components/ui";
-import { useT } from "@/lib/i18n/locale-context";
+import { useT, useTm } from "@/lib/i18n/locale-context";
 
 type ConfidentialFieldDef = {
   key: string;
@@ -98,6 +98,7 @@ export function SchoolConfidentialCard({
   const [savedAt, setSavedAt] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
+  const tm = useTm();
   const def = SECTION_DEFS[section];
   const cardKey = `school-${section}`;
   const editable = editingMode && canEdit;
@@ -122,7 +123,7 @@ export function SchoolConfidentialCard({
       setSavedAt((version) => version + 1);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }

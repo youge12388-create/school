@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { useT, useTv } from "@/lib/i18n/locale-context";
+import { useT, useTv, useTm } from "@/lib/i18n/locale-context";
 
 type ImportSummary = {
   imported: number;
@@ -17,6 +17,7 @@ export function SchoolUpdateImportPanel() {
   const [message, setMessage] = useState("");
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const t = useT();
+  const tm = useTm();
   const tv = useTv();
 
   async function submit(formData: FormData) {
@@ -33,7 +34,7 @@ export function SchoolUpdateImportPanel() {
       setSummary(body.summary);
       setMessage(t("导入完成，学校详情页的院校信息更新已刷新。"));
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("导入失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("导入失败"));
     } finally {
       setLoading(false);
     }

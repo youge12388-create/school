@@ -4,7 +4,7 @@ import Link from "next/link";
 import { toggleUserAction } from "@/app/actions";
 import { Badge, PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { makeT, makeBadgeT, makeTv } from "@/lib/i18n/dict";
+import { makeBadgeT, makeMessageT, makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
@@ -28,6 +28,7 @@ export default async function UsersPage({
   const t = makeT(locale);
   const bt = makeBadgeT(locale);
   const tv = makeTv(locale);
+  const tm = makeMessageT(locale);
   const rows = await listUsers();
 
   return (
@@ -47,7 +48,7 @@ export default async function UsersPage({
             <h3>{t("创建账号")}</h3>
           </div>
           <div className="card-body">
-            {error ? <div className="alert error">{t(error)}</div> : null}
+            {error ? <div className="alert error">{tm(error)}</div> : null}
             {created ? (
               <div className="alert success">{t("账号已创建并写入当前数据库。")}</div>
             ) : null}
@@ -173,7 +174,7 @@ export default async function UsersPage({
             <h3>{t("创建账号")}</h3>
           </div>
           <div className="card-body">
-            {error ? <div className="alert error">{t(error)}</div> : null}
+            {error ? <div className="alert error">{tm(error)}</div> : null}
             {created ? (
               <div className="alert success">{t("账号已创建并写入当前数据库。")}</div>
             ) : null}

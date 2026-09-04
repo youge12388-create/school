@@ -13,10 +13,16 @@ export function displayValue(value: unknown) {
   return JSON.stringify(value);
 }
 
-/** Render a raw value, localizing the "no info" placeholder only. */
+/**
+ * Render a raw value for display. The "no info" placeholder always localizes;
+ * short literal values (是/否 等枚举性短值) are best-effort looked up in the
+ * dictionary so they show as Yes/No in English. Longer text is treated as
+ * user data and stays untouched.
+ */
 export function displayValueLocalized(value: unknown, t: (s: string) => string) {
   const text = displayValue(value);
-  return text === UNKNOWN_TEXT ? t(UNKNOWN_TEXT) : text;
+  if (text === UNKNOWN_TEXT) return t(UNKNOWN_TEXT);
+  return text.length <= 16 ? t(text) : text;
 }
 
 function isLongField(label: string, value: unknown) {

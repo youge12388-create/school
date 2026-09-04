@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { ImportMethodTabs } from "@/components/import-method-tabs";
-import { useT, useTv } from "@/lib/i18n/locale-context";
+import { useT, useTv, useTm } from "@/lib/i18n/locale-context";
 
 type Preview = {
   batchId: string;
@@ -33,6 +33,7 @@ function ExcelImportPanel() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const t = useT();
+  const tm = useTm();
   const tv = useTv();
 
   async function previewFiles(formData: FormData) {
@@ -47,7 +48,7 @@ function ExcelImportPanel() {
       if (!response.ok) throw new Error(result.error ?? t("生成预览失败"));
       setPreview(result);
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("生成预览失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("生成预览失败"));
     } finally {
       setLoading(false);
     }
@@ -68,7 +69,7 @@ function ExcelImportPanel() {
       setMessage(t("导入完成，学校库和学校筛查数据已更新。"));
       setPreview(null);
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("确认导入失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("确认导入失败"));
     } finally {
       setLoading(false);
     }

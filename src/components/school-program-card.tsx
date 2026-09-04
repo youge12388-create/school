@@ -7,7 +7,7 @@ import { useEditMode } from "@/components/edit-mode";
 import { KnowledgeFieldGrid, UNKNOWN_TEXT, displayValue, displayValueLocalized } from "@/components/knowledge-fields";
 import { Badge } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
-import { useLocale, useT, useTv } from "@/lib/i18n/locale-context";
+import { useLocale, useT, useTv, useTm } from "@/lib/i18n/locale-context";
 import { formatDate, formatMoney } from "@/lib/utils";
 
 function hasValidDate(value: Date | null) {
@@ -87,6 +87,7 @@ export function SchoolProgramCard({
   const [savedAt, setSavedAt] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
+  const tm = useTm();
   const tv = useTv();
   const locale = useLocale();
   const en = locale === "en";
@@ -113,7 +114,7 @@ export function SchoolProgramCard({
       setSavedAt((version) => version + 1);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }

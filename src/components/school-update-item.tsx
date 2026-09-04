@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SchoolUpdateView } from "@/lib/school-updates";
-import { useT, useTv } from "@/lib/i18n/locale-context";
+import { useT, useTv, useTm } from "@/lib/i18n/locale-context";
 
 import { SchoolUpdateForm } from "@/components/school-update-form";
 
@@ -66,6 +66,7 @@ export function SchoolUpdateItem({
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const t = useT();
+  const tm = useTm();
   const tv = useTv();
 
   const publicAttachments = view.attachments.filter(
@@ -98,7 +99,7 @@ export function SchoolUpdateItem({
       });
       if (!response.ok) {
         const body = (await response.json()) as { error?: string };
-        window.alert(body.error ? t(body.error) : t("删除失败"));
+        window.alert(body.error ? tm(body.error) : t("删除失败"));
         return;
       }
       router.refresh();

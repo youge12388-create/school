@@ -832,10 +832,93 @@ export const EN_DICT: Record<string, string> = {
   "缺少客户或文件": "Customer or file is missing",
   "未知错误": "Unknown error",
   "新增客户失败": "Failed to add customer",
+  "客户和沟通内容不能为空": "Customer and follow-up content are required",
+  "负责老师和签约状态不能为空": "Owner and contract status are required",
+  "负责老师账号不存在": "Owner account not found",
+  "客户和项目不能为空": "Customer and program are required",
+  "状态和调整原因不能为空": "Status and reason are required",
+  "申请不存在": "Application not found",
+  "不能停用当前管理员账号": "You cannot disable your own administrator account",
+  "两次新密码不一致": "The two new passwords do not match",
+  "当前密码不正确": "Current password is incorrect",
   "该账号已被停用，请联系管理员。": "This account has been disabled. Contact an administrator.",
   "无权访问该系统。": "You don't have access to this system.",
   "系统繁忙，请稍后重试。": "The system is busy. Please try again later.",
 };
+
+/**
+ * Server messages that embed a variable (role, school name, inner error…).
+ * `{word}` marks the dynamic segment; both sides must list the same
+ * placeholders in the same order. Used by `translateMessage`.
+ */
+const MESSAGE_TEMPLATES: ReadonlyArray<{ zh: string; en: string }> = [
+  {
+    zh: "权限不足：需要管理员角色，当前角色为 {role}",
+    en: "Insufficient permission: Administrator role required (current role: {role})",
+  },
+  {
+    zh: "客户数据写入失败：{message}",
+    en: "Failed to write customer data: {message}",
+  },
+  {
+    zh: "审计日志写入失败：{message}",
+    en: "Failed to write audit log: {message}",
+  },
+  {
+    zh: "项目 \"{name}\"：项目名称、申请学历和授课语言不能为空",
+    en: "Program \"{name}\": name, degree level and teaching language are required",
+  },
+  {
+    zh: "项目 {name} 不存在",
+    en: "Program \"{name}\" not found",
+  },
+];
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const templateCache = new Map<string, RegExp>();
+
+function compileTemplate(zh: string) {
+  const cached = templateCache.get(zh);
+  if (cached) return cached;
+  let pattern = "";
+  let last = 0;
+  const placeholder = /\{\w+\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = placeholder.exec(zh))) {
+    pattern += escapeRegExp(zh.slice(last, match.index)) + "([\\s\\S]*?)";
+    last = match.index + match[0].length;
+  }
+  pattern += escapeRegExp(zh.slice(last));
+  const regex = new RegExp(`^${pattern}$`);
+  templateCache.set(zh, regex);
+  return regex;
+}
+
+/**
+ * Translate a message that may come from the server (exact dict hit first,
+ * then best-effort template match for messages with embedded variables).
+ * Unknown messages fall back to the Chinese source.
+ */
+export function translateMessage(locale: UiLocale, message: string): string {
+  if (locale !== "en") return message;
+  const exact = EN_DICT[message];
+  if (exact !== undefined) return exact;
+  for (const template of MESSAGE_TEMPLATES) {
+    const match = compileTemplate(template.zh).exec(message);
+    if (!match) continue;
+    let index = 1;
+    return template.en.replace(/\{\w+\}/g, () => match[index++] ?? "");
+  }
+  return message;
+}
+
+/** Bind `translateMessage` to a fixed locale. */
+export function makeMessageT(locale: UiLocale) {
+  return (message: string): string => translateMessage(locale, message);
+}
 
 /** Translate a UI string for the given locale. Unknown keys fall back to the Chinese source. */
 export function translate(locale: UiLocale, source: string): string {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { useT } from "@/lib/i18n/locale-context";
+import { useT, useTm } from "@/lib/i18n/locale-context";
 
 type ManualResult = {
   schoolId: string;
@@ -26,7 +26,7 @@ function TextInput({
   placeholder?: string;
 }) {
   const t = useT();
-  return (
+    return (
     <label>
       {t(label)}
       <input
@@ -67,6 +67,7 @@ export function ManualEntryForm({
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<ManualResult | null>(null);
   const t = useT();
+  const tm = useTm();
 
   async function submit(formData: FormData) {
     setLoading(true);
@@ -84,7 +85,7 @@ export function ManualEntryForm({
       setMessage(t("录入成功，已可在学校库和学校筛查中搜索。"));
       formRef.current?.reset();
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("手动录入失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("手动录入失败"));
     } finally {
       setLoading(false);
     }

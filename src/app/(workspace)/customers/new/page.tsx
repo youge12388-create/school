@@ -6,7 +6,7 @@ import {
   LANGUAGE_LABELS,
   PROGRAM_TYPE_LABELS,
 } from "@/lib/constants";
-import { makeT } from "@/lib/i18n/dict";
+import { makeMessageT, makeT } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { listCustomerOwners } from "@/lib/queries";
 
@@ -18,6 +18,7 @@ export default async function NewCustomerPage({
   const [{ error }, user] = await Promise.all([searchParams, requireUser()]);
   const locale = await getUiLocale();
   const t = makeT(locale);
+  const tm = makeMessageT(locale);
   const owners = listCustomerOwners();
 
   return (
@@ -29,7 +30,7 @@ export default async function NewCustomerPage({
       <form className="card" action="/api/customers" method="post">
         <div className="card-header"><h3>{t("客户档案")}</h3></div>
         <div className="card-body">
-          {error ? <div className="alert error" style={{ marginBottom: 14 }}>{t(error)}</div> : null}
+          {error ? <div className="alert error" style={{ marginBottom: 14 }}>{tm(error)}</div> : null}
           <div className="form-grid">
             <label>{t("姓名")}<input name="name" required /></label>
             <label>{t("国籍")}<input name="nationality" /></label>

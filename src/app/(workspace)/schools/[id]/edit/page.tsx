@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireRole } from "@/lib/auth";
-import { makeT, makeTv } from "@/lib/i18n/dict";
+import { makeMessageT, makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import {
   canEditConfidentialSchoolFields,
@@ -24,6 +24,7 @@ export default async function SchoolEditPage({
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
+  const tm = makeMessageT(locale);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const canEditConfidential = canEditConfidentialSchoolFields(user.role);
   const { id } = await params;
@@ -42,7 +43,7 @@ export default async function SchoolEditPage({
 
       {errorMessage ? (
         <div className="alert-error" style={{ marginBottom: 16, padding: "10px 14px", background: "#fff0f0", border: "1px solid #fcc", borderRadius: 8, color: "#c00", fontSize: 13 }}>
-          {t(errorMessage)}
+          {tm(errorMessage)}
         </div>
       ) : null}
 

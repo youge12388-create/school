@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SchoolUpdateView } from "@/lib/school-updates";
-import { useT } from "@/lib/i18n/locale-context";
+import { useT, useTm } from "@/lib/i18n/locale-context";
 
 export function SchoolUpdateForm({
   schoolId,
@@ -20,6 +20,7 @@ export function SchoolUpdateForm({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const t = useT();
+  const tm = useTm();
   const isEdit = Boolean(initial);
 
   async function uploadAttachment(
@@ -87,7 +88,7 @@ export function SchoolUpdateForm({
         setTimeout(onSaved, 700);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
+      setMessage(error instanceof Error ? tm(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }

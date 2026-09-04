@@ -1,6 +1,6 @@
 import { LocaleToggle } from "@/components/locale-toggle";
 import { getCurrentUser } from "@/lib/auth";
-import { translate } from "@/lib/i18n/dict";
+import { makeMessageT, translate } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 
@@ -16,6 +16,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
   const locale = await getUiLocale();
   const t = (s: string) => translate(locale, s);
+  const tm = makeMessageT(locale);
 
   return (
     <main className={styles.page}>
@@ -79,7 +80,7 @@ export default async function LoginPage({
             <span>{t("使用管理员为你创建的账号登录。")}</span>
           </div>
 
-          {error ? <div className={styles.error}>{t(error)}</div> : null}
+          {error ? <div className={styles.error}>{tm(error)}</div> : null}
 
           <label className={styles.field}>
             <span>{t("用户名")}</span>
