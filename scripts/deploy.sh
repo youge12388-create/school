@@ -38,6 +38,8 @@ readonly ARTIFACT_FILE="$APP_DIR/standalone-release.tar.gz"
 readonly STANDALONE_DIR="$APP_DIR/.next/standalone"
 readonly STANDALONE_NEW="$APP_DIR/.next/standalone.new"
 readonly STANDALONE_OLD="$APP_DIR/.next/standalone.old"
+# 发布成功后在仓库外记录已发布的 commit（避免污染 git 工作区）。
+readonly RELEASE_MARKER="/opt/.school_syt_release_commit"
 
 APP_OWNER=""
 PREVIOUS_COMMIT=""
@@ -385,10 +387,19 @@ main() {
   fi
 
   local new_commit
+  local installed_commit=""
   new_commit="$(as_app_owner git rev-parse HEAD)"
-  if [[ "$new_commit" == "$PREVIOUS_COMMIT" ]]; then
-    log "Already at commit $new_commit; nothing new to release."
+  # 跳过条件 = 代码没有新提交 且 运行包已经是该提交的产物（有发布标记）。
+  # 仅“代码拉到新 commit 但运行包还是旧的”（含首次引导）必须继续发布。
+  if [[ -f "$RELEASE_MARKER" ]]; then
+    installed_commit="$(cat "$RELEASE_MARKER" 2>/dev/null || true)"
+  fi
+  if [[ "$new_commit" == "$PREVIOUS_COMMIT" && "$installed_commit" == "$new_commit" && -d "$STANDALONE_DIR" ]]; then
+    log "Commit $new_commit is already released (runtime matches the release marker); nothing to do."
     return 0
+  fi
+  if [[ "$new_commit" == "$PREVIOUS_COMMIT" && "$installed_commit" != "$new_commit" ]]; then
+    log "Source is at $new_commit but the running bundle is older; releasing the current artifact."
   fi
 
   # 产物下载失败：代码已拉取但运行包未动、进程未动，直接还原 Git 状态退出。
@@ -426,6 +437,7 @@ main() {
   fi
 
   RELEASE_COMPLETE=1
+  printf '%s\n' "$new_commit" > "$RELEASE_MARKER"
   as_app_owner rm -rf "$STANDALONE_OLD"
   log "Release completed successfully at commit $(as_app_owner git rev-parse --short HEAD)."
 }
