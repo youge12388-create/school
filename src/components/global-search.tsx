@@ -1,12 +1,14 @@
-﻿"use client";
+"use client";
 
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useRef } from "react";
+import { useT } from "@/lib/i18n/locale-context";
 
 export function GlobalSearch() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const t = useT();
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -22,8 +24,8 @@ export function GlobalSearch() {
       <input
         ref={inputRef}
         name="global-q"
-        placeholder="搜索学校、项目..."
-        aria-label="全局搜索"
+        placeholder={t("搜索学校、项目...")}
+        aria-label={t("全局搜索")}
       />
     </form>
   );

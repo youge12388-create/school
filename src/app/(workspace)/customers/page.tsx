@@ -11,6 +11,8 @@ import {
   type AdmissionStatus,
   type ContractStatus,
 } from "@/lib/constants";
+import { makeT, makeTv } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import { listCustomerOwners, listCustomers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 
@@ -39,6 +41,9 @@ export default async function CustomersPage({
   }>;
 }) {
   const params = await searchParams;
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const tv = makeTv(locale);
   const q = params.q ?? "";
   const ownerId = params.ownerId ?? "";
   const contractStatus = CONTRACT_STATUSES.includes(
@@ -62,76 +67,76 @@ export default async function CustomersPage({
   return (
     <>
       <PageHeading
-        title="客户管理"
-        description="集中查看负责老师、签约进度、院校录取情况和后续跟进记录。"
+        title={t("客户管理")}
+        description={t("集中查看负责老师、签约进度、院校录取情况和后续跟进记录。")}
         action={
           <Link className="button primary" href="/customers/new">
-            新增客户
+            {t("新增客户")}
           </Link>
         }
       />
 
       <form className="toolbar customer-filter-toolbar desktop-only">
         <label className="search">
-          搜索客户
-          <input name="q" defaultValue={q} placeholder="姓名、客户编号或电话" />
+          {t("搜索客户")}
+          <input name="q" defaultValue={q} placeholder={t("姓名、客户编号或电话")} />
         </label>
         <label>
-          负责老师
+          {t("负责老师")}
           <select name="ownerId" defaultValue={ownerId}>
-            <option value="">全部老师</option>
+            <option value="">{t("全部老师")}</option>
             {owners.map((owner) => (
               <option value={owner.id} key={owner.id}>{owner.displayName}</option>
             ))}
           </select>
         </label>
         <label>
-          签约状态
+          {t("签约状态")}
           <select name="contractStatus" defaultValue={contractStatus}>
-            <option value="">全部状态</option>
+            <option value="">{t("全部状态")}</option>
             {CONTRACT_STATUSES.map((status) => (
-              <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
+              <option value={status} key={status}>{t(CONTRACT_STATUS_LABELS[status])}</option>
             ))}
           </select>
         </label>
         <label>
-          院校录取情况
+          {t("院校录取情况")}
           <select name="admissionStatus" defaultValue={admissionStatus}>
-            <option value="">全部情况</option>
+            <option value="">{t("全部情况")}</option>
             {ADMISSION_STATUSES.map((status) => (
-              <option value={status} key={status}>{ADMISSION_STATUS_LABELS[status]}</option>
+              <option value={status} key={status}>{t(ADMISSION_STATUS_LABELS[status])}</option>
             ))}
           </select>
         </label>
         <div className="toolbar-actions">
-          <button className="primary" type="submit">筛选</button>
-          <Link className="button" href="/customers">重置</Link>
+          <button className="primary" type="submit">{t("筛选")}</button>
+          <Link className="button" href="/customers">{t("重置")}</Link>
         </div>
       </form>
 
       <form className="mobile-only mobile-customer-filter">
-        <input name="q" defaultValue={q} placeholder="搜索客户姓名、编号或电话" />
+        <input name="q" defaultValue={q} placeholder={t("搜索客户姓名、编号或电话")} />
         <select name="ownerId" defaultValue={ownerId}>
-          <option value="">全部老师</option>
+          <option value="">{t("全部老师")}</option>
           {owners.map((owner) => (
             <option value={owner.id} key={owner.id}>{owner.displayName}</option>
           ))}
         </select>
         <select name="contractStatus" defaultValue={contractStatus}>
-          <option value="">全部签约状态</option>
+          <option value="">{t("全部签约状态")}</option>
           {CONTRACT_STATUSES.map((status) => (
-            <option value={status} key={status}>{CONTRACT_STATUS_LABELS[status]}</option>
+            <option value={status} key={status}>{t(CONTRACT_STATUS_LABELS[status])}</option>
           ))}
         </select>
         <select name="admissionStatus" defaultValue={admissionStatus}>
-          <option value="">全部录取情况</option>
+          <option value="">{t("全部录取情况")}</option>
           {ADMISSION_STATUSES.map((status) => (
-            <option value={status} key={status}>{ADMISSION_STATUS_LABELS[status]}</option>
+            <option value={status} key={status}>{t(ADMISSION_STATUS_LABELS[status])}</option>
           ))}
         </select>
         <div className="mobile-filter-actions">
-          <button className="primary" type="submit">筛选</button>
-          <Link className="button" href="/customers">重置</Link>
+          <button className="primary" type="submit">{t("筛选")}</button>
+          <Link className="button" href="/customers">{t("重置")}</Link>
         </div>
       </form>
 
@@ -140,13 +145,13 @@ export default async function CustomersPage({
           <table className="customer-table">
             <thead>
               <tr>
-                <th>客户</th>
-                <th>申请目标</th>
-                <th>负责老师</th>
-                <th>签约状态</th>
-                <th>院校录取情况</th>
-                <th>后续跟进情况</th>
-                <th>操作</th>
+                <th>{t("客户")}</th>
+                <th>{t("申请目标")}</th>
+                <th>{t("负责老师")}</th>
+                <th>{t("签约状态")}</th>
+                <th>{t("院校录取情况")}</th>
+                <th>{t("后续跟进情况")}</th>
+                <th>{t("操作")}</th>
               </tr>
             </thead>
             <tbody>
@@ -157,42 +162,42 @@ export default async function CustomersPage({
                       <strong>{customer.name}</strong>
                     </Link>
                     <div className="small muted">{customer.customerNo}</div>
-                    <div className="small muted">{customer.nationality || "国籍未录入"}</div>
+                    <div className="small muted">{customer.nationality || t("国籍未录入")}</div>
                   </td>
                   <td>
-                    <strong>{PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "学历未确定"}</strong>
-                    <div className="small muted">{customer.targetMajor || "专业未确定"}</div>
+                    <strong>{t(PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "学历未确定")}</strong>
+                    <div className="small muted">{customer.targetMajor || t("专业未确定")}</div>
                   </td>
-                  <td>{customer.ownerName || "未分配"}</td>
+                  <td>{customer.ownerName || t("未分配")}</td>
                   <td>
                     <Badge tone={contractTone(customer.contractStatus)}>
-                      {CONTRACT_STATUS_LABELS[customer.contractStatus]}
+                      {t(CONTRACT_STATUS_LABELS[customer.contractStatus])}
                     </Badge>
                   </td>
                   <td>
                     <Badge tone={admissionTone(customer.admissionStatus)}>
-                      {ADMISSION_STATUS_LABELS[customer.admissionStatus]}
+                      {t(ADMISSION_STATUS_LABELS[customer.admissionStatus])}
                     </Badge>
                   </td>
                   <td className="customer-follow-up-cell">
                     {customer.latestFollowUpContent ? (
                       <>
                         <div className="follow-up-summary">
-                          <strong>{customer.latestFollowUpChannel || "沟通记录"}</strong>
+                          <strong>{customer.latestFollowUpChannel || t("沟通记录")}</strong>
                           <span className="small muted">{formatDate(customer.latestFollowUpAt)}</span>
                         </div>
                         <p className="truncate">{customer.latestFollowUpContent}</p>
                       </>
                     ) : (
-                      <span className="muted">暂无沟通记录</span>
+                      <span className="muted">{t("暂无沟通记录")}</span>
                     )}
                     <div className="small muted">
-                      计划跟进：{formatDate(customer.nextFollowUpAt)}
+                      {tv("计划跟进：{d}", { d: formatDate(customer.nextFollowUpAt) })}
                     </div>
                   </td>
                   <td>
                     <Link className="button customer-detail-link" href={`/customers/${customer.id}`}>
-                      查看详情
+                      {t("查看详情")}
                     </Link>
                   </td>
                 </tr>
@@ -200,7 +205,7 @@ export default async function CustomersPage({
             </tbody>
           </table>
         ) : (
-          <EmptyState>没有符合当前筛选条件的客户。</EmptyState>
+          <EmptyState>{t("没有符合当前筛选条件的客户。")}</EmptyState>
         )}
       </div>
 
@@ -211,47 +216,47 @@ export default async function CustomersPage({
               <div className="mobile-customer-header">
                 <div>
                   <div className="mobile-customer-name">{customer.name}</div>
-                  <div className="small muted">{customer.customerNo} · {customer.nationality || "国籍未录入"}</div>
+                  <div className="small muted">{customer.customerNo} · {customer.nationality || t("国籍未录入")}</div>
                 </div>
                 <Badge tone={contractTone(customer.contractStatus)}>
-                  {CONTRACT_STATUS_LABELS[customer.contractStatus]}
+                  {t(CONTRACT_STATUS_LABELS[customer.contractStatus])}
                 </Badge>
               </div>
               <div className="mobile-customer-body">
                 <div className="mobile-customer-row">
-                  <span className="mobile-customer-label">申请目标</span>
+                  <span className="mobile-customer-label">{t("申请目标")}</span>
                   <span>
-                    {PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "学历未确定"}
+                    {t(PROGRAM_TYPE_LABELS[customer.targetDegree || ""] || "学历未确定")}
                     {customer.targetMajor ? ` · ${customer.targetMajor}` : null}
                   </span>
                 </div>
                 <div className="mobile-customer-row">
-                  <span className="mobile-customer-label">负责老师</span>
-                  <span>{customer.ownerName || "未分配"}</span>
+                  <span className="mobile-customer-label">{t("负责老师")}</span>
+                  <span>{customer.ownerName || t("未分配")}</span>
                 </div>
                 <div className="mobile-customer-row">
-                  <span className="mobile-customer-label">录取情况</span>
+                  <span className="mobile-customer-label">{t("录取情况")}</span>
                   <Badge tone={admissionTone(customer.admissionStatus)}>
-                    {ADMISSION_STATUS_LABELS[customer.admissionStatus]}
+                    {t(ADMISSION_STATUS_LABELS[customer.admissionStatus])}
                   </Badge>
                 </div>
                 <div className="mobile-customer-row">
-                  <span className="mobile-customer-label">最新跟进</span>
+                  <span className="mobile-customer-label">{t("最新跟进")}</span>
                   <span className="small muted">
                     {customer.latestFollowUpContent
-                      ? `${customer.latestFollowUpChannel || "沟通"} · ${formatDate(customer.latestFollowUpAt)}`
-                      : "暂无沟通记录"}
+                      ? `${customer.latestFollowUpChannel || t("沟通")} · ${formatDate(customer.latestFollowUpAt)}`
+                      : t("暂无沟通记录")}
                   </span>
                 </div>
                 <div className="mobile-customer-row">
-                  <span className="mobile-customer-label">计划跟进</span>
+                  <span className="mobile-customer-label">{t("计划跟进")}</span>
                   <span className="small muted">{formatDate(customer.nextFollowUpAt)}</span>
                 </div>
               </div>
             </Link>
           ))
         ) : (
-          <EmptyState>没有符合当前筛选条件的客户。</EmptyState>
+          <EmptyState>{t("没有符合当前筛选条件的客户。")}</EmptyState>
         )}
       </div>
 

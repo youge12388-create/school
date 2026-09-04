@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 
+import { useT } from "@/lib/i18n/locale-context";
+
 type ManualResult = {
   schoolId: string;
   programId: string;
@@ -23,10 +25,16 @@ function TextInput({
   type?: "text" | "url" | "number";
   placeholder?: string;
 }) {
+  const t = useT();
   return (
     <label>
-      {label}
-      <input name={name} placeholder={placeholder} required={required} type={type} />
+      {t(label)}
+      <input
+        name={name}
+        placeholder={placeholder ? t(placeholder) : undefined}
+        required={required}
+        type={type}
+      />
     </label>
   );
 }
@@ -40,10 +48,11 @@ function TextArea({
   name: string;
   placeholder?: string;
 }) {
+  const t = useT();
   return (
     <label>
-      {label}
-      <textarea name={name} placeholder={placeholder} />
+      {t(label)}
+      <textarea name={name} placeholder={placeholder ? t(placeholder) : undefined} />
     </label>
   );
 }
@@ -57,6 +66,7 @@ export function ManualEntryForm({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<ManualResult | null>(null);
+  const t = useT();
 
   async function submit(formData: FormData) {
     setLoading(true);
@@ -69,12 +79,12 @@ export function ManualEntryForm({
         body: JSON.stringify(Object.fromEntries(formData)),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "手动录入失败");
+      if (!response.ok) throw new Error(body.error ?? t("手动录入失败"));
       setResult(body as ManualResult);
-      setMessage("录入成功，已可在学校库和学校筛查中搜索。");
+      setMessage(t("录入成功，已可在学校库和学校筛查中搜索。"));
       formRef.current?.reset();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "手动录入失败");
+      setMessage(error instanceof Error ? t(error.message) : t("手动录入失败"));
     } finally {
       setLoading(false);
     }
@@ -83,17 +93,17 @@ export function ManualEntryForm({
   return (
     <form action={submit} className="card manual-entry-form" ref={formRef}>
       <div className="card-header">
-        <h3>手动录入学校与项目</h3>
+        <h3>{t("手动录入学校与项目")}</h3>
       </div>
       <div className="card-body">
         <p className="small muted">
-          仅学校中文名必填，其余内容可以不填。同名学校会自动关联，不改动已有学校资料。
+          {t("仅学校中文名必填，其余内容可以不填。同名学校会自动关联，不改动已有学校资料。")}
         </p>
 
         <section className="manual-entry-section">
           <div className="manual-entry-section-title">
             <span>01</span>
-            <div><h4>学校信息</h4><p>学校中文名是关联已有学校的唯一依据。</p></div>
+            <div><h4>{t("学校信息")}</h4><p>{t("学校中文名是关联已有学校的唯一依据。")}</p></div>
           </div>
           <div className="grid cols-2">
             <TextInput label="学校中文名" name="schoolNameZh" required placeholder="例如：深圳大学" />
@@ -110,27 +120,27 @@ export function ManualEntryForm({
         <section className="manual-entry-section">
           <div className="manual-entry-section-title">
             <span>02</span>
-            <div><h4>项目搜索字段</h4><p>暂时不清楚的字段可以留空，系统会标记为待复核。</p></div>
+            <div><h4>{t("项目搜索字段")}</h4><p>{t("暂时不清楚的字段可以留空，系统会标记为待复核。")}</p></div>
           </div>
           <div className="grid cols-2">
             <label>
-              项目类型
+              {t("项目类型")}
               <select defaultValue="UNKNOWN" name="programType">
-                <option value="UNKNOWN">暂不填写</option>
-                <option value="UG">本科</option>
-                <option value="MASTER">硕士</option>
-                <option value="PHD">博士</option>
-                <option value="LONG_TERM">长期进修</option>
-                <option value="SHORT_TERM">短期项目</option>
+                <option value="UNKNOWN">{t("暂不填写")}</option>
+                <option value="UG">{t("本科")}</option>
+                <option value="MASTER">{t("硕士")}</option>
+                <option value="PHD">{t("博士")}</option>
+                <option value="LONG_TERM">{t("长期进修")}</option>
+                <option value="SHORT_TERM">{t("短期项目")}</option>
               </select>
             </label>
             <label>
-              授课语言
+              {t("授课语言")}
               <select defaultValue="UNKNOWN" name="teachingLanguage">
-                <option value="UNKNOWN">暂不填写</option>
-                <option value="CHINESE">中文</option>
-                <option value="ENGLISH">英文</option>
-                <option value="FRENCH">法文</option>
+                <option value="UNKNOWN">{t("暂不填写")}</option>
+                <option value="CHINESE">{t("中文")}</option>
+                <option value="ENGLISH">{t("英文")}</option>
+                <option value="FRENCH">{t("法文")}</option>
               </select>
             </label>
           </div>
@@ -143,15 +153,15 @@ export function ManualEntryForm({
         </section>
 
         <details className="manual-entry-details">
-          <summary>填写更多学校与项目字段</summary>
+          <summary>{t("填写更多学校与项目字段")}</summary>
           <div className="manual-entry-section optional">
             <div className="grid cols-2">
               <label>
-                学校 CSCA 状态
+                {t("学校 CSCA 状态")}
                 <select defaultValue="UNKNOWN" name="schoolCscaStatus">
-                  <option value="UNKNOWN">数据库未有相关信息</option>
-                  <option value="REQUIRED">需要</option>
-                  <option value="NOT_REQUIRED">不需要</option>
+                  <option value="UNKNOWN">{t("数据库未有相关信息")}</option>
+                  <option value="REQUIRED">{t("需要")}</option>
+                  <option value="NOT_REQUIRED">{t("不需要")}</option>
                 </select>
               </label>
               <TextInput label="学校标签" name="schoolTags" />
@@ -181,7 +191,7 @@ export function ManualEntryForm({
             <div className="manual-entry-section optional">
               <div className="manual-entry-section-title">
                 <span>03</span>
-                <div><h4>学校合作与招生信息</h4><p>内部资料，仅高级管理员可录入。</p></div>
+                <div><h4>{t("学校合作与招生信息")}</h4><p>{t("内部资料，仅高级管理员可录入。")}</p></div>
               </div>
               <div className="grid cols-2">
                 <TextInput label="团体申请账号" name="groupApplicationAccount" />
@@ -205,10 +215,10 @@ export function ManualEntryForm({
 
         <div className="form-actions">
           <button className="primary" disabled={loading} type="submit">
-            {loading ? "保存中…" : "保存并加入搜索"}
+            {loading ? t("保存中…") : t("保存并加入搜索")}
           </button>
           <button disabled={loading} onClick={() => formRef.current?.reset()} type="button">
-            清空
+            {t("清空")}
           </button>
         </div>
         {message ? (
@@ -216,8 +226,8 @@ export function ManualEntryForm({
             {message}
             {result ? (
               <>
-                {result.reviewStatus === "NEEDS_REVIEW" ? " 当前信息不完整，已标记待复核。" : ""}
-                {" "}<Link href={`/schools/${result.schoolId}`}>查看学校详情</Link>
+                {result.reviewStatus === "NEEDS_REVIEW" ? ` ${t("当前信息不完整，已标记待复核。")}` : ""}
+                {" "}<Link href={`/schools/${result.schoolId}`}>{t("查看学校详情")}</Link>
               </>
             ) : null}
           </div>

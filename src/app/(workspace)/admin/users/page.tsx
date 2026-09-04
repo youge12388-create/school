@@ -4,8 +4,18 @@ import Link from "next/link";
 import { toggleUserAction } from "@/app/actions";
 import { Badge, PageHeading } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { makeT, makeBadgeT, makeTv } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
+
+const roleOptions = [
+  "ADVISOR",
+  "DATA_MANAGER",
+  "CHANNEL_RESOURCE",
+  "MARKET_MANAGER",
+  "ADMIN",
+] as const;
 
 export default async function UsersPage({
   searchParams,
@@ -14,15 +24,19 @@ export default async function UsersPage({
 }) {
   await requireRole(["ADMIN"]);
   const { created, roleUpdated, error } = await searchParams;
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const bt = makeBadgeT(locale);
+  const tv = makeTv(locale);
   const rows = await listUsers();
 
   return (
     <>
       <PageHeading
-        title="账号管理"
-        description="管理员创建和停用账号。停用后原有会话无法继续访问系统。"
+        title={t("账号管理")}
+        description={t("管理员创建和停用账号。停用后原有会话无法继续访问系统。")}
         action={
-          <Link className="button mobile-header-icon-only" href="/account" aria-label="账号设置">
+          <Link className="button mobile-header-icon-only" href="/account" aria-label={t("账号设置")}>
             <Settings aria-hidden="true" />
           </Link>
         }
@@ -30,64 +44,62 @@ export default async function UsersPage({
       <section className="grid cols-2 desktop-only">
         <form className="card" action="/api/admin/users" method="post">
           <div className="card-header">
-            <h3>创建账号</h3>
+            <h3>{t("创建账号")}</h3>
           </div>
           <div className="card-body">
-            {error ? <div className="alert error">{error}</div> : null}
+            {error ? <div className="alert error">{t(error)}</div> : null}
             {created ? (
-              <div className="alert success">账号已创建并写入当前数据库。</div>
+              <div className="alert success">{t("账号已创建并写入当前数据库。")}</div>
             ) : null}
-            {roleUpdated ? <div className="alert success">账号角色已更新。</div> : null}
+            {roleUpdated ? <div className="alert success">{t("账号角色已更新。")}</div> : null}
             <div className="form-grid">
               <label>
-                用户名
+                {t("用户名")}
                 <input name="username" required />
               </label>
               <label>
-                显示名称
+                {t("显示名称")}
                 <input name="displayName" required />
               </label>
               <label>
-                角色
+                {t("角色")}
                 <select name="role">
-                  <option value="ADVISOR">顾问</option>
-                  <option value="DATA_MANAGER">数据管理员</option>
-                  <option value="CHANNEL_RESOURCE">渠道资源部</option>
-                  <option value="MARKET_MANAGER">市场经理</option>
-                  <option value="ADMIN">高级管理员</option>
+                  {roleOptions.map((role) => (
+                    <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                  ))}
                 </select>
               </label>
               <label>
-                初始密码
+                {t("初始密码")}
                 <input name="password" type="password" minLength={10} required />
               </label>
             </div>
             <div className="form-actions">
               <button className="primary" type="submit">
-                创建账号
+                {t("创建账号")}
               </button>
             </div>
           </div>
         </form>
         <div className="card">
           <div className="card-header">
-            <h3>权限说明</h3>
+            <h3>{t("权限说明")}</h3>
           </div>
           <div className="card-body">
             <p>
-              <strong>顾问：</strong>筛选、客户、跟进、申请和材料。
+              <strong>{t("顾问：")}</strong>{t("筛选、客户、跟进、申请和材料。")}
             </p>
             <p>
-              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。
+              <strong>{t("数据管理员：")}</strong>{t("顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。")}
             </p>
             <p>
-              <strong>渠道资源部：</strong>院校信息录入与更新，不包含机密字段。
+              <strong>{t("渠道资源部：")}</strong>{t("院校信息录入与更新，不包含机密字段。")}
             </p>
             <p>
-              <strong>市场经理：</strong>只读查看院校公开信息和备注。
+              <strong>{t("市场经理：")}</strong>{t("只读查看院校公开信息和备注。")}
             </p>
             <p>
-              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。
+              <strong>{t("高级管理员：")}</strong>{t("全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。")}
             </p>
           </div>
         </div>
@@ -95,18 +107,18 @@ export default async function UsersPage({
 
       <section className="card desktop-only" style={{ marginTop: 16 }}>
         <div className="card-header">
-          <h3>已有账号</h3>
+          <h3>{t("已有账号")}</h3>
         </div>
         <div className="card-body">
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>账号</th>
-                  <th>角色</th>
-                  <th>状态</th>
-                  <th>最近登录</th>
-                  <th>操作</th>
+                  <th>{t("账号")}</th>
+                  <th>{t("角色")}</th>
+                  <th>{t("状态")}</th>
+                  <th>{t("最近登录")}</th>
+                  <th>{t("操作")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,19 +132,17 @@ export default async function UsersPage({
                       <form action="/api/admin/users" method="post">
                         <input type="hidden" name="intent" value="update-role" />
                         <input type="hidden" name="userId" value={user.id} />
-                        <select name="role" defaultValue={user.role} aria-label={`${user.displayName} 的角色`}>
-                          <option value="ADVISOR">顾问</option>
-                          <option value="DATA_MANAGER">数据管理员</option>
-                          <option value="CHANNEL_RESOURCE">渠道资源部</option>
-                          <option value="MARKET_MANAGER">市场经理</option>
-                          <option value="ADMIN">高级管理员</option>
+                        <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
+                          {roleOptions.map((role) => (
+                            <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                          ))}
                         </select>
-                        <button type="submit">保存角色</button>
+                        <button type="submit">{t("保存角色")}</button>
                       </form>
                     </td>
                     <td>
                       <Badge tone={user.active ? "green" : "red"}>
-                        {user.active ? "启用" : "停用"}
+                        {bt(user.active ? "启用" : "停用")}
                       </Badge>
                     </td>
                     <td>{formatDate(user.lastLoginAt)}</td>
@@ -145,7 +155,7 @@ export default async function UsersPage({
                           value={String(!user.active)}
                         />
                         <button type="submit">
-                          {user.active ? "停用" : "启用"}
+                          {t(user.active ? "停用" : "启用")}
                         </button>
                       </form>
                     </td>
@@ -160,41 +170,39 @@ export default async function UsersPage({
       <section className="mobile-only mobile-account-form">
         <form className="card" action="/api/admin/users" method="post">
           <div className="card-header">
-            <h3>创建账号</h3>
+            <h3>{t("创建账号")}</h3>
           </div>
           <div className="card-body">
-            {error ? <div className="alert error">{error}</div> : null}
+            {error ? <div className="alert error">{t(error)}</div> : null}
             {created ? (
-              <div className="alert success">账号已创建并写入当前数据库。</div>
+              <div className="alert success">{t("账号已创建并写入当前数据库。")}</div>
             ) : null}
-            {roleUpdated ? <div className="alert success">账号角色已更新。</div> : null}
+            {roleUpdated ? <div className="alert success">{t("账号角色已更新。")}</div> : null}
             <div className="form-grid mobile-two-col">
               <label>
-                用户名
-                <input name="username" placeholder="请输入用户名" required />
+                {t("用户名")}
+                <input name="username" placeholder={t("请输入用户名")} required />
               </label>
               <label>
-                显示名称
-                <input name="displayName" placeholder="请输入显示名称" required />
+                {t("显示名称")}
+                <input name="displayName" placeholder={t("请输入显示名称")} required />
               </label>
               <label>
-                角色
+                {t("角色")}
                 <select name="role" defaultValue="ADVISOR">
-                  <option value="ADVISOR">顾问</option>
-                  <option value="DATA_MANAGER">数据管理员</option>
-                  <option value="CHANNEL_RESOURCE">渠道资源部</option>
-                  <option value="MARKET_MANAGER">市场经理</option>
-                  <option value="ADMIN">高级管理员</option>
+                  {roleOptions.map((role) => (
+                    <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                  ))}
                 </select>
               </label>
               <label>
-                初始密码
-                <input name="password" type="password" placeholder="请输入初始密码" minLength={10} required />
+                {t("初始密码")}
+                <input name="password" type="password" placeholder={t("请输入初始密码")} minLength={10} required />
               </label>
             </div>
             <div className="form-actions">
               <button className="primary" type="submit">
-                创建账号
+                {t("创建账号")}
               </button>
             </div>
           </div>
@@ -202,29 +210,29 @@ export default async function UsersPage({
 
         <div className="card mobile-permissions">
           <div className="card-header">
-            <h3>权限说明</h3>
+            <h3>{t("权限说明")}</h3>
           </div>
           <div className="card-body">
             <p>
-              <strong>顾问：</strong>筛选、客户、跟进、申请和材料。
+              <strong>{t("顾问：")}</strong>{t("筛选、客户、跟进、申请和材料。")}
             </p>
             <p>
-              <strong>数据管理员：</strong>顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。
+              <strong>{t("数据管理员：")}</strong>{t("顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。")}
             </p>
             <p>
-              <strong>渠道资源部：</strong>院校信息录入与更新，不包含机密字段。
+              <strong>{t("渠道资源部：")}</strong>{t("院校信息录入与更新，不包含机密字段。")}
             </p>
             <p>
-              <strong>市场经理：</strong>只读查看院校公开信息和备注。
+              <strong>{t("市场经理：")}</strong>{t("只读查看院校公开信息和备注。")}
             </p>
             <p>
-              <strong>高级管理员：</strong>全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。
+              <strong>{t("高级管理员：")}</strong>{t("全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。")}
             </p>
           </div>
         </div>
 
         <div className="mobile-account-list">
-          <h3 className="mobile-section-title">已有账号</h3>
+          <h3 className="mobile-section-title">{t("已有账号")}</h3>
           {rows.map((user) => (
             <div key={user.id} className="mobile-account-card">
               <div className="mobile-account-avatar">
@@ -233,23 +241,21 @@ export default async function UsersPage({
               <div className="mobile-account-info">
                 <div className="mobile-account-name">{user.displayName}</div>
                 <div className="small muted">{user.username}</div>
-                <div className="small muted mobile-login-line"><Calendar aria-hidden="true" /> 最近登录：{formatDate(user.lastLoginAt) || "—"}</div>
+                <div className="small muted mobile-login-line"><Calendar aria-hidden="true" /> {tv("最近登录：{date}", { date: formatDate(user.lastLoginAt) || "—" })}</div>
               </div>
               <div className="mobile-account-actions">
                 <form action="/api/admin/users" method="post">
                   <input type="hidden" name="intent" value="update-role" />
                   <input type="hidden" name="userId" value={user.id} />
-                  <select name="role" defaultValue={user.role} aria-label={`${user.displayName} 的角色`}>
-                    <option value="ADVISOR">顾问</option>
-                    <option value="DATA_MANAGER">数据管理员</option>
-                    <option value="CHANNEL_RESOURCE">渠道资源部</option>
-                    <option value="MARKET_MANAGER">市场经理</option>
-                    <option value="ADMIN">高级管理员</option>
+                  <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
+                    {roleOptions.map((role) => (
+                      <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                    ))}
                   </select>
-                  <button type="submit" className="mobile-toggle-btn">保存角色</button>
+                  <button type="submit" className="mobile-toggle-btn">{t("保存角色")}</button>
                 </form>
                 <Badge tone={user.active ? "green" : "red"}>
-                  {user.active ? "启用" : "停用"}
+                  {bt(user.active ? "启用" : "停用")}
                 </Badge>
                 <form action={toggleUserAction}>
                   <input type="hidden" name="userId" value={user.id} />
@@ -259,7 +265,7 @@ export default async function UsersPage({
                     value={String(!user.active)}
                   />
                   <button type="submit" className="mobile-toggle-btn">
-                    {user.active ? "停用" : "启用"}
+                    {t(user.active ? "停用" : "启用")}
                   </button>
                 </form>
               </div>
@@ -270,3 +276,11 @@ export default async function UsersPage({
     </>
   );
 }
+
+const ROLE_OPTION_LABELS: Record<string, string> = {
+  ADVISOR: "顾问",
+  DATA_MANAGER: "数据管理员",
+  CHANNEL_RESOURCE: "渠道资源部",
+  MARKET_MANAGER: "市场经理",
+  ADMIN: "高级管理员",
+};

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useT } from "@/lib/i18n/locale-context";
 import { parseMajorItems } from "@/lib/screening-results";
 import { normalizeKeyword } from "@/lib/utils";
 
@@ -10,6 +11,12 @@ export function displayValue(value: unknown) {
   if (typeof value === "string") return value.trim() || UNKNOWN_TEXT;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return JSON.stringify(value);
+}
+
+/** Render a raw value, localizing the "no info" placeholder only. */
+export function displayValueLocalized(value: unknown, t: (s: string) => string) {
+  const text = displayValue(value);
+  return text === UNKNOWN_TEXT ? t(UNKNOWN_TEXT) : text;
 }
 
 function isLongField(label: string, value: unknown) {
@@ -43,6 +50,8 @@ export function KnowledgeFieldGrid({
   hideEmpty?: boolean;
   targetMajor?: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const visibleFields = hideEmpty
     ? fields.filter((label) => displayValue(data[label]) !== UNKNOWN_TEXT)
     : fields;
@@ -60,9 +69,16 @@ export function KnowledgeFieldGrid({
             className={`knowledge-field${isLongField(label, value) ? " knowledge-field-wide" : ""}`}
             key={label}
           >
-            <span>{label}</span>
+            <span>{t(label)}</span>
             {majorItems.length ? (
-              <ul className="major-chip-list" aria-label={`${label}，共 ${majorItems.length} 个`}>
+              <ul
+                className="major-chip-list"
+                aria-label={
+                  locale === "en"
+                    ? `${t(label)}: ${majorItems.length} majors`
+                    : `${label}，共 ${majorItems.length} 个`
+                }
+              >
                 {majorItems.map((major) => {
                   const majorMatch =
                     targetMajor &&
@@ -79,7 +95,9 @@ export function KnowledgeFieldGrid({
                 {text}
               </a>
             ) : (
-              <p className={text === UNKNOWN_TEXT ? "muted" : undefined}>{text}</p>
+              <p className={text === UNKNOWN_TEXT ? "muted" : undefined}>
+                {displayValueLocalized(value, t)}
+              </p>
             )}
           </div>
         );

@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { makeT, makeTv, type UiLocale } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import {
   canEditSchool,
   canViewConfidentialSchoolFields,
@@ -157,13 +159,16 @@ function getSchoolSummary(
   return values.map(displayNote).find(Boolean) || "已填写备注，进入详情查看完整信息。";
 }
 
-function formatUpdatedAt(value: string | Date) {
+function formatUpdatedAt(value: string | Date, locale: UiLocale) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "更新时间未知";
-  return `更新于 ${new Intl.DateTimeFormat("zh-CN", {
+  if (Number.isNaN(date.getTime())) {
+    return locale === "en" ? "Updated unknown" : "更新时间未知";
+  }
+  const datePart = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "zh-CN", {
     month: "numeric",
     day: "numeric",
-  }).format(date)}`;
+  }).format(date);
+  return locale === "en" ? `Updated ${datePart}` : `更新于 ${datePart}`;
 }
 
 export default async function NotedSchoolsPage({
@@ -173,6 +178,9 @@ export default async function NotedSchoolsPage({
 }) {
   const params = await searchParams;
   const user = await requireUser();
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const tv = makeTv(locale);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const canEdit = canEditSchool(user.role);
   const scope = getScopeFromParams(params.scope, canViewConfidential);
@@ -187,52 +195,56 @@ export default async function NotedSchoolsPage({
   const paginationPages = getPaginationPages(page, totalPages);
   const options = visibleScopeOptions(canViewConfidential);
   const activeOption = options.find((option) => option.value === scope) ?? options[0];
+  const activeLabel = t(activeOption.label);
 
   return (
     <>
       <PageHeading
-        title="特别备注院校"
-        description="按业务场景浏览需要跟进的院校信息，默认按最近更新排序。"
+        title={t("特别备注院校")}
+        description={t("按业务场景浏览需要跟进的院校信息，默认按最近更新排序。")}
       />
 
-      <section className="noted-school-search-panel" aria-label="搜索特别备注院校">
+      <section className="noted-school-search-panel" aria-label={t("搜索特别备注院校")}>
         <form className="noted-school-search" method="get">
           <label className="noted-school-search-field">
-            <span>搜索院校</span>
+            <span>{t("搜索院校")}</span>
             <input
               defaultValue={query}
               name="q"
-              placeholder="输入院校名称、省份或城市"
+              placeholder={t("输入院校名称、省份或城市")}
               type="search"
             />
           </label>
           {scope !== "all" ? <input name="scope" type="hidden" value={scope} /> : null}
           <div className="noted-school-search-actions">
-            <button className="primary" type="submit">搜索</button>
+            <button className="primary" type="submit">{t("搜索")}</button>
             {query ? (
               <Link className="button" href={getNotedSchoolsHref(1, scope)}>
-                清除
+                {t("清除")}
               </Link>
             ) : null}
           </div>
         </form>
-        <p className="small muted">仅在当前特别备注院校中匹配院校名称、省份和城市。</p>
+        <p className="small muted">{t("仅在当前特别备注院校中匹配院校名称、省份和城市。")}</p>
       </section>
 
       <section className="noted-schools-summary">
         <div className="noted-schools-summary-count">
-          <span className="small muted">当前分类</span>
+          <span className="small muted">{t("当前分类")}</span>
           <strong>{result.total}</strong>
-          <span className="small muted">所院校</span>
+          <span className="small muted">{t("所院校")}</span>
         </div>
         <p className="small muted">
-          {query ? "搜索“" + query + "” · " : ""}
-          {activeOption.label} · 每页最多 {pageSize} 所 · 点击详情查看完整信息
+          {query ? tv("搜索“{q}” · ", { q: query }) : ""}
+          {tv("{label} · 每页最多 {n} 所 · 点击详情查看完整信息", {
+            label: activeLabel,
+            n: pageSize,
+          })}
         </p>
       </section>
 
       {options.length > 0 ? (
-        <nav className="noted-school-filters" aria-label="备注分类筛选">
+        <nav className="noted-school-filters" aria-label={t("备注分类筛选")}>
           {options.map((option) => (
             <Link
               aria-current={option.value === scope ? "page" : undefined}
@@ -240,7 +252,7 @@ export default async function NotedSchoolsPage({
               href={getNotedSchoolsHref(1, option.value, query)}
               key={option.value}
             >
-              {option.label}
+              {t(option.label)}
               <span className="noted-school-filter-count">{counts[option.value]}</span>
             </Link>
           ))}
@@ -249,17 +261,19 @@ export default async function NotedSchoolsPage({
 
       {rows.length === 0 ? (
         <EmptyState>
-          {query ? "暂无匹配“" + query + "”的" + activeOption.label + "院校" : "暂无需要跟进的" + activeOption.label + "院校"}
+          {query
+            ? tv("暂无匹配“{q}”的{label}院校", { q: query, label: activeLabel })
+            : tv("暂无需要跟进的{label}院校", { label: activeLabel })}
         </EmptyState>
       ) : (
-        <section className="noted-school-table-wrap" aria-label="院校备注清单">
+        <section className="noted-school-table-wrap" aria-label={t("院校备注清单")}>
           <table className="noted-school-table">
             <thead>
               <tr>
-                <th className="noted-school-column-school" scope="col">院校</th>
-                <th className="noted-school-column-tags" scope="col">涉及分类</th>
-                <th className="noted-school-column-summary" scope="col">重点摘要</th>
-                <th className="noted-school-column-actions" scope="col">操作</th>
+                <th className="noted-school-column-school" scope="col">{t("院校")}</th>
+                <th className="noted-school-column-tags" scope="col">{t("涉及分类")}</th>
+                <th className="noted-school-column-summary" scope="col">{t("重点摘要")}</th>
+                <th className="noted-school-column-actions" scope="col">{t("操作")}</th>
               </tr>
             </thead>
             <tbody>
@@ -268,32 +282,32 @@ export default async function NotedSchoolsPage({
                 const location = [school.province, school.city].filter(Boolean).join(" · ");
                 return (
                   <tr key={school.id}>
-                    <td className="noted-school-cell-school" data-label="院校">
+                    <td className="noted-school-cell-school" data-label={t("院校")}>
                       <Link className="noted-school-name" href={`/schools/${school.id}`}>
                         {school.nameZh}
                       </Link>
-                      <span className="small muted">{[location || "地区未填写", formatUpdatedAt(school.updatedAt)].join(" · ")}</span>
+                      <span className="small muted">{[location || t("地区未填写"), formatUpdatedAt(school.updatedAt, locale)].join(" · ")}</span>
                     </td>
-                    <td className="noted-school-cell-tags" data-label="涉及分类">
+                    <td className="noted-school-cell-tags" data-label={t("涉及分类")}>
                       <div className="noted-school-tags">
                         {tags.map((tag) => (
-                          <Badge key={tag.label} tone={tag.tone}>{tag.label}</Badge>
+                          <Badge key={tag.label} tone={tag.tone}>{t(tag.label)}</Badge>
                         ))}
                       </div>
                     </td>
-                    <td className="noted-school-cell-summary" data-label="重点摘要">
+                    <td className="noted-school-cell-summary" data-label={t("重点摘要")}>
                       <p className="noted-school-summary-text">
-                        {getSchoolSummary(school, scope, canViewConfidential)}
+                        {t(getSchoolSummary(school, scope, canViewConfidential))}
                       </p>
                     </td>
-                    <td className="noted-school-cell-actions" data-label="操作">
+                    <td className="noted-school-cell-actions" data-label={t("操作")}>
                       <div className="noted-school-table-actions">
                         <Link className="button" href={`/schools/${school.id}`}>
-                          详情
+                          {t("详情")}
                         </Link>
                         {canEdit ? (
                           <Link className="button primary" href={`/schools/${school.id}/edit`}>
-                            编辑
+                            {t("编辑")}
                           </Link>
                         ) : null}
                       </div>
@@ -307,10 +321,10 @@ export default async function NotedSchoolsPage({
       )}
 
       {totalPages > 1 ? (
-        <nav className="pagination" aria-label="院校备注分页">
+        <nav className="pagination" aria-label={t("院校备注分页")}>
           {page > 1 ? (
             <Link className="pagination-link" href={getNotedSchoolsHref(page - 1, scope, query)}>
-              上一页
+              {t("上一页")}
             </Link>
           ) : null}
           {paginationPages.map((paginationPage, index) =>
@@ -330,10 +344,10 @@ export default async function NotedSchoolsPage({
           )}
           {page < totalPages ? (
             <Link className="pagination-link" href={getNotedSchoolsHref(page + 1, scope, query)}>
-              下一页
+              {t("下一页")}
             </Link>
           ) : null}
-          <span className="pagination-info">第 {page} / {totalPages} 页</span>
+          <span className="pagination-info">{tv("第 {page} / {totalPages} 页", { page, totalPages })}</span>
         </nav>
       ) : null}
     </>

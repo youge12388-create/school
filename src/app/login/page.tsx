@@ -1,4 +1,7 @@
+import { LocaleToggle } from "@/components/locale-toggle";
 import { getCurrentUser } from "@/lib/auth";
+import { translate } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 
 import styles from "./page.module.css";
@@ -11,6 +14,8 @@ export default async function LoginPage({
   const user = await getCurrentUser();
   if (user) redirect("/dashboard");
   const { error } = await searchParams;
+  const locale = await getUiLocale();
+  const t = (s: string) => translate(locale, s);
 
   return (
     <main className={styles.page}>
@@ -20,25 +25,27 @@ export default async function LoginPage({
             <span className={styles.brandMark} aria-hidden="true">
               SYT
             </span>
-            <span>高校访查与申请管理</span>
+            <span>{t("高校访查与申请管理")}</span>
           </div>
 
           <div className={styles.hero}>
             <p className={styles.eyebrow}>INTERNATIONAL EDUCATION WORKSPACE</p>
             <h1 id="login-title">
-              让每一次访查，
+              {t("让每一次访查，")}
               <br />
-              都走向更清晰的申请。
+              {t("都走向更清晰的申请。")}
             </h1>
             <p className={styles.heroCopy}>
-              集中记录院校访查、项目判断和申请进度，让团队始终掌握下一步该做什么。
+              {t(
+                "集中记录院校访查、项目判断和申请进度，让团队始终掌握下一步该做什么。"
+              )}
             </p>
           </div>
 
-          <div className={styles.featureList} aria-label="系统覆盖范围">
-            <span>院校访查</span>
-            <span>项目筛查</span>
-            <span>申请跟进</span>
+          <div className={styles.featureList} aria-label={t("系统覆盖范围")}>
+            <span>{t("院校访查")}</span>
+            <span>{t("项目筛查")}</span>
+            <span>{t("申请跟进")}</span>
           </div>
         </div>
 
@@ -60,45 +67,48 @@ export default async function LoginPage({
         </div>
       </section>
 
-      <section className={styles.panel} aria-label="登录区域">
+      <section className={styles.panel} aria-label={t("登录区域")}>
+        <div style={{ position: "absolute", top: 22, right: 26 }}>
+          <LocaleToggle locale={locale} />
+        </div>
         <form className={styles.form} action="/api/auth/login" method="post">
           <div className={styles.formHeading}>
             <span className={styles.formAccent} aria-hidden="true" />
-            <p>工作台入口</p>
-            <h2>欢迎回来</h2>
-            <span>使用管理员为你创建的账号登录。</span>
+            <p>{t("工作台入口")}</p>
+            <h2>{t("欢迎回来")}</h2>
+            <span>{t("使用管理员为你创建的账号登录。")}</span>
           </div>
 
-          {error ? <div className={styles.error}>{error}</div> : null}
+          {error ? <div className={styles.error}>{t(error)}</div> : null}
 
           <label className={styles.field}>
-            <span>用户名</span>
+            <span>{t("用户名")}</span>
             <input
               name="username"
               autoComplete="username"
-              placeholder="请输入用户名"
+              placeholder={t("请输入用户名")}
               required
             />
           </label>
           <label className={styles.field}>
-            <span>密码</span>
+            <span>{t("密码")}</span>
             <input
               name="password"
               type="password"
               autoComplete="current-password"
-              placeholder="请输入密码"
+              placeholder={t("请输入密码")}
               required
             />
           </label>
 
           <button className={styles.submit} type="submit">
-            进入工作台
+            {t("进入工作台")}
             <svg viewBox="0 0 20 20" aria-hidden="true">
               <path d="M4 10h11M11 5l5 5-5 5" />
             </svg>
           </button>
 
-          <p className={styles.helpText}>无法登录？请联系系统管理员协助处理。</p>
+          <p className={styles.helpText}>{t("无法登录？请联系系统管理员协助处理。")}</p>
         </form>
       </section>
     </main>

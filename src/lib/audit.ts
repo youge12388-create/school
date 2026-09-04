@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import { sqlite } from "@/lib/db";
+import { translate, type UiLocale } from "@/lib/i18n/dict";
 import { newId } from "@/lib/utils";
 
 export const AUDIT_ACTIONS = [
@@ -122,8 +123,9 @@ export function writeAudit(input: AuditInput, database: DatabaseSync = sqlite) {
 export function formatAuditObject(
   entityType: string,
   details: Record<string, unknown> | null,
+  locale: UiLocale = "zh",
 ) {
-  const label = ENTITY_TYPE_LABELS[entityType as AuditEntityType] || entityType;
+  const label = translate(locale, ENTITY_TYPE_LABELS[entityType as AuditEntityType] || entityType);
 
   let identifier = "";
   if (details) {
@@ -139,36 +141,45 @@ export function formatAuditObject(
 export function formatAuditDetails(
   action: string,
   details: Record<string, unknown> | null,
+  locale: UiLocale = "zh",
 ) {
+  const en = locale === "en";
   if (!details) return "—";
-  const actionLabel = AUDIT_ACTION_LABELS[action];
+  const actionLabel = translate(
+    locale,
+    AUDIT_ACTION_LABELS[action] ?? action,
+  );
 
   if (
     action === "CUSTOMER_CREATED" &&
     "name" in details &&
     "customerNo" in details
   ) {
-    return `${details.name}（${details.customerNo}）`;
+    return en
+      ? `${details.name} (${details.customerNo})`
+      : `${details.name}（${details.customerNo}）`;
   }
   if (
     action === "APPLICATION_STATUS_CHANGED" &&
     "to" in details &&
     "reason" in details
   ) {
-    return `→ ${details.to}${details.reason ? `：${details.reason}` : ""}`;
+    return `→ ${details.to}${details.reason ? `${en ? ": " : "："}${details.reason}` : ""}`;
   }
   if (action === "LOGIN_FAILED" && "username" in details) {
-    return `用户名：${details.username}`;
+    return en ? `Username: ${details.username}` : `用户名：${details.username}`;
   }
   if (
     action === "RECOMMENDATION_SAVED" &&
     "itemCount" in details &&
     "customerId" in details
   ) {
-    return `客户 ${details.customerId}，${details.itemCount} 个项目`;
+    return en
+      ? `Customer ${details.customerId}, ${details.itemCount} items`
+      : `客户 ${details.customerId}，${details.itemCount} 个项目`;
   }
   if (action === "DOCUMENT_UPLOADED" && "category" in details) {
-    return `分类：${details.category}`;
+    return en ? `Category: ${details.category}` : `分类：${details.category}`;
   }
   if (
     action === "SCHOOL_UPDATE_CREATED" ||
@@ -177,45 +188,69 @@ export function formatAuditDetails(
   ) {
     const parts: string[] = [];
     if (typeof details.title === "string" && details.title) {
-      parts.push(`《${details.title}》`);
+      parts.push(en ? `"${details.title}"` : `《${details.title}》`);
     }
     const changed = (details as Record<string, unknown>).changed;
     if (Array.isArray(changed) && changed.length) {
-      parts.push(`修改：${changed.join("、")}`);
+      parts.push(
+        en
+          ? `Changed: ${changed.join(", ")}`
+          : `修改：${changed.join("、")}`,
+      );
     }
     return parts.join(" ") || actionLabel || action;
   }
   if (action === "SCHOOL_UPDATE_ATTACHMENT_UPLOADED") {
+    const secret = details.groupName === "SECRET";
     const groupLabel =
       details.groupName === "SECRET"
-        ? "机密"
+        ? en
+          ? "Confidential"
+          : "机密"
         : details.groupName === "PUBLIC"
-          ? "公开"
+          ? en
+            ? "Public"
+            : "公开"
           : String(details.groupName ?? "");
-    return details.fileName
-      ? `${groupLabel}附件：${details.fileName}`
-      : `分组：${groupLabel}`;
+    if (details.fileName) {
+      return en
+        ? `${secret ? "Confidential" : "Public"} attachment: ${details.fileName}`
+        : `${groupLabel}附件：${details.fileName}`;
+    }
+    return en ? `Group: ${groupLabel}` : `分组：${groupLabel}`;
   }
-  if (action === "SCHOOL_UPDATES_IMPORTED") {
+  if (
+    action === "SCHOOL_UPDATES_IMPORTED" ||
+    action === "IMPORT_CONFIRMED"
+  ) {
     const s = details as Record<string, number>;
     const parts: string[] = [];
-    if (s.imported) parts.push(`导入 ${s.imported}`);
-    if (s.updated) parts.push(`更新 ${s.updated}`);
-    if (s.skipped) parts.push(`跳过 ${s.skipped}`);
-    return parts.length ? parts.join("，") : "—";
-  }
-  if (action === "IMPORT_CONFIRMED") {
-    const s = details as Record<string, number>;
-    const parts: string[] = [];
-    if (s.created) parts.push(`新增 ${s.created}`);
-    if (s.updated) parts.push(`更新 ${s.updated}`);
-    if (s.skipped) parts.push(`跳过 ${s.skipped}`);
-    return parts.length ? parts.join("，") : "—";
+    const createdCount = action === "IMPORT_CONFIRMED" ? s.created : s.imported;
+    if (createdCount) {
+      parts.push(
+        action === "IMPORT_CONFIRMED"
+          ? en
+            ? `Created ${createdCount}`
+            : `新增 ${createdCount}`
+          : en
+            ? `Imported ${createdCount}`
+            : `导入 ${createdCount}`,
+      );
+    }
+    if (s.updated) {
+      parts.push(en ? `Updated ${s.updated}` : `更新 ${s.updated}`);
+    }
+    if (s.skipped) {
+      parts.push(en ? `Skipped ${s.skipped}` : `跳过 ${s.skipped}`);
+    }
+    return parts.length ? parts.join(en ? ", " : "，") : "—";
   }
 
   const changed = (details as Record<string, unknown>).changed;
   if (Array.isArray(changed) && changed.length) {
-    return `修改：${changed.join("、")}`;
+    return en
+      ? `Changed: ${changed.join(", ")}`
+      : `修改：${changed.join("、")}`;
   }
 
   const entries = Object.entries(details).filter(

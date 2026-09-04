@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import type { MajorCategoryKey } from "@/lib/major-categories";
+import { useT, useTv } from "@/lib/i18n/locale-context";
 
 export type MajorCatalog = {
   categories: {
@@ -54,6 +55,8 @@ export function MajorPicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const t = useT();
+  const tv = useTv();
 
   // 关闭：点击外部
   useEffect(() => {
@@ -77,19 +80,21 @@ export function MajorPicker({
   const { options, grouped, truncated } = useMemo(() => {
     const MAX_PER_GROUP = 20;
     const MAX_TOTAL = 100;
+    const CATEGORY_GROUP = t("大类");
+    const OTHERS = t("其他");
 
     const q = normalize(query);
     if (!q) {
       const cats: Option[] = catalog.categories.map((cat) => ({
         label: cat.label,
         value: cat.label,
-        hint: `${cat.majors.length} 个专业`,
-        group: "大类",
+        hint: tv("{n} 个专业", { n: cat.majors.length }),
+        group: CATEGORY_GROUP,
         isCategory: true,
       }));
       return {
         options: cats,
-        grouped: [{ label: "大类", items: cats }],
+        grouped: [{ label: CATEGORY_GROUP, items: cats }],
         truncated: false,
       };
     }
@@ -105,12 +110,12 @@ export function MajorPicker({
       .map((cat) => ({
         label: cat.label,
         value: cat.label,
-        hint: `${cat.majors.length} 个专业`,
-        group: "大类",
+        hint: tv("{n} 个专业", { n: cat.majors.length }),
+        group: CATEGORY_GROUP,
         isCategory: true,
       }));
     if (matchedCats.length > 0) {
-      rawGroups.push({ label: "大类", items: matchedCats, total: matchedCats.length });
+      rawGroups.push({ label: CATEGORY_GROUP, items: matchedCats, total: matchedCats.length });
     }
 
     // 2. 具体专业匹配（按大类分组）
@@ -133,10 +138,10 @@ export function MajorPicker({
       const items: Option[] = matchedOthers.map((m) => ({
         label: m,
         value: m,
-        hint: "其他",
-        group: "其他",
+        hint: OTHERS,
+        group: OTHERS,
       }));
-      rawGroups.push({ label: "其他", items, total: matchedOthers.length });
+      rawGroups.push({ label: OTHERS, items, total: matchedOthers.length });
     }
 
     let remaining = MAX_TOTAL;
@@ -155,7 +160,7 @@ export function MajorPicker({
     const totalMatched = rawGroups.reduce((sum, g) => sum + g.total, 0);
     const options = grouped.flatMap((g) => g.items);
     return { options, grouped, truncated: totalVisible < totalMatched };
-  }, [query, catalog]);
+  }, [query, catalog, t, tv]);
 
   const indexMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -243,10 +248,10 @@ export function MajorPicker({
           onFocus={handleFocus}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholder ? t(placeholder) : undefined}
           autoComplete="off"
           role="combobox"
-          aria-label="目标专业"
+          aria-label={t("目标专业")}
           aria-expanded={open}
           aria-autocomplete="list"
           aria-controls="major-picker-listbox"
@@ -260,7 +265,7 @@ export function MajorPicker({
               e.preventDefault();
               e.stopPropagation();
             }}
-            aria-label="清除"
+            aria-label={t("清除")}
           >
             <span style={{ pointerEvents: "none", display: "flex" }} aria-hidden="true">
               <X size={14} />
@@ -312,13 +317,13 @@ export function MajorPicker({
           ))}
           {truncated ? (
             <div className="major-picker-truncated">
-              匹配结果过多，仅展示前 100 个，请输入更精确的专业名称
+              {t("匹配结果过多，仅展示前 100 个，请输入更精确的专业名称")}
             </div>
           ) : null}
         </div>
       ) : open && options.length === 0 ? (
         <div className="major-picker-panel major-picker-empty">
-          没有匹配的专业，按回车保留输入值
+          {t("没有匹配的专业，按回车保留输入值")}
         </div>
       ) : null}
     </div>

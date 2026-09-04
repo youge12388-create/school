@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState } from "react";
+import { useT } from "@/lib/i18n/locale-context";
 
 const drawerItems = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
@@ -61,6 +62,7 @@ function MobileDrawer({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const t = useT();
   const isNotedRoute = pathname.startsWith("/schools/noted");
   const items = drawerItems.filter((item) => {
     if (item.href === "/admin/users") return role === "ADMIN";
@@ -84,18 +86,22 @@ function MobileDrawer({
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className="mobile-drawer" data-open={open} aria-label="主导航抽屉">
+      <aside
+        className="mobile-drawer"
+        data-open={open}
+        aria-label={t("主导航抽屉")}
+      >
         <div className="mobile-drawer-header">
           <div className="brand-mark">SYT</div>
           <button
             className="mobile-drawer-close"
             onClick={onClose}
-            aria-label="关闭导航"
+            aria-label={t("关闭导航")}
           >
             <X aria-hidden="true" />
           </button>
         </div>
-        <nav className="mobile-drawer-nav" aria-label="主导航">
+        <nav className="mobile-drawer-nav" aria-label={t("主导航")}>
           {items.map((item) => {
             const Icon = item.icon;
             const active =
@@ -113,13 +119,13 @@ function MobileDrawer({
                 onClick={onClose}
               >
                 <Icon aria-hidden="true" />
-                {item.label}
+                {t(item.label)}
               </Link>
             );
           })}
         </nav>
         <form className="mobile-drawer-footer" action="/api/auth/logout" method="post">
-          <button type="submit">退出登录</button>
+          <button type="submit">{t("退出登录")}</button>
         </form>
       </aside>
     </>

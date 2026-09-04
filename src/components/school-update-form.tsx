@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SchoolUpdateView } from "@/lib/school-updates";
+import { useT } from "@/lib/i18n/locale-context";
 
 export function SchoolUpdateForm({
   schoolId,
@@ -18,6 +19,7 @@ export function SchoolUpdateForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const t = useT();
   const isEdit = Boolean(initial);
 
   async function uploadAttachment(
@@ -35,7 +37,7 @@ export function SchoolUpdateForm({
     });
     if (!response.ok) {
       const body = (await response.json()) as { error?: string };
-      throw new Error(body.error ?? "附件上传失败");
+      throw new Error(body.error ?? t("附件上传失败"));
     }
   }
 
@@ -68,7 +70,7 @@ export function SchoolUpdateForm({
         error?: string;
       };
       if (!response.ok || !result.id) {
-        throw new Error(result.error ?? "保存失败");
+        throw new Error(result.error ?? t("保存失败"));
       }
       const publicFile = formData.get("publicAttachment");
       const secretFile = formData.get("secretAttachment");
@@ -78,14 +80,14 @@ export function SchoolUpdateForm({
       if (secretFile instanceof File && secretFile.size > 0) {
         await uploadAttachment(result.id, "SECRET", secretFile);
       }
-      setMessage(isEdit ? "修改已保存" : "更新记录已保存");
+      setMessage(isEdit ? t("修改已保存") : t("更新记录已保存"));
       formRef.current?.reset();
       router.refresh();
       if (onSaved) {
         setTimeout(onSaved, 700);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "保存失败");
+      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }
@@ -95,47 +97,47 @@ export function SchoolUpdateForm({
     <form action={submit} className="update-form" ref={formRef}>
       <div className="update-form-main">
         <label>
-          标题
+          {t("标题")}
           <input
             name="title"
             defaultValue={initial?.title ?? ""}
-            placeholder="例如：2026 秋季招生政策更新"
+            placeholder={t("例如：2026 秋季招生政策更新")}
           />
         </label>
         <label>
-          普通更新内容
+          {t("普通更新内容")}
           <textarea
             name="publicContent"
             rows={3}
             defaultValue={initial?.publicContent ?? ""}
-            placeholder="对外可见的更新内容"
+            placeholder={t("对外可见的更新内容")}
           />
         </label>
         <label>
-          内部备注
+          {t("内部备注")}
           <textarea
             name="secretContent"
             rows={2}
             defaultValue={initial?.secretContent ?? ""}
-            placeholder="仅机密人员可见"
+            placeholder={t("仅机密人员可见")}
           />
         </label>
         <details className="update-form-more">
-          <summary>更多字段（提交人、操作人、时间、网址、附件）</summary>
+          <summary>{t("更多字段（提交人、操作人、时间、网址、附件）")}</summary>
           <div className="form-grid">
             <label>
-              提交人
+              {t("提交人")}
               <input name="submitter" defaultValue={initial?.submitter ?? ""} />
             </label>
             <label>
-              普通操作人
+              {t("普通操作人")}
               <input
                 name="publicOperator"
                 defaultValue={initial?.publicOperator ?? ""}
               />
             </label>
             <label>
-              普通更新时间
+              {t("普通更新时间")}
               <input
                 name="publicUpdatedAt"
                 type="datetime-local"
@@ -147,7 +149,7 @@ export function SchoolUpdateForm({
               />
             </label>
             <label>
-              普通网址
+              {t("普通网址")}
               <input
                 name="publicUrl"
                 type="url"
@@ -156,7 +158,7 @@ export function SchoolUpdateForm({
               />
             </label>
             <label className="update-form-attachment">
-              普通附件（图片）
+              {t("普通附件（图片）")}
               <input
                 name="publicAttachment"
                 type="file"
@@ -164,14 +166,14 @@ export function SchoolUpdateForm({
               />
             </label>
             <label>
-              内部备注人
+              {t("内部备注人")}
               <input
                 name="secretOperator"
                 defaultValue={initial?.secretOperator ?? ""}
               />
             </label>
             <label>
-              内部更新时间
+              {t("内部更新时间")}
               <input
                 name="secretUpdatedAt"
                 type="datetime-local"
@@ -183,7 +185,7 @@ export function SchoolUpdateForm({
               />
             </label>
             <label>
-              内部链接
+              {t("内部链接")}
               <input
                 name="secretUrl"
                 type="url"
@@ -192,7 +194,7 @@ export function SchoolUpdateForm({
               />
             </label>
             <label className="update-form-attachment">
-              内部附件
+              {t("内部附件")}
               <input
                 name="secretAttachment"
                 type="file"
@@ -203,14 +205,14 @@ export function SchoolUpdateForm({
         </details>
         <div className="form-actions">
           <button className="primary" disabled={loading} type="submit">
-            {loading ? "保存中…" : isEdit ? "保存修改" : "保存更新记录"}
+            {loading ? t("保存中…") : isEdit ? t("保存修改") : t("保存更新记录")}
           </button>
           <button
             disabled={loading}
             onClick={() => formRef.current?.reset()}
             type="button"
           >
-            清空
+            {t("清空")}
           </button>
         </div>
         {message ? (

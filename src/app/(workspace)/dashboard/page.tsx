@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { AUDIT_ACTION_LABELS, ENTITY_TYPE_LABELS } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
 import { isMarketManager } from "@/lib/permissions";
 import { getDashboardData } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
@@ -15,37 +16,42 @@ import {
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  const t = await getT();
   const marketManagerView = isMarketManager(user.role);
   const data = await getDashboardData();
   return (
     <>
       <PageHeading
-        title="今日工作"
-        description={marketManagerView ? "查看学校项目与临近截止信息。" : "集中查看临近截止项目和数据复核任务。"}
+        title={t("今日工作")}
+        description={
+          marketManagerView
+            ? t("查看学校项目与临近截止信息。")
+            : t("集中查看临近截止项目和数据复核任务。")
+        }
         action={
           <Link className="button primary" href="/screening">
-            开始筛查
+            {t("开始筛查")}
           </Link>
         }
       />
 
       <section className="grid cols-4 desktop-only">
         <div className="card stat">
-          <div className="stat-label">学校</div>
+          <div className="stat-label">{t("学校")}</div>
           <div className="stat-number">{data.counts.schools}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">项目</div>
+          <div className="stat-label">{t("项目")}</div>
           <div className="stat-number">{data.counts.programs}</div>
         </div>
         {!marketManagerView ? (
           <>
             <div className="card stat">
-              <div className="stat-label">有效客户</div>
+              <div className="stat-label">{t("有效客户")}</div>
               <div className="stat-number">{data.counts.customers}</div>
             </div>
             <div className="card stat">
-              <div className="stat-label">待复核项目</div>
+              <div className="stat-label">{t("待复核项目")}</div>
               <div className="stat-number">{data.counts.needsReview}</div>
             </div>
           </>
@@ -55,14 +61,14 @@ export default async function DashboardPage() {
       <section className="mobile-only mobile-dashboard-stats">
         <div className="mobile-stat-card">
           <div>
-            <div className="mobile-stat-label">学校</div>
+            <div className="mobile-stat-label">{t("学校")}</div>
             <div className="mobile-stat-number">{data.counts.schools}</div>
           </div>
           <Building2 aria-hidden="true" />
         </div>
         <div className="mobile-stat-card">
           <div>
-            <div className="mobile-stat-label">项目</div>
+            <div className="mobile-stat-label">{t("项目")}</div>
             <div className="mobile-stat-number">{data.counts.programs}</div>
           </div>
           <GraduationCap aria-hidden="true" />
@@ -71,14 +77,14 @@ export default async function DashboardPage() {
           <>
             <div className="mobile-stat-card">
               <div>
-                <div className="mobile-stat-label">有效客户</div>
+                <div className="mobile-stat-label">{t("有效客户")}</div>
                 <div className="mobile-stat-number">{data.counts.customers}</div>
               </div>
               <Users aria-hidden="true" />
             </div>
             <div className="mobile-stat-card">
               <div>
-                <div className="mobile-stat-label">待复核项目</div>
+                <div className="mobile-stat-label">{t("待复核项目")}</div>
                 <div className="mobile-stat-number">{data.counts.needsReview}</div>
               </div>
               <LayoutList aria-hidden="true" />
@@ -89,8 +95,8 @@ export default async function DashboardPage() {
 
       <section className="grid cols-2 desktop-only" style={{ marginTop: 16 }}>
         <DashboardCard
-          title="30 天内截止项目"
-          empty={<EmptyState>暂无已结构化的临近截止项目</EmptyState>}
+          title={t("30 天内截止项目")}
+          empty={<EmptyState>{t("暂无已结构化的临近截止项目")}</EmptyState>}
         >
           {data.deadlines.map((program) => (
             <tr key={program.id}>
@@ -106,17 +112,17 @@ export default async function DashboardPage() {
         </DashboardCard>
         {!marketManagerView ? (
           <DashboardCard
-            title="最近操作"
+            title={t("最近操作")}
             moreHref="/audit"
-            moreLabel="操作审计"
-            empty={<EmptyState>暂无操作记录</EmptyState>}
+            moreLabel={t("操作审计")}
+            empty={<EmptyState>{t("暂无操作记录")}</EmptyState>}
           >
             {data.recentAudit.map((log) => (
               <tr key={log.id}>
                 <td>
-                  <strong>{log.displayName ?? "系统"}</strong>
+                  <strong>{log.displayName ?? t("系统")}</strong>
                   <div className="small muted">
-                    {AUDIT_ACTION_LABELS[log.action] || log.action} · {ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType}
+                    {t(AUDIT_ACTION_LABELS[log.action] || log.action)} · {t(ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType)}
                   </div>
                 </td>
                 <td className="small nowrap">{formatDate(log.createdAt)}</td>
@@ -127,7 +133,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mobile-only mobile-dashboard-sections">
-        <MobileSection title="30 天内截止项目">
+        <MobileSection title={t("30 天内截止项目")}>
           {data.deadlines.length ? (
             data.deadlines.map((program) => (
               <div key={program.id} className="mobile-list-item">
@@ -139,26 +145,26 @@ export default async function DashboardPage() {
               </div>
             ))
           ) : (
-            <div className="mobile-empty">暂无已结构化的临近截止项目</div>
+            <div className="mobile-empty">{t("暂无已结构化的临近截止项目")}</div>
           )}
           {data.deadlines.length ? (
-            <Link href="/screening" className="mobile-section-more">查看全部</Link>
+            <Link href="/screening" className="mobile-section-more">{t("查看全部")}</Link>
           ) : null}
         </MobileSection>
 
         {!marketManagerView ? (
-          <MobileSection title="最近操作" href="/audit" more="操作审计">
+          <MobileSection title={t("最近操作")} href="/audit" more={t("操作审计")}>
             {data.recentAudit.map((log) => (
               <div key={log.id} className="mobile-list-item">
                 <div>
-                  <strong>{log.displayName ?? "系统"}</strong>
-                  <div className="small muted">{AUDIT_ACTION_LABELS[log.action] || log.action} · {ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType}</div>
+                  <strong>{log.displayName ?? t("系统")}</strong>
+                  <div className="small muted">{t(AUDIT_ACTION_LABELS[log.action] || log.action)} · {t(ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType)}</div>
                 </div>
                 <span className="small muted">{formatDate(log.createdAt)}</span>
               </div>
             ))}
             {data.recentAudit.length ? (
-              <Link href="/audit" className="mobile-section-more">查看全部</Link>
+              <Link href="/audit" className="mobile-section-more">{t("查看全部")}</Link>
             ) : null}
           </MobileSection>
         ) : null}

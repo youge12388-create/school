@@ -4,6 +4,7 @@ import { LayoutDashboard, Search, UserCircle, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMobileDrawer } from "@/components/mobile-shell";
+import { useT } from "@/lib/i18n/locale-context";
 
 const tabs = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
@@ -13,9 +14,10 @@ const tabs = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const t = useT();
   const { setOpen } = useMobileDrawer();
   return (
-    <nav className="mobile-nav" aria-label="底部导航">
+    <nav className="mobile-nav" aria-label={t("底部导航")}>
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const active =
@@ -28,7 +30,7 @@ export function MobileNav() {
             className={`mobile-nav-tab${active ? " active" : ""}`}
           >
             <Icon aria-hidden="true" />
-            <span>{tab.label}</span>
+            <span>{t(tab.label)}</span>
           </Link>
         );
       })}
@@ -36,10 +38,10 @@ export function MobileNav() {
         type="button"
         className="mobile-nav-tab mobile-nav-more"
         onClick={() => setOpen(true)}
-        aria-label="更多功能"
+        aria-label={t("更多功能")}
       >
         <Menu aria-hidden="true" />
-        <span>更多</span>
+        <span>{t("更多")}</span>
       </button>
     </nav>
   );

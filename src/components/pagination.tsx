@@ -1,12 +1,15 @@
 import Link from "next/link";
 
+import { makeT, makeTv } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
+
 function buildQuery(base: string, page: number, extra?: Record<string, string>) {
   const params = new URLSearchParams(extra ?? {});
   params.set("page", String(page));
   return `${base}?${params.toString()}`;
 }
 
-export function Pagination({
+export async function Pagination({
   page,
   totalPages,
   basePath,
@@ -18,12 +21,15 @@ export function Pagination({
   extraParams?: Record<string, string>;
 }) {
   if (totalPages <= 1) return null;
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const tv = makeTv(locale);
   const pages = pageRange(page, totalPages);
   return (
-    <nav className="pagination" aria-label="分页">
+    <nav className="pagination" aria-label={t("分页")}>
       {page > 1 ? (
         <Link className="pagination-link" href={buildQuery(basePath, page - 1, extraParams)}>
-          上一页
+          {t("上一页")}
         </Link>
       ) : null}
       {pages.map((p, i) =>
@@ -41,11 +47,11 @@ export function Pagination({
       )}
       {page < totalPages ? (
         <Link className="pagination-link" href={buildQuery(basePath, page + 1, extraParams)}>
-          下一页
+          {t("下一页")}
         </Link>
       ) : null}
       <span className="pagination-info">
-        第 {page} / {totalPages} 页
+        {tv("第 {page} / {totalPages} 页", { page, totalPages })}
       </span>
     </nav>
   );

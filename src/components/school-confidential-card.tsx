@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useEditMode } from "@/components/edit-mode";
-import { KnowledgeFieldGrid, displayValue } from "@/components/knowledge-fields";
+import { KnowledgeFieldGrid, UNKNOWN_TEXT, displayValue } from "@/components/knowledge-fields";
 import { Badge } from "@/components/ui";
+import { useT } from "@/lib/i18n/locale-context";
 
 type ConfidentialFieldDef = {
   key: string;
@@ -96,6 +97,7 @@ export function SchoolConfidentialCard({
   const [message, setMessage] = useState("");
   const [savedAt, setSavedAt] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const t = useT();
   const def = SECTION_DEFS[section];
   const cardKey = `school-${section}`;
   const editable = editingMode && canEdit;
@@ -114,13 +116,13 @@ export function SchoolConfidentialCard({
         body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "保存失败");
+      if (!response.ok) throw new Error(result.error ?? t("保存失败"));
       markDirty(cardKey, false);
       setMessage("");
       setSavedAt((version) => version + 1);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "保存失败");
+      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }
@@ -136,10 +138,10 @@ export function SchoolConfidentialCard({
     <details className="card card-compact school-cooperation-card" open={editingMode || undefined}>
       <summary className="card-header school-knowledge-header">
         <div>
-          <h3>{def.title}</h3>
-          <p className="small muted">{def.description}</p>
+          <h3>{t(def.title)}</h3>
+          <p className="small muted">{t(def.description)}</p>
         </div>
-        <Badge tone={def.badgeTone}>{def.badge}</Badge>
+        <Badge tone={def.badgeTone}>{t(def.badge)}</Badge>
       </summary>
       <div className="card-body cooperation-field-groups">
         {editable ? (
@@ -152,17 +154,17 @@ export function SchoolConfidentialCard({
           >
             {def.groups.map((group) => (
               <section className="inline-edit-group" key={group.title}>
-                <h4>{group.title}</h4>
+                <h4>{t(group.title)}</h4>
                 <div className="form-grid">
                   {group.fields.map((field) => (
                     <label className={field.area ? "wide" : undefined} key={field.key}>
-                      {field.label}
+                      {t(field.label)}
                       {field.area ? (
                         <textarea
                           name={field.key}
                           rows={2}
                           defaultValue={
-                            displayValue(data[field.label]) === "数据库未有相关信息"
+                            displayValue(data[field.label]) === UNKNOWN_TEXT
                               ? ""
                               : String(data[field.label] ?? "")
                           }
@@ -171,7 +173,7 @@ export function SchoolConfidentialCard({
                         <input
                           name={field.key}
                           defaultValue={
-                            displayValue(data[field.label]) === "数据库未有相关信息"
+                            displayValue(data[field.label]) === UNKNOWN_TEXT
                               ? ""
                               : String(data[field.label] ?? "")
                           }
@@ -184,10 +186,10 @@ export function SchoolConfidentialCard({
             ))}
             <div className="form-actions">
               <button className="primary" disabled={loading} type="submit">
-                {loading ? "保存中…" : "保存本区"}
+                {loading ? t("保存中…") : t("保存本区")}
               </button>
               <button disabled={loading} type="button" onClick={resetForm}>
-                还原
+                {t("还原")}
               </button>
             </div>
             {message ? (
@@ -199,7 +201,7 @@ export function SchoolConfidentialCard({
         ) : (
           def.groups.map((group) => (
             <section className="cooperation-field-group" key={group.title}>
-              <h4>{group.title}</h4>
+              <h4>{t(group.title)}</h4>
               <KnowledgeFieldGrid
                 data={data}
                 fields={group.fields.map((field) => field.label)}

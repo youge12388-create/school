@@ -10,6 +10,8 @@ import {
 import { getApplication } from "@/lib/queries";
 import { canHandleCustomerCases } from "@/lib/permissions";
 import { requireUser } from "@/lib/auth";
+import { makeT, makeTv } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 
 export default async function ApplicationDetailPage({
@@ -19,12 +21,15 @@ export default async function ApplicationDetailPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const tv = makeTv(locale);
   const canHandleCase = canHandleCustomerCases(user.role);
   const data = await getApplication(id);
   if (!data) notFound();
   const application = data.application;
-  const statusLabel = APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status;
-  const requirements = application.requirementsText || "数据库未有相关信息";
+  const statusLabel = t(APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status);
+  const requirements = t(application.requirementsText || "数据库未有相关信息");
   return (
     <>
       <PageHeading
@@ -36,26 +41,26 @@ export default async function ApplicationDetailPage({
       {/* 状态条：申请截止 + 当前状态，一眼定位 */}
       <div className="detail-status-bar">
         <div className="status-item">
-          <span>当前状态</span>
+          <span>{t("当前状态")}</span>
           <Badge tone="blue">{statusLabel}</Badge>
         </div>
         <div className="status-item">
-          <span>申请截止</span>
+          <span>{t("申请截止")}</span>
           <strong>{formatDate(application.deadlineDate)}</strong>
         </div>
         <div className="status-item">
-          <span>客户</span>
+          <span>{t("客户")}</span>
           <strong>{application.customerName}（{application.customerNo}）</strong>
         </div>
         <div className="status-item">
-          <span>项目</span>
+          <span>{t("项目")}</span>
           <strong>{application.programName}</strong>
         </div>
       </div>
 
       {/* 项目要求：重点信息，不折叠 */}
       <section className="card card-compact detail-section">
-        <div className="card-header"><h3>项目要求及材料</h3></div>
+        <div className="card-header"><h3>{t("项目要求及材料")}</h3></div>
         <div className="card-body">
           <p className="program-material-body">{requirements}</p>
         </div>
@@ -64,22 +69,22 @@ export default async function ApplicationDetailPage({
       {/* 调整状态：操作卡，视觉权重低 */}
       {canHandleCase ? (
         <section className="detail-action-card detail-section">
-          <div className="card-header"><h3>调整状态</h3></div>
+          <div className="card-header"><h3>{t("调整状态")}</h3></div>
           <div className="card-body">
             <form action={updateApplicationStatusAction} className="application-status-form">
               <input type="hidden" name="applicationId" value={id} />
               <label>
-                新状态
+                {t("新状态")}
                 <select name="toStatus" defaultValue={application.status}>
                   {APPLICATION_STATUSES.map((status) => (
-                    <option value={status} key={status}>{APPLICATION_STATUS_LABELS[status]}</option>
+                    <option value={status} key={status}>{t(APPLICATION_STATUS_LABELS[status])}</option>
                   ))}
                 </select>
               </label>
-              <div className="form-actions"><button className="primary" type="submit">保存状态</button></div>
+              <div className="form-actions"><button className="primary" type="submit">{t("保存状态")}</button></div>
               <label className="wide">
-                调整原因
-                <textarea name="reason" required placeholder="回退、跳转和正常推进均需记录原因" />
+                {t("调整原因")}
+                <textarea name="reason" required placeholder={t("回退、跳转和正常推进均需记录原因")} />
               </label>
             </form>
           </div>
@@ -89,8 +94,8 @@ export default async function ApplicationDetailPage({
       {/* 状态时间线 */}
       <section className="card card-compact detail-section">
         <div className="card-header">
-          <h3>状态时间线</h3>
-          <span className="small muted">{data.events.length} 条</span>
+          <h3>{t("状态时间线")}</h3>
+          <span className="small muted">{tv("{n} 条", { n: data.events.length })}</span>
         </div>
         <div className="card-body">
           {data.events.length ? (
@@ -99,16 +104,16 @@ export default async function ApplicationDetailPage({
                 <div className="detail-timeline-item" key={event.id}>
                   <strong>
                     {event.fromStatus
-                      ? `${APPLICATION_STATUS_LABELS[event.fromStatus as ApplicationStatus] ?? event.fromStatus} → `
+                      ? `${t(APPLICATION_STATUS_LABELS[event.fromStatus as ApplicationStatus] ?? event.fromStatus)} → `
                       : ""}
-                    {APPLICATION_STATUS_LABELS[event.toStatus as ApplicationStatus] ?? event.toStatus}
+                    {t(APPLICATION_STATUS_LABELS[event.toStatus as ApplicationStatus] ?? event.toStatus)}
                   </strong>
                   <div className="small">{event.actorName} · {formatDate(event.createdAt)}</div>
                   <p>{event.reason}</p>
                 </div>
               ))}
             </div>
-          ) : <EmptyState>暂无状态变更记录</EmptyState>}
+          ) : <EmptyState>{t("暂无状态变更记录")}</EmptyState>}
         </div>
       </section>
     </>

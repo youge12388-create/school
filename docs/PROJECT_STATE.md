@@ -1,6 +1,30 @@
 # 项目状态同步
 
-最后更新：2026-08-27
+最后更新：2026-09-04
+
+## 侧栏折叠修复与英文界面（2026-09-04）
+
+**需求 1：折叠后内容区真正变宽**
+
+- 根因：`.app-shell` 首列轨道被 `google-ui.css` 硬编码为 `264px`，折叠只改 `<aside>` 自身宽度、从不改 grid 轨道，且 `.page-content` 有 `max-width:1480px` 居中上限，宽屏下即使修轨道也看不到变化。
+- 修复（纯 CSS，`google-ui.css`）：`grid-template-columns` 用 `:has(.sidebar--collapsed)` 联动 `264px → 64px`，主列即时增宽 200px；折叠时内容上限放开到 `1680px`（1480+200），过渡 0.25s。移动端（<760px 抽屉布局）不受影响。
+- 用无头 Edge + CDP 实测 1920 宽：mainLeft 264→64、内容宽 1548→1748（含 padding），展开/折叠均验证通过。
+
+**需求 2：英文界面（默认中文，顶栏「中 / EN」切换）**
+
+- 语言存 cookie（`ui_locale`，1 年，HttpOnly），不引入 i18n 框架、不加 URL 前缀、不迁移路由。
+- 新建 `src/lib/i18n/`：`dict.ts`（中文→英文字典，key 即界面原文、未收录自动回退中文，保证中文界面与改动前一致）、`server.ts`（服务端读 cookie）、`locale-context.tsx`（客户端 useT/useTv/useLocale）；`api/i18n/locale` 写 cookie；顶栏/登录页「中 / EN」切换按钮。
+- 覆盖范围：菜单/顶栏/登录页与全部业务页、共享组件的平台操作文字（页面标题、表单标签、表头、按钮、状态徽章、空态、aria、placeholder、客户端错误提示）；数据内容（学校名、备注、正文、导入行、字段值）与打印页保持中文。
+- 特殊处理：枚举标签显示层经字典渲染，数据库存储值不变；院校知识卡片"中文列名即数据 key"仅显示层翻译；audit formatAuditObject/formatAuditDetails 增加可选 locale 参数（zh 输出与旧版一致，22 个既有单测全过）；「启用/停用」徽章/按钮语境区分；服务端常见静态错误消息进入字典并统一过 t()。
+- 验证：typecheck、lint、332 单测、生产构建全过；dev 实测登录页中/英 SSR；临时 QA 会话全站 16 页 EN 冒烟（200、无 React 错误、英文文案在位），QA 会话已删除。
+
+## 宝塔生产发布脚本纠偏（2026-08-28）
+
+- 根据项目负责人提供的现网信息，当前生产目标为宝塔服务器 `8.210.20.252`：代码目录 `/opt/school-opt`、宝塔 Node 项目 `school_syt`、Node `/www/server/nodejs/v24.18.0/bin`、健康检查域名 `check.medicalchinaway.com`、数据路径 `/opt/school-opt/data/app.db`。
+- `scripts/deploy.sh` 已改为这套宝塔拓扑的唯一发布入口：预检根权限、受保护的本机宝塔 API 配置、精确 Node 版本、干净 Git 工作区与宝塔 Node 重启实现；随后执行 `git pull --ff-only`、完整 `npm ci`、构建、宝塔 API 重启与 HTTPS 健康检查。失败会回滚到发布前 Git 提交并用同一宝塔 API 恢复，绝不创建 systemd、独立 PM2、nohup 或 kill 3000。
+- 已删除旧的 `bootstrap-deploy.sh`、`deploy-from-github.sh`、`deploy-from-github-safe-v2.sh`，它们均指向旧 `/opt/school-syt` + systemd/独立 PM2 拓扑。`deploy.ps1` 只保留作本机 Windows 入口，并修复了旧 PID 变量名错误。
+- 宝塔 API token 不进入仓库，配置样例为 `scripts/baota-release.env.example`；真实配置须位于 `/root/.config/school_syt/`、root 所有且权限 `600`。
+- 当前任务环境没有经过验证的 SSH/宝塔安全入口，尚未在生产执行预检、发布或目录清理。截图中的旧目录只能列为候选，必须先核验宝塔项目、运行进程、符号链接、数据库与备份后逐项清理。
 
 ## 详情页重构、全局编辑模式、市场经理视图与合作收费字段（2026-08-27）
 

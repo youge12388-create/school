@@ -7,6 +7,7 @@ import { useEditMode } from "@/components/edit-mode";
 import { KnowledgeFieldGrid } from "@/components/knowledge-fields";
 import { SchoolNoteSection } from "@/components/school-note-section";
 import { Badge } from "@/components/ui";
+import { useT } from "@/lib/i18n/locale-context";
 
 const CARD_KEY = "school-basic";
 
@@ -44,6 +45,7 @@ export function SchoolBasicCard({
   const [message, setMessage] = useState("");
   const [savedAt, setSavedAt] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const t = useT();
 
   const knowledge: Record<string, unknown> = {
     学校中文名: school.nameZh,
@@ -95,13 +97,13 @@ export function SchoolBasicCard({
         body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "保存失败");
+      if (!response.ok) throw new Error(result.error ?? t("保存失败"));
       markDirty(CARD_KEY, false);
       setMessage("");
       setSavedAt((version) => version + 1);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "保存失败");
+      setMessage(error instanceof Error ? t(error.message) : t("保存失败"));
     } finally {
       setLoading(false);
     }
@@ -113,11 +115,18 @@ export function SchoolBasicCard({
     setMessage("");
   }
 
+  const reviewBadge =
+    school.reviewStatus === "VERIFIED"
+      ? t("已复核")
+      : school.reviewStatus === "NEEDS_REVIEW"
+        ? t("待复核")
+        : t("自动导入");
+
   return (
     <section className="card card-compact school-knowledge-card">
       <div className="card-header school-knowledge-header">
         <div>
-          <h3>院校基本信息</h3>
+          <h3>{t("院校基本信息")}</h3>
         </div>
         <Badge
           tone={
@@ -128,11 +137,7 @@ export function SchoolBasicCard({
                 : "blue"
           }
         >
-          {school.reviewStatus === "VERIFIED"
-            ? "已复核"
-            : school.reviewStatus === "NEEDS_REVIEW"
-              ? "待复核"
-              : "自动导入"}
+          {reviewBadge}
         </Badge>
       </div>
       <div className="card-body">
@@ -146,73 +151,73 @@ export function SchoolBasicCard({
           >
             <div className="form-grid">
               <label>
-                学校中文名
+                {t("学校中文名")}
                 <input name="nameZh" required defaultValue={school.nameZh} />
               </label>
               <label>
-                学校英文名
+                {t("学校英文名")}
                 <input name="name" defaultValue={school.name ?? ""} />
               </label>
               <label>
-                学校分类
+                {t("学校分类")}
                 <input name="category" defaultValue={school.category ?? ""} />
               </label>
               <label>
-                省份
+                {t("省份")}
                 <input name="province" defaultValue={school.province ?? ""} />
               </label>
               <label>
-                城市
+                {t("城市")}
                 <input name="city" defaultValue={school.city ?? ""} />
               </label>
               <label>
-                官网
+                {t("官网")}
                 <input name="website" defaultValue={school.website ?? ""} placeholder="https://" />
               </label>
               <label>
-                QS 排名
+                {t("QS 排名")}
                 <input name="qsRanking" type="number" defaultValue={school.qsRanking ?? ""} />
               </label>
               <label>
-                排名信息
-                <input name="rankingInfo" defaultValue={school.rankingInfo ?? ""} placeholder="可填写其他排名" />
+                {t("排名信息")}
+                <input name="rankingInfo" defaultValue={school.rankingInfo ?? ""} placeholder={t("可填写其他排名")} />
               </label>
               <label>
-                合作星级
+                {t("合作星级")}
                 <input name="partnershipRating" type="number" min="0" max="5" defaultValue={school.partnershipRating} />
               </label>
               <label>
-                CSCA 状态
+                {t("CSCA 状态")}
                 <select name="cscaStatus" defaultValue={school.cscaStatus}>
-                  <option value="UNKNOWN">未知</option>
-                  <option value="REQUIRED">要求</option>
-                  <option value="NOT_REQUIRED">不要求</option>
+                  <option value="UNKNOWN">{t("未知")}</option>
+                  <option value="REQUIRED">{t("要求")}</option>
+                  <option value="NOT_REQUIRED">{t("不要求")}</option>
                 </select>
               </label>
               <label>
-                标签
+                {t("标签")}
                 <input name="tags" defaultValue={school.tags ?? ""} />
               </label>
             </div>
             <label className="wide">
-              学校简介
+              {t("学校简介")}
               <textarea name="description" defaultValue={school.description ?? ""} rows={3} />
             </label>
             <label className="wide">
-              合作项目
+              {t("合作项目")}
               <textarea
                 name="cooperationPrograms"
                 defaultValue={school.cooperationPrograms ?? ""}
                 rows={2}
-                placeholder="列出已合作的项目"
+                placeholder={t("列出已合作的项目")}
               />
             </label>
             <div className="form-actions">
               <button className="primary" disabled={loading} type="submit">
-                {loading ? "保存中…" : "保存本区"}
+                {loading ? t("保存中…") : t("保存本区")}
               </button>
               <button disabled={loading} type="button" onClick={resetForm}>
-                还原
+                {t("还原")}
               </button>
             </div>
             {message ? (

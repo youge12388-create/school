@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SchoolUpdateView } from "@/lib/school-updates";
+import { useT, useTv } from "@/lib/i18n/locale-context";
 
 import { SchoolUpdateForm } from "@/components/school-update-form";
 
@@ -64,6 +65,8 @@ export function SchoolUpdateItem({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const t = useT();
+  const tv = useTv();
 
   const publicAttachments = view.attachments.filter(
     (attachment) => attachment.groupName === "PUBLIC",
@@ -80,14 +83,14 @@ export function SchoolUpdateItem({
   );
   const personnelText =
     [
-      view.submitter ? `提交人 ${view.submitter}` : null,
-      view.publicOperator ? `操作人 ${view.publicOperator}` : null,
+      view.submitter ? tv("提交人 {n}", { n: view.submitter }) : null,
+      view.publicOperator ? tv("操作人 {n}", { n: view.publicOperator }) : null,
     ]
       .filter(Boolean)
       .join(" · ") || null;
 
   async function remove() {
-    if (!window.confirm("确认删除这条更新记录？")) return;
+    if (!window.confirm(t("确认删除这条更新记录？"))) return;
     setDeleting(true);
     try {
       const response = await fetch(`/api/school-updates/${view.id}`, {
@@ -95,12 +98,12 @@ export function SchoolUpdateItem({
       });
       if (!response.ok) {
         const body = (await response.json()) as { error?: string };
-        window.alert(body.error ?? "删除失败");
+        window.alert(body.error ? t(body.error) : t("删除失败"));
         return;
       }
       router.refresh();
     } catch {
-      window.alert("删除失败");
+      window.alert(t("删除失败"));
     } finally {
       setDeleting(false);
     }
@@ -122,12 +125,12 @@ export function SchoolUpdateItem({
     <article className={`update-item${hasSecret ? " has-secret" : ""}`}>
       <div className="update-item-body">
         <div className="update-item-head">
-          <strong>{view.title ?? "院校信息更新"}</strong>
+          <strong>{view.title ?? t("院校信息更新")}</strong>
           <span className="update-item-time">{formatDateTime(view.createdAt)}</span>
           {canManage ? (
             <div className="update-actions">
               <button type="button" onClick={() => setEditing(true)}>
-                编辑
+                {t("编辑")}
               </button>
               <button
                 type="button"
@@ -135,7 +138,7 @@ export function SchoolUpdateItem({
                 onClick={remove}
                 className="danger"
               >
-                删除
+                {t("删除")}
               </button>
             </div>
           ) : null}
@@ -146,14 +149,14 @@ export function SchoolUpdateItem({
         <UpdateLinks url={view.publicUrl} attachments={publicAttachments} />
         {view.secretContent !== undefined && hasSecret ? (
           <div className="update-secret">
-            <span className="update-secret-label">内部备注</span>
+            <span className="update-secret-label">{t("内部备注")}</span>
             {view.secretContent ? (
               <p className="update-secret-content">{view.secretContent}</p>
             ) : null}
             <UpdateLinks url={view.secretUrl} attachments={secretAttachments} />
             {view.secretOperator ? (
               <p className="small muted">
-                内部备注人：{view.secretOperator}
+                {tv("内部备注人：{n}", { n: view.secretOperator })}
               </p>
             ) : null}
           </div>

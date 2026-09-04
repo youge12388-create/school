@@ -6,6 +6,8 @@ import {
   APPLICATION_STATUS_LABELS,
   type ApplicationStatus,
 } from "@/lib/constants";
+import { makeT } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import { listApplications } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 
@@ -15,34 +17,36 @@ export default async function ApplicationsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status = "" } = await searchParams;
+  const locale = await getUiLocale();
+  const t = makeT(locale);
   const rows = await listApplications(status);
   return (
     <>
       <PageHeading
-        title="申请流程"
-        description="每个学校项目建立独立申请；状态可回退或跳转，但必须填写原因。"
+        title={t("申请流程")}
+        description={t("每个学校项目建立独立申请；状态可回退或跳转，但必须填写原因。")}
       />
       <form className="toolbar">
         <label>
-          申请状态
+          {t("申请状态")}
           <select name="status" defaultValue={status}>
-            <option value="">全部</option>
+            <option value="">{t("全部")}</option>
             {APPLICATION_STATUSES.map((value) => (
-              <option value={value} key={value}>{APPLICATION_STATUS_LABELS[value]}</option>
+              <option value={value} key={value}>{t(APPLICATION_STATUS_LABELS[value])}</option>
             ))}
           </select>
         </label>
-        <button type="submit">筛选</button>
+        <button type="submit">{t("筛选")}</button>
       </form>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>客户</th>
-              <th>学校 / 项目</th>
-              <th>状态</th>
-              <th>负责人</th>
-              <th>最近更新</th>
+              <th>{t("客户")}</th>
+              <th>{t("学校 / 项目")}</th>
+              <th>{t("状态")}</th>
+              <th>{t("负责人")}</th>
+              <th>{t("最近更新")}</th>
             </tr>
           </thead>
           <tbody>
@@ -62,7 +66,7 @@ export default async function ApplicationsPage({
                 </td>
                 <td>
                   <Badge tone="blue">
-                    {APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status}
+                    {t(APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status)}
                   </Badge>
                 </td>
                 <td>{application.ownerName || "—"}</td>

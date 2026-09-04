@@ -12,6 +12,8 @@ import { SchoolProgramCard, type ProgramCardData } from "@/components/school-pro
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
+import { makeT, makeTv, translate, type UiLocale } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import {
   canEditConfidentialSchoolFields,
   canEditSchool,
@@ -91,11 +93,19 @@ function programMatchesContext(
   return true;
 }
 
-function contextLabel(context: { type?: string; language?: string; major?: string }) {
+function contextLabel(
+  locale: UiLocale,
+  context: { type?: string; language?: string; major?: string },
+) {
+  const label = (value: string) => translate(locale, value);
   return [
-    context.type ? PROGRAM_TYPE_LABELS[context.type] ?? context.type : null,
-    context.language ? LANGUAGE_LABELS[context.language] ?? context.language : null,
-    context.major ? `专业：${context.major}` : null,
+    context.type ? label(PROGRAM_TYPE_LABELS[context.type] ?? context.type) : null,
+    context.language ? label(LANGUAGE_LABELS[context.language] ?? context.language) : null,
+    context.major
+      ? locale === "en"
+        ? `Major: ${context.major}`
+        : `专业：${context.major}`
+      : null,
   ].filter(Boolean).join(" · ");
 }
 
@@ -109,6 +119,9 @@ export default async function SchoolDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   const user = await requireUser();
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const tv = makeTv(locale);
   const canEdit = canEditSchool(user.role);
   const canEditConfidential = canEditConfidentialSchoolFields(user.role);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
@@ -134,7 +147,6 @@ export default async function SchoolDetailsPage({
     major: query.major,
   };
   const targetProgramId = screeningContext.programId;
-  const targetMajor = screeningContext.major;
   const hasScreeningContext =
     query.from === "screening" &&
     Boolean(
@@ -146,8 +158,7 @@ export default async function SchoolDetailsPage({
   const visiblePrograms = hasScreeningContext
     ? programs.filter((program) => programMatchesContext(program, screeningContext))
     : programs;
-  const activeContextLabel = contextLabel(screeningContext);
-  const schoolRaw = safeJson<Record<string, unknown>>(school.rawJson, {});
+  const activeContextLabel = contextLabel(locale, screeningContext);
   const cooperationKnowledge: Record<string, unknown> = {
     团体申请账号: school.groupApplicationAccount,
     是否可代收: school.collectionServiceText,
@@ -187,11 +198,11 @@ export default async function SchoolDetailsPage({
     <EditModeProvider>
       <PageHeading
         title={school.nameZh}
-        description={school.name && school.name !== school.nameZh ? school.name : "学校知识库完整档案"}
+        description={school.name && school.name !== school.nameZh ? school.name : t("学校知识库完整档案")}
         action={
           <div className="page-heading-actions">
             {canEdit ? <EditModeToggle /> : null}
-            <BackButton text="返回筛选结果" />
+            <BackButton text={t("返回筛选结果")} />
           </div>
         }
       />
@@ -201,19 +212,19 @@ export default async function SchoolDetailsPage({
       <div className="detail-status-bar">
         {locationText ? (
           <div className="status-item">
-            <span>地区</span>
+            <span>{t("地区")}</span>
             <strong>{locationText}</strong>
           </div>
         ) : null}
         {school.qsRanking ? (
           <div className="status-item">
-            <span>QS 排名</span>
+            <span>{t("QS 排名")}</span>
             <strong>{school.qsRanking}</strong>
           </div>
         ) : null}
         <div className="status-item">
-          <span>知识库项目</span>
-          <strong>{visiblePrograms.length} / {programs.length} 个</strong>
+          <span>{t("知识库项目")}</span>
+          <strong>{tv("{a} / {b} 个", { a: visiblePrograms.length, b: programs.length })}</strong>
         </div>
       </div>
 
@@ -221,9 +232,9 @@ export default async function SchoolDetailsPage({
         <section className="card card-compact school-updates-card">
         <div className="card-header school-knowledge-header">
           <div>
-            <h3>最近更新</h3>
+            <h3>{t("最近更新")}</h3>
           </div>
-          <Badge tone="blue">{updateItems.length} 条动态</Badge>
+          <Badge tone="blue">{tv("{n} 条动态", { n: updateItems.length })}</Badge>
         </div>
         <div className="card-body">
           {updateItems.length ? (
@@ -244,11 +255,11 @@ export default async function SchoolDetailsPage({
               })}
             </div>
           ) : (
-            <p className="small muted">暂无更新记录</p>
+            <p className="small muted">{t("暂无更新记录")}</p>
           )}
           {canManageUpdates ? (
             <details className="update-form-toggle">
-              <summary>＋ 新增更新记录</summary>
+              <summary>{t("＋ 新增更新记录")}</summary>
               <SchoolUpdateForm schoolId={school.id} />
             </details>
           ) : null}
@@ -283,18 +294,24 @@ export default async function SchoolDetailsPage({
         {targetProgramId ? <ScrollToProgram programId={targetProgramId} /> : null}
         <div className="school-programs-heading">
           <div>
-            <h2>{hasScreeningContext ? "筛选相关项目" : "院校项目"}</h2>
+            <h2>{hasScreeningContext ? t("筛选相关项目") : t("院校项目")}</h2>
             <p>
               {hasScreeningContext
-                ? `当前从筛选结果进入，仅显示 ${activeContextLabel || "当前筛选"} 相关项目：${visiblePrograms.length} / ${programs.length} 个。`
-                : `共 ${programs.length} 个有效项目。默认折叠，点击项目标题展开查看完整字段。`}
+                ? tv("当前从筛选结果进入，仅显示 {label} 相关项目：{a} / {b} 个。", {
+                    label: activeContextLabel || t("当前筛选"),
+                    a: visiblePrograms.length,
+                    b: programs.length,
+                  })
+                : tv("共 {n} 个有效项目。默认折叠，点击项目标题展开查看完整字段。", {
+                    n: programs.length,
+                  })}
             </p>
           </div>
           <div className="school-program-actions">
             {hasScreeningContext ? (
-              <Link className="button" href={`/schools/${school.id}`}>查看该校全部项目</Link>
+              <Link className="button" href={`/schools/${school.id}`}>{t("查看该校全部项目")}</Link>
             ) : null}
-            <BackButton text="返回筛选" className="button primary" />
+            <BackButton text={t("返回筛选")} className="button primary" />
           </div>
         </div>
 
@@ -363,7 +380,7 @@ export default async function SchoolDetailsPage({
             );
           })
         ) : (
-          <EmptyState>{hasScreeningContext ? "该学校没有符合当前筛选上下文的项目。" : "该学校暂无有效项目"}</EmptyState>
+          <EmptyState>{hasScreeningContext ? t("该学校没有符合当前筛选上下文的项目。") : t("该学校暂无有效项目")}</EmptyState>
         )}
       </section>
     </EditModeProvider>

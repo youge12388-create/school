@@ -5,6 +5,8 @@ import { ScreeningResultCard } from "@/components/screening-result-card";
 import { EmptyState, PageHeading } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
+import { makeT, makeTv } from "@/lib/i18n/dict";
+import { getUiLocale } from "@/lib/i18n/server";
 import {
   parseSchoolTier,
   rankPrograms,
@@ -164,12 +166,16 @@ function ResultSection({
   ranks,
   detailParams,
   marketManagerView,
+  t,
+  tv,
 }: {
   fitLevel: Exclude<FitLevel, "NOT_MATCHED">;
   results: RankedProgram[];
   ranks: Map<string, number>;
   detailParams: Record<string, string | undefined>;
   marketManagerView: boolean;
+  t: (s: string) => string;
+  tv: (s: string, vars: Record<string, string | number>) => string;
 }) {
   if (!results.length) return null;
   const section = fitSection[fitLevel];
@@ -177,10 +183,10 @@ function ResultSection({
     <section className="screening-result-section">
       <div className="screening-section-heading">
         <div>
-          <h3>{section.title}</h3>
-          <p>{section.description}</p>
+          <h3>{t(section.title)}</h3>
+          <p>{t(section.description)}</p>
         </div>
-        <span>{results.length} 个项目</span>
+        <span>{tv("{n} 个项目", { n: results.length })}</span>
       </div>
       {results.map((result) => (
         <ScreeningResultCard
@@ -202,6 +208,9 @@ export default async function ScreeningPage({
 }) {
   const params = await searchParams;
   const user = await requireUser();
+  const locale = await getUiLocale();
+  const t = makeT(locale);
+  const tv = makeTv(locale);
   const marketManagerView = isMarketManager(user.role);
   const criteria = toCriteria(params);
   const hasSearch = hasSearchCriteria(params);
@@ -225,101 +234,102 @@ export default async function ScreeningPage({
     language: params.language,
     major: params.major,
   };
+  const countText = (n: number) => tv("{n} 个项目", { n });
 
   return (
     <>
       <PageHeading
-        title="学校项目筛查"
-        description="明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。"
+        title={t("学校项目筛查")}
+        description={t("明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。")}
       />
       <form className="card screening-filter-card" method="get">
         <div className="card-header">
           <div>
-            <h3>客户筛选条件</h3>
-            <p className="small muted">空缺信息不参与判断，可按需展开更多条件。</p>
+            <h3>{t("客户筛选条件")}</h3>
+            <p className="small muted">{t("空缺信息不参与判断，可按需展开更多条件。")}</p>
           </div>
           <div className="header-search">
             <input
               name="q"
               defaultValue={params.q}
-              placeholder="搜索学校名称..."
-              aria-label="搜索学校"
+              placeholder={t("搜索学校名称...")}
+              aria-label={t("搜索学校")}
             />
           </div>
         </div>
         <div className="card-body screening-filter-body">
           <section className="screening-filter-section screening-filter-primary">
-            <h4>申请目标</h4>
+            <h4>{t("申请目标")}</h4>
             <div className="screening-primary-fields">
               <div className="form-grid screening-primary-main">
                 <label>
-                  申请学历
+                  {t("申请学历")}
                   <select name="type" defaultValue={params.type}>
-                    <option value="">不限</option>
+                    <option value="">{t("不限")}</option>
                     {Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
-                      <option value={value} key={value}>{label}</option>
+                      <option value={value} key={value}>{t(label)}</option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  授课语言
+                  {t("授课语言")}
                   <select name="language" defaultValue={params.language}>
-                    <option value="">不限</option>
+                    <option value="">{t("不限")}</option>
                     {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
-                      <option value={value} key={value}>{label}</option>
+                      <option value={value} key={value}>{t(label)}</option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  目标专业
+                  {t("目标专业")}
                   <MajorPicker
                     name="major"
                     defaultValue={params.major ?? ""}
                     catalog={majorCatalog as MajorCatalog}
-                    placeholder="输入或选择专业..."
+                    placeholder={t("输入或选择专业...")}
                   />
                 </label>
                 <label>
                   CSCA
                   <select name="csca" defaultValue={params.csca}>
-                    <option value="">不限</option>
-                    <option value="REQUIRED">院校需要</option>
-                    <option value="NOT_REQUIRED">院校不需要</option>
-                    <option value="UNKNOWN">信息未标明</option>
+                    <option value="">{t("不限")}</option>
+                    <option value="REQUIRED">{t("院校需要")}</option>
+                    <option value="NOT_REQUIRED">{t("院校不需要")}</option>
+                    <option value="UNKNOWN">{t("信息未标明")}</option>
                   </select>
                 </label>
                 <label>
-                  年龄
-                  <input name="age" type="number" min="1" max="100" defaultValue={params.age} placeholder="周岁" />
+                  {t("年龄")}
+                  <input name="age" type="number" min="1" max="100" defaultValue={params.age} placeholder={t("周岁")} />
                 </label>
                 <label>
-                  奖学金需求
+                  {t("奖学金需求")}
                   <select name="scholarshipType" defaultValue={params.scholarshipType}>
-                    <option value="">不限</option>
-                    <option value="full">全额奖学金</option>
-                    <option value="any">有其他奖学金</option>
-                    <option value="none">无奖学金（自费）</option>
+                    <option value="">{t("不限")}</option>
+                    <option value="full">{t("全额奖学金")}</option>
+                    <option value="any">{t("有其他奖学金")}</option>
+                    <option value="none">{t("无奖学金（自费）")}</option>
                   </select>
                 </label>
               </div>
               <div className="form-grid screening-primary-secondary">
                 <label>
-                  院校层次
+                  {t("院校层次")}
                   <select name="schoolTier" defaultValue={criteria.schoolTier || ""}>
-                    <option value="">不限</option>
+                    <option value="">{t("不限")}</option>
                     <option value="985">985</option>
                     <option value="211">211</option>
-                    <option value="double_first_class_only">仅双一流</option>
-                    <option value="double_non">双非普通院校</option>
+                    <option value="double_first_class_only">{t("仅双一流")}</option>
+                    <option value="double_non">{t("双非普通院校")}</option>
                   </select>
                 </label>
-                <label>国籍<input name="nationality" defaultValue={params.nationality} placeholder="例如：泰国" /></label>
+                <label>{t("国籍")}<input name="nationality" defaultValue={params.nationality} placeholder={t("例如：泰国")} /></label>
                 <label>
-                  导师接收函要求
+                  {t("导师接收函要求")}
                   <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
-                    <option value="">不限</option>
-                    <option value="required">明确或部分要求</option>
-                    <option value="unknown">未标明</option>
+                    <option value="">{t("不限")}</option>
+                    <option value="required">{t("明确或部分要求")}</option>
+                    <option value="unknown">{t("未标明")}</option>
                   </select>
                 </label>
               </div>
@@ -327,65 +337,65 @@ export default async function ScreeningPage({
           </section>
 
           <section className="screening-filter-section screening-filter-deadline">
-            <h4>申请时间</h4>
+            <h4>{t("申请时间")}</h4>
             <div className="form-grid">
               <label>
-                申请截止状态
+                {t("申请截止状态")}
                 <select name="deadlineMode" defaultValue={params.deadlineMode || "all"}>
-                  <option value="all">全部状态</option>
-                  <option value="open">只看开放中</option>
-                  <option value="unknown">只看日期未知</option>
-                  <option value="expired">只看已截止</option>
+                  <option value="all">{t("全部状态")}</option>
+                  <option value="open">{t("只看开放中")}</option>
+                  <option value="unknown">{t("只看日期未知")}</option>
+                  <option value="expired">{t("只看已截止")}</option>
                 </select>
               </label>
-              <label>截止日期从<input name="deadlineFrom" type="date" defaultValue={params.deadlineFrom} /></label>
-              <label>截止日期到<input name="deadlineTo" type="date" defaultValue={params.deadlineTo} /></label>
+              <label>{t("截止日期从")}<input name="deadlineFrom" type="date" defaultValue={params.deadlineFrom} /></label>
+              <label>{t("截止日期到")}<input name="deadlineTo" type="date" defaultValue={params.deadlineTo} /></label>
             </div>
           </section>
 
           <details className="screening-filter-section screening-filter-advanced screening-filter-academic" open={showAcademicFilters}>
             <summary>
               <span>
-                <strong>学术与语言条件</strong>
-                <small>GPA、HSK、雅思、托福、多邻国分数</small>
+                <strong>{t("学术与语言条件")}</strong>
+                <small>{t("GPA、HSK、雅思、托福、多邻国分数")}</small>
               </span>
-              <span className="screening-advanced-toggle">展开</span>
+              <span className="screening-advanced-toggle">{t("展开")}</span>
             </summary>
             <div className="form-grid screening-advanced-body">
-              <label>GPA / 均分<input name="gpa" type="number" step="0.01" defaultValue={params.gpa} /></label>
-              <label>GPA 满分制<input name="gpaScale" type="number" step="0.01" placeholder="4、5 或 100" defaultValue={params.gpaScale} /></label>
-              <label>HSK 级别<input name="hskLevel" type="number" min="1" max="6" defaultValue={params.hskLevel} /></label>
-              <label>HSK 分数<input name="hskScore" type="number" defaultValue={params.hskScore} /></label>
-              <label>雅思<input name="ielts" type="number" step="0.5" defaultValue={params.ielts} /></label>
-              <label>托福<input name="toefl" type="number" defaultValue={params.toefl} /></label>
-              <label>多邻国分数<input name="duolingo" type="number" defaultValue={params.duolingo} /></label>
+              <label>{t("GPA / 均分")}<input name="gpa" type="number" step="0.01" defaultValue={params.gpa} /></label>
+              <label>{t("GPA 满分制")}<input name="gpaScale" type="number" step="0.01" placeholder={t("4、5 或 100")} defaultValue={params.gpaScale} /></label>
+              <label>{t("HSK 级别")}<input name="hskLevel" type="number" min="1" max="6" defaultValue={params.hskLevel} /></label>
+              <label>{t("HSK 分数")}<input name="hskScore" type="number" defaultValue={params.hskScore} /></label>
+              <label>{t("雅思")}<input name="ielts" type="number" step="0.5" defaultValue={params.ielts} /></label>
+              <label>{t("托福")}<input name="toefl" type="number" defaultValue={params.toefl} /></label>
+              <label>{t("多邻国分数")}<input name="duolingo" type="number" defaultValue={params.duolingo} /></label>
             </div>
           </details>
 
           <details className="screening-filter-section screening-filter-advanced screening-filter-soft" open={showSoftFilters}>
             <summary>
               <span>
-                <strong>软性竞争力</strong>
-                <small>论文/专利成果、竞赛/突出表现</small>
+                <strong>{t("软性竞争力")}</strong>
+                <small>{t("论文/专利成果、竞赛/突出表现")}</small>
               </span>
-              <span className="screening-advanced-toggle">展开</span>
+              <span className="screening-advanced-toggle">{t("展开")}</span>
             </summary>
             <div className="form-grid screening-advanced-body">
               <label>
-                论文/专利成果
+                {t("论文/专利成果")}
                 <select name="paperPatent" defaultValue={params.paperPatent}>
-                  <option value="">不限</option>
-                  <option value="general">有论文或专利</option>
-                  <option value="sci_ei">有SCI/EI级别论文</option>
+                  <option value="">{t("不限")}</option>
+                  <option value="general">{t("有论文或专利")}</option>
+                  <option value="sci_ei">{t("有SCI/EI级别论文")}</option>
                 </select>
               </label>
               
               
               <label>
-                竞赛/其他突出表现
+                {t("竞赛/其他突出表现")}
                 <select name="competition" defaultValue={params.competition}>
-                  <option value="">不限</option>
-                  <option value="competition">有竞赛或突出表现</option>
+                  <option value="">{t("不限")}</option>
+                  <option value="competition">{t("有竞赛或突出表现")}</option>
                 </select>
               </label>
               
@@ -395,33 +405,33 @@ export default async function ScreeningPage({
           <details className="screening-filter-section screening-filter-advanced screening-filter-preferences" open={showPreferenceFilters}>
             <summary>
               <span>
-                <strong>预算与偏好</strong>
-                <small>预算、省市、住宿</small>
+                <strong>{t("预算与偏好")}</strong>
+                <small>{t("预算、省市、住宿")}</small>
               </span>
-              <span className="screening-advanced-toggle">展开</span>
+              <span className="screening-advanced-toggle">{t("展开")}</span>
             </summary>
             <div className="form-grid screening-advanced-body">
-              <label>首年总预算（元）<input name="budget" type="number" min="0" defaultValue={params.budget} /></label>
-              <label>意向省份<input name="province" defaultValue={params.province} placeholder="例如：广东" /></label>
-              <label>意向城市<input name="city" defaultValue={params.city} placeholder="例如：深圳" /></label>
+              <label>{t("首年总预算（元）")}<input name="budget" type="number" min="0" defaultValue={params.budget} /></label>
+              <label>{t("意向省份")}<input name="province" defaultValue={params.province} placeholder={t("例如：广东")} /></label>
+              <label>{t("意向城市")}<input name="city" defaultValue={params.city} placeholder={t("例如：深圳")} /></label>
               <label>
-                住宿需求
+                {t("住宿需求")}
                 <select name="accommodation" defaultValue={params.accommodation}>
-                  <option value="">不限</option>
-                  <option value="yes">需要住宿信息</option>
+                  <option value="">{t("不限")}</option>
+                  <option value="yes">{t("需要住宿信息")}</option>
                 </select>
               </label>
               <label>
-                生源地（招生）偏好
+                {t("生源地（招生）偏好")}
                 <select name="enrollmentRegion" defaultValue={params.enrollmentRegion || ""}>
-                  <option value="">不限</option>
-                  <option value="no_preference">没有生源地偏好</option>
+                  <option value="">{t("不限")}</option>
+                  <option value="no_preference">{t("没有生源地偏好")}</option>
                 </select>
               </label>
             </div>
           </details>
           <div className="form-actions screening-filter-actions">
-            <button className="primary" type="submit">开始筛查</button>
+            <button className="primary" type="submit">{t("开始筛查")}</button>
             <ClearScreeningFilters />
           </div>
         </div>
@@ -429,14 +439,14 @@ export default async function ScreeningPage({
 
       <div className="screening-results">
         {!hasSearch ? (
-          <EmptyState>填写至少一个筛选条件后查看项目匹配结果</EmptyState>
+          <EmptyState>{t("填写至少一个筛选条件后查看项目匹配结果")}</EmptyState>
         ) : (
           <form action={saveRecommendationAction}>
             <div className="toolbar screening-save-toolbar">
               <label>
-                保存到客户
+                {t("保存到客户")}
                 <select name="customerId" required>
-                  <option value="">请选择客户</option>
+                  <option value="">{t("请选择客户")}</option>
                   {customers.map((customer) => (
                     <option value={customer.id} key={customer.id}>
                       {customer.name} · {customer.customerNo}
@@ -445,32 +455,32 @@ export default async function ScreeningPage({
                 </select>
               </label>
               <label>
-                方案名称
-                <input name="title" defaultValue={`${new Date().getFullYear()} 项目筛选方案`} required />
+                {t("方案名称")}
+                <input name="title" defaultValue={tv("{y} 项目筛选方案", { y: new Date().getFullYear() })} required />
               </label>
-              <label className="search">方案备注<input name="notes" /></label>
+              <label className="search">{t("方案备注")}<input name="notes" /></label>
               <input type="hidden" name="criteriaJson" value={JSON.stringify(criteria)} />
-              <button className="primary" type="submit">保存并生成对比页</button>
+              <button className="primary" type="submit">{t("保存并生成对比页")}</button>
             </div>
 
             <div className="screening-summary screening-summary-prominent">
-              <strong>📊 共找到 {results.length} 个项目</strong>
-              <span className="summary-matched">✅ 可直接申请 {grouped.MATCHED.length}</span>
-              <span className="summary-need">⚠️ 需要补充 {grouped.NEEDS_ACTION.length}</span>
-              <span className="summary-unknown">❓ 信息待核实 {grouped.UNKNOWN.length}</span>
-              <span>⛔ 明确不符合 {notMatchedResults.length}</span>
-              <span>⏰ 已截止 {expiredResults.length}</span>
+              <strong>{tv("📊 共找到 {n} 个项目", { n: results.length })}</strong>
+              <span className="summary-matched">{tv("✅ 可直接申请 {n}", { n: grouped.MATCHED.length })}</span>
+              <span className="summary-need">{tv("⚠️ 需要补充 {n}", { n: grouped.NEEDS_ACTION.length })}</span>
+              <span className="summary-unknown">{tv("❓ 信息待核实 {n}", { n: grouped.UNKNOWN.length })}</span>
+              <span>{tv("⛔ 明确不符合 {n}", { n: notMatchedResults.length })}</span>
+              <span>{tv("⏰ 已截止 {n}", { n: expiredResults.length })}</span>
             </div>
 
-            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} />
-            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} />
-            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} />
+            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
+            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
+            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
 
                         {expiredResults.length ? (
               <details className="card screening-collapsible-group">
                 <summary>
-                  <span><strong>已截止项目</strong><small>已过期，点击展开查看</small></span>
-                  <span>{expiredResults.length} 个项目</span>
+                  <span><strong>{t("已截止项目")}</strong><small>{t("已过期，点击展开查看")}</small></span>
+                  <span>{countText(expiredResults.length)}</span>
                 </summary>
                 <div className="screening-collapsible-body">
                   {expiredResults.map((result) => (
@@ -489,8 +499,8 @@ export default async function ScreeningPage({
             {notMatchedResults.length ? (
               <details className="card screening-collapsible-group">
                 <summary>
-                  <span><strong>明确不符合</strong><small>默认收起，需要核对原因时再展开</small></span>
-                  <span>{notMatchedResults.length} 个项目</span>
+                  <span><strong>{t("明确不符合")}</strong><small>{t("默认收起，需要核对原因时再展开")}</small></span>
+                  <span>{countText(notMatchedResults.length)}</span>
                 </summary>
                 <div className="screening-collapsible-body">
                   {notMatchedResults.map((result) => (
@@ -512,4 +522,3 @@ export default async function ScreeningPage({
     </>
   );
 }
-

@@ -2,6 +2,7 @@
 
 import type { MouseEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n/locale-context";
 
 function clearFilterValues(form: HTMLFormElement) {
   for (const element of Array.from(form.elements)) {
@@ -22,6 +23,7 @@ function clearFilterValues(form: HTMLFormElement) {
 
 export function ClearScreeningFilters() {
   const router = useRouter();
+  const t = useT();
 
   function handleClear(event: MouseEvent<HTMLButtonElement>) {
     const form = event.currentTarget.form;
@@ -33,7 +35,7 @@ export function ClearScreeningFilters() {
 
   return (
     <button className="button" type="button" onClick={handleClear}>
-      清空条件
+      {t("清空条件")}
     </button>
   );
 }

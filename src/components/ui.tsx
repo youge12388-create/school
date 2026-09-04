@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { Menu } from "lucide-react";
 import { useMobileDrawer } from "@/components/mobile-shell";
+import { useT } from "@/lib/i18n/locale-context";
 
 export function Badge({
   children,
@@ -28,6 +29,7 @@ export function PageHeading({
   action?: React.ReactNode;
 }) {
   const { setOpen } = useMobileDrawer();
+  const t = useT();
   return (
     <>
       <div className="page-heading desktop-only">
@@ -41,7 +43,7 @@ export function PageHeading({
         <button
           className="mobile-menu-btn"
           onClick={() => setOpen(true)}
-          aria-label="打开导航"
+          aria-label={t("打开导航")}
         >
           <Menu aria-hidden="true" />
         </button>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useT, useTv } from "@/lib/i18n/locale-context";
+
 type ImportSummary = {
   imported: number;
   updated: number;
@@ -14,6 +16,8 @@ export function SchoolUpdateImportPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const t = useT();
+  const tv = useTv();
 
   async function submit(formData: FormData) {
     setLoading(true);
@@ -25,41 +29,49 @@ export function SchoolUpdateImportPanel() {
         body: formData,
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "导入失败");
+      if (!response.ok) throw new Error(body.error ?? t("导入失败"));
       setSummary(body.summary);
-      setMessage("导入完成，学校详情页的院校信息更新已刷新。");
+      setMessage(t("导入完成，学校详情页的院校信息更新已刷新。"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "导入失败");
+      setMessage(error instanceof Error ? t(error.message) : t("导入失败"));
     } finally {
       setLoading(false);
     }
   }
 
+  const totalSkipped = summary
+    ? summary.skipped + (summary.skippedRows ?? 0)
+    : 0;
+
   return (
     <form action={submit} className="card" style={{ marginTop: 16 }}>
       <div className="card-header">
-        <h3>导入院校信息更新台账</h3>
+        <h3>{t("导入院校信息更新台账")}</h3>
         <a className="button" href="/api/templates/school-updates">
-          下载模板
+          {t("下载模板")}
         </a>
       </div>
       <div className="card-body">
         <p className="small muted" style={{ marginTop: 0, marginBottom: 12 }}>
-          请先下载模板，按“字段说明”填写后再上传；“院校名称”必填，且需与知识库中的学校中文名完全一致。
+          {t("请先下载模板，按\u201C字段说明\u201D填写后再上传；\u201C院校名称\u201D必填，且需与知识库中的学校中文名完全一致。")}
         </p>
         <label>
-          选择“院校信息更新”Excel（内部资料仅机密人员可见）
+          {t("选择\u201C院校信息更新\u201DExcel（内部资料仅机密人员可见）")}
           <input name="file" type="file" accept=".xlsx,.xls" required />
         </label>
         <div className="form-actions">
           <button className="primary" disabled={loading} type="submit">
-            {loading ? "导入中…" : "导入台账"}
+            {loading ? t("导入中…") : t("导入台账")}
           </button>
         </div>
         {summary ? (
           <div className="alert success" style={{ marginTop: 12 }}>
-            新增 {summary.imported} · 更新 {summary.updated} · 未匹配学校{" "}
-            {summary.schoolNotFound} · 跳过 {summary.skipped + (summary.skippedRows ?? 0)}
+            {tv("新增 {a} · 更新 {b} · 未匹配学校 {c} · 跳过 {d}", {
+              a: summary.imported,
+              b: summary.updated,
+              c: summary.schoolNotFound,
+              d: totalSkipped,
+            })}
           </div>
         ) : null}
         {message ? (

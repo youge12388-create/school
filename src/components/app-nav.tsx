@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebarCollapsed } from "@/components/sidebar-shell";
+import { useT } from "@/lib/i18n/locale-context";
 
 const items = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
@@ -27,8 +28,9 @@ const items = [
 export function AppNav({ role }: { role: string }) {
   const pathname = usePathname();
   const collapsed = useSidebarCollapsed();
+  const t = useT();
   return (
-    <nav className="nav" aria-label="主导航">
+    <nav className="nav" aria-label={t("主导航")}>
       {items
         .filter((item) => {
           if (item.href === "/admin/users") return role === "ADMIN";
@@ -62,14 +64,14 @@ export function AppNav({ role }: { role: string }) {
               key={item.href}
             >
               <Icon aria-hidden="true" />
-              {!collapsed && item.label}
+              {!collapsed && t(item.label)}
             </Link>
           );
         })}
       {role !== "MARKET_MANAGER" ? (
         <Link className="nav-link" href="/security">
           <ShieldCheck aria-hidden="true" />
-          {!collapsed && "安全说明"}
+          {!collapsed && t("安全说明")}
         </Link>
       ) : null}
     </nav>
