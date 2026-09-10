@@ -2722,3 +2722,286 @@ button.school-note-edit:hover {
     font-weight: 700;
   }
 }
+
+/* ===== 企业微信权限面板：紧凑、可展开 ===== */
+.wecom-admin-card > .card-header {
+  align-items: flex-start;
+}
+
+.wecom-admin-card > .card-body {
+  padding: 14px 18px 18px;
+}
+
+.wecom-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.wecom-summary-grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: #fbfcfe;
+  padding: 8px 10px;
+}
+
+.wecom-summary-grid span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.wecom-summary-grid strong {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.wecom-admin-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.wecom-panel {
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.wecom-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-soft);
+  background: #fafbfd;
+  padding: 10px 12px;
+}
+
+.wecom-panel-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.wecom-department-list,
+.wecom-member-list {
+  display: grid;
+}
+
+.wecom-department-item,
+.wecom-member-item {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.wecom-department-item:last-child,
+.wecom-member-item:last-child {
+  border-bottom: 0;
+}
+
+.wecom-department-item summary,
+.wecom-member-item summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 7px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.wecom-department-item summary::-webkit-details-marker,
+.wecom-member-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.wecom-department-item summary:hover,
+.wecom-member-item summary:hover {
+  background: #f8fbff;
+}
+
+.wecom-disclosure {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  font-size: 21px;
+  line-height: 1;
+  transition: transform .15s ease;
+}
+
+.wecom-department-item[open] .wecom-disclosure,
+.wecom-member-item[open] .wecom-disclosure {
+  transform: rotate(90deg);
+}
+
+.wecom-department-name,
+.wecom-member-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wecom-department-name small {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wecom-member-count,
+.wecom-member-role {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.wecom-department-editor,
+.wecom-member-details {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--border-soft);
+  background: #fbfcff;
+  padding: 10px 12px 10px 36px;
+}
+
+.wecom-department-editor .form-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wecom-department-editor select {
+  min-width: 0;
+  min-height: 34px;
+  flex: 1;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.wecom-department-editor button,
+.wecom-department-editor .form-inline button {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.wecom-member-details {
+  grid-template-columns: minmax(120px, .35fr) minmax(0, 1fr);
+}
+
+.wecom-member-status {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+}
+
+.wecom-member-status > span,
+.wecom-source-list + span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.wecom-member-status strong {
+  font-size: 12px;
+}
+
+.wecom-member-status .is-good {
+  color: var(--green);
+}
+
+.wecom-member-status .is-bad {
+  color: var(--red);
+}
+
+.wecom-source-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.wecom-source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.wecom-source-item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wecom-source-item .badge,
+.wecom-member-item .badge,
+.wecom-department-item .badge {
+  min-height: 22px;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+@media (max-width: 980px) {
+  .wecom-admin-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .wecom-admin-card > .card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wecom-admin-card > .card-header form,
+  .wecom-admin-card > .card-header button {
+    width: 100%;
+  }
+
+  .wecom-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wecom-department-item summary,
+  .wecom-member-item summary {
+    min-height: 44px;
+    padding: 7px 8px;
+  }
+
+  .wecom-member-role {
+    display: none;
+  }
+
+  .wecom-department-editor,
+  .wecom-member-details {
+    padding-left: 28px;
+  }
+
+  .wecom-department-editor .form-inline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wecom-member-details {
+    grid-template-columns: 1fr;
+  }
+}

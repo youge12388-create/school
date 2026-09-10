@@ -15,6 +15,7 @@ vi.mock("@/lib/wecom", () => ({ fetchWeComOrganization }));
 import { migrateDatabase } from "@/lib/db/migration";
 import {
   syncWeComOrganization,
+  listWeComMembers,
   updateWeComDepartmentRole,
   upsertWeComLogin,
   WeComAccessError,
@@ -98,6 +99,35 @@ describe("WeCom identity persistence", () => {
       departmentIds: [2],
       enabled: true,
     }, database)).toThrow(WeComAccessError);
+  });
+
+  it("inherits a role from a mapped parent department", () => {
+    const database = openDatabase();
+    addDepartment(database, 1, "企业", 0);
+    addDepartment(database, 2, "申请服务部", 1);
+    addAdmin(database);
+    database
+      .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (1, 'ADVISOR', 'admin-1')")
+      .run();
+
+    const result = upsertWeComLogin({
+      userId: "child-member",
+      displayName: "子部门成员",
+      departmentIds: [2],
+      enabled: true,
+    }, database);
+
+    expect(result.role).toBe("ADVISOR");
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      displayName: "子部门成员",
+      role: "ADVISOR",
+      canLogin: true,
+      accessReason: "可登录",
+      departments: [
+        { id: 1, role: "ADVISOR", direct: false },
+        { id: 2, role: null, direct: true },
+      ],
+    });
   });
 
   it("recomputes access and revokes sessions when a department mapping is removed", () => {

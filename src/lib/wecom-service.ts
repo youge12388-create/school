@@ -40,6 +40,24 @@ export type WeComDepartmentRow = {
   depth: number;
 };
 
+export type WeComMemberDepartmentRow = {
+  id: number;
+  path: string;
+  role: UserRole | null;
+  direct: boolean;
+};
+
+export type WeComMemberRow = {
+  id: string;
+  displayName: string;
+  role: UserRole | null;
+  active: boolean;
+  wecomEnabled: boolean;
+  canLogin: boolean;
+  accessReason: "可登录" | "企业微信成员未启用" | "所属部门未配置登录角色" | "账号状态待同步";
+  departments: WeComMemberDepartmentRow[];
+};
+
 type RoleMappingRow = { departmentId: number; role: UserRole };
 
 function roleMapping(database: DatabaseSync) {
@@ -51,12 +69,39 @@ function roleMapping(database: DatabaseSync) {
   return new Map(rows.map((row) => [row.departmentId, row.role]));
 }
 
+function departmentParents(database: DatabaseSync) {
+  const rows = database
+    .prepare("SELECT id AS departmentId, parent_id AS parentId FROM wecom_departments")
+    .all() as Array<{ departmentId: number; parentId: number }>;
+  return new Map(rows.map((row) => [row.departmentId, row.parentId]));
+}
+
+function expandDepartmentIds(
+  departmentIds: readonly number[],
+  parents: ReadonlyMap<number, number>,
+) {
+  const expanded = new Set<number>();
+  for (const departmentId of departmentIds) {
+    let currentId = departmentId;
+    const visiting = new Set<number>();
+    while (currentId > 0 && !visiting.has(currentId)) {
+      expanded.add(currentId);
+      visiting.add(currentId);
+      const parentId = parents.get(currentId);
+      if (!parentId || parentId === currentId) break;
+      currentId = parentId;
+    }
+  }
+  return expanded;
+}
+
 export function resolveWeComRole(
   departmentIds: readonly number[],
   mapping: ReadonlyMap<number, UserRole>,
+  parents: ReadonlyMap<number, number> = new Map(),
 ) {
   const roles = new Set(
-    departmentIds
+    [...expandDepartmentIds(departmentIds, parents)]
       .map((departmentId) => mapping.get(departmentId))
       .filter((role): role is UserRole => Boolean(role)),
   );
@@ -90,8 +135,9 @@ function upsertWeComMember(
   member: WeComMember,
   knownDepartmentIds: ReadonlySet<number>,
   mapping: ReadonlyMap<number, UserRole>,
+  parents: ReadonlyMap<number, number>,
 ) {
-  const role = resolveWeComRole(member.departmentIds, mapping);
+  const role = resolveWeComRole(member.departmentIds, mapping, parents);
   const active = member.enabled && role !== null;
   const previous = database
     .prepare(
@@ -154,6 +200,7 @@ function upsertWeComMember(
 
 function recomputeExternalUserAccess(database: DatabaseSync) {
   const mapping = roleMapping(database);
+  const parents = departmentParents(database);
   const externalUsers = database
     .prepare(
       `SELECT id, role, active, wecom_enabled AS wecomEnabled
@@ -175,6 +222,7 @@ function recomputeExternalUserAccess(database: DatabaseSync) {
     const role = resolveWeComRole(
       departments.map((department) => department.departmentId),
       mapping,
+      parents,
     );
     const active = Boolean(user.wecomEnabled) && role !== null;
     if (user.role === role && Boolean(user.active) === active) continue;
@@ -262,8 +310,9 @@ export async function syncWeComOrganization(actorId: string, database: DatabaseS
     }
 
     const mapping = roleMapping(database);
+    const parents = departmentParents(database);
     for (const member of organization.members) {
-      const result = upsertWeComMember(database, member, knownDepartmentIds, mapping);
+      const result = upsertWeComMember(database, member, knownDepartmentIds, mapping, parents);
       if (result.created) createdUsers += 1;
       else updatedUsers += 1;
     }
@@ -342,6 +391,70 @@ export function listWeComDepartments(database: DatabaseSync = sqlite): WeComDepa
     .sort((left, right) => left.path.localeCompare(right.path, "zh-CN"));
 }
 
+export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRow[] {
+  const departments = listWeComDepartments(database);
+  const departmentById = new Map(departments.map((department) => [department.id, department]));
+  const parents = departmentParents(database);
+  const mapping = roleMapping(database);
+  const users = database
+    .prepare(
+      `SELECT id, display_name AS displayName, role, active, wecom_enabled AS wecomEnabled
+       FROM users
+       WHERE auth_provider = 'WECOM'
+       ORDER BY display_name COLLATE NOCASE, id`,
+    )
+    .all() as Array<{
+    id: string;
+    displayName: string;
+    role: UserRole;
+    active: number;
+    wecomEnabled: number;
+  }>;
+  const memberships = database.prepare(
+    "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
+  );
+
+  return users.map((user) => {
+    const directDepartmentIds = (memberships.all(user.id) as Array<{ departmentId: number }>)
+      .map((department) => department.departmentId);
+    const scopedDepartmentIds = expandDepartmentIds(directDepartmentIds, parents);
+    const role = resolveWeComRole(directDepartmentIds, mapping, parents);
+    const active = Boolean(user.active);
+    const wecomEnabled = Boolean(user.wecomEnabled);
+    const canLogin = wecomEnabled && active && role !== null;
+    const accessReason = !wecomEnabled
+      ? "企业微信成员未启用"
+      : role === null
+        ? "所属部门未配置登录角色"
+        : canLogin
+          ? "可登录"
+          : "账号状态待同步";
+
+    return {
+      id: user.id,
+      displayName: user.displayName,
+      role,
+      active,
+      wecomEnabled,
+      canLogin,
+      accessReason,
+      departments: [...scopedDepartmentIds]
+        .map((departmentId) => {
+          const department = departmentById.get(departmentId);
+          if (!department) return null;
+          return {
+            id: department.id,
+            path: department.path,
+            role: mapping.get(department.id) ?? null,
+            direct: directDepartmentIds.includes(department.id),
+          } satisfies WeComMemberDepartmentRow;
+        })
+        .filter((department): department is WeComMemberDepartmentRow => department !== null)
+        .sort((left, right) => left.path.localeCompare(right.path, "zh-CN")),
+    } satisfies WeComMemberRow;
+  });
+}
+
 export function updateWeComDepartmentRole(
   departmentIdInput: string,
   roleInput: string,
@@ -392,7 +505,8 @@ export function updateWeComDepartmentRole(
 
 export function upsertWeComLogin(identity: WeComIdentity, database: DatabaseSync = sqlite) {
   const mapping = roleMapping(database);
-  const role = resolveWeComRole(identity.departmentIds, mapping);
+  const parents = departmentParents(database);
+  const role = resolveWeComRole(identity.departmentIds, mapping, parents);
   if (!identity.enabled || !role) {
     throw new WeComAccessError("企业微信账号尚未配置可用的部门权限");
   }
@@ -403,7 +517,7 @@ export function upsertWeComLogin(identity: WeComIdentity, database: DatabaseSync
   );
   database.exec("BEGIN IMMEDIATE");
   try {
-    const result = upsertWeComMember(database, identity, knownDepartmentIds, mapping);
+    const result = upsertWeComMember(database, identity, knownDepartmentIds, mapping, parents);
     database
       .prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?")
       .run(Date.now(), Date.now(), result.userId);
