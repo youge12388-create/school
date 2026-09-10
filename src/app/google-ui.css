@@ -2782,7 +2782,7 @@ button.school-note-edit:hover {
   gap: 8px;
   border-bottom: 1px solid var(--border-soft);
   background: #fafbfd;
-  padding: 10px 12px;
+  padding: 8px 12px;
 }
 
 .wecom-panel-heading > div {
@@ -2809,9 +2809,9 @@ button.school-note-edit:hover {
 .wecom-member-item summary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 7px 10px;
+  gap: 6px;
+  min-height: 40px;
+  padding: 5px 10px;
   cursor: pointer;
   list-style: none;
 }
@@ -2849,7 +2849,7 @@ button.school-note-edit:hover {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2983,8 +2983,8 @@ button.school-note-edit:hover {
 
   .wecom-department-item summary,
   .wecom-member-item summary {
-    min-height: 44px;
-    padding: 7px 8px;
+    min-height: 40px;
+    padding: 5px 8px;
   }
 
   .wecom-member-role {

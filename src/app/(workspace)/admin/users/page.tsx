@@ -133,7 +133,7 @@ export default async function UsersPage({
           <div>
             <h3>{t("企业微信组织架构")}</h3>
             <p className="muted small">
-              {t("按部门配置角色，成员会继承上级部门权限。点击部门或成员可查看细分权限。")}
+              {t("按部门独立配置角色，子部门不继承上级权限。点击部门或成员可查看细分权限。")}
             </p>
           </div>
           <form action="/api/admin/wecom" method="post">
@@ -185,7 +185,7 @@ export default async function UsersPage({
                   <div className="wecom-panel-heading">
                     <div>
                       <strong>{t("部门权限")}</strong>
-                      <span className="small muted">{t("子部门自动继承上级角色")}</span>
+                      <span className="small muted">{t("仅该部门直接成员生效，子部门需单独配置")}</span>
                     </div>
                   </div>
                   <div className="wecom-department-list">
@@ -195,7 +195,7 @@ export default async function UsersPage({
                           <span className="wecom-disclosure" aria-hidden="true">›</span>
                           <span className="wecom-department-name" style={{ paddingLeft: `${Math.min(department.depth, 3) * 14}px` }}>
                             {department.name}
-                            <small>{department.path} · ID {department.id}</small>
+                            <small>ID {department.id}</small>
                           </span>
                           <span className="wecom-member-count">{department.memberCount} {t("人")}</span>
                           <Badge tone={department.role ? "blue" : "gray"}>
@@ -203,7 +203,7 @@ export default async function UsersPage({
                           </Badge>
                         </summary>
                         <div className="wecom-department-editor">
-                          <span className="small muted">{t("配置后，该部门及其子部门成员都可继承此角色")}</span>
+                          <span className="small muted">{t("仅对该部门直接成员生效，子部门需单独配置")}</span>
                           <form action="/api/admin/wecom" method="post" className="form-inline">
                             <input type="hidden" name="intent" value="update-role" />
                             <input type="hidden" name="departmentId" value={department.id} />
@@ -225,7 +225,7 @@ export default async function UsersPage({
                   <div className="wecom-panel-heading">
                     <div>
                       <strong>{t("成员权限明细")}</strong>
-                      <span className="small muted">{t("点击成员查看权限来源和登录状态")}</span>
+                      <span className="small muted">{t("点击成员查看直接部门与登录状态")}</span>
                     </div>
                   </div>
                   <div className="wecom-member-list">
@@ -245,12 +245,12 @@ export default async function UsersPage({
                             <strong className={member.canLogin ? "is-good" : "is-bad"}>{t(member.accessReason)}</strong>
                           </div>
                           <div>
-                            <span className="small muted">{t("权限来源")}</span>
+                            <span className="small muted">{t("直接所属部门")}</span>
                             {member.departments.length ? (
                               <div className="wecom-source-list">
                                 {member.departments.map((department) => (
                                   <div className="wecom-source-item" key={`${member.id}-${department.id}`}>
-                                    <span>{department.direct ? t("直接") : t("继承")} · {department.path}</span>
+                                    <span>{department.path}</span>
                                     <Badge tone={department.role ? "blue" : "gray"}>
                                       {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
                                     </Badge>

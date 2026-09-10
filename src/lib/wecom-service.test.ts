@@ -101,13 +101,33 @@ describe("WeCom identity persistence", () => {
     }, database)).toThrow(WeComAccessError);
   });
 
-  it("inherits a role from a mapped parent department", () => {
+  it("does not inherit a role from a mapped parent department", () => {
     const database = openDatabase();
     addDepartment(database, 1, "企业", 0);
     addDepartment(database, 2, "申请服务部", 1);
     addAdmin(database);
+    // 父部门配置了 ADVISOR，但子部门未单独配置
     database
       .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (1, 'ADVISOR', 'admin-1')")
+      .run();
+
+    // 成员仅属于子部门 → 不继承父部门角色，拒绝登录
+    expect(() => upsertWeComLogin({
+      userId: "child-member",
+      displayName: "子部门成员",
+      departmentIds: [2],
+      enabled: true,
+    }, database)).toThrow(WeComAccessError);
+  });
+
+  it("resolves role only from direct departments and lists only them as the source", () => {
+    const database = openDatabase();
+    addDepartment(database, 1, "企业", 0);
+    addDepartment(database, 2, "申请服务部", 1);
+    addAdmin(database);
+    // 父部门配置 ADMIN（更高优先级），子部门配置 ADVISOR：成员仅在子部门时应取子部门角色
+    database
+      .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (1, 'ADMIN', 'admin-1'), (2, 'ADVISOR', 'admin-1')")
       .run();
 
     const result = upsertWeComLogin({
@@ -118,16 +138,17 @@ describe("WeCom identity persistence", () => {
     }, database);
 
     expect(result.role).toBe("ADVISOR");
-    expect(listWeComMembers(database)[0]).toMatchObject({
+    const member = listWeComMembers(database)[0];
+    expect(member).toMatchObject({
       displayName: "子部门成员",
       role: "ADVISOR",
       canLogin: true,
       accessReason: "可登录",
-      departments: [
-        { id: 1, role: "ADVISOR", direct: false },
-        { id: 2, role: null, direct: true },
-      ],
     });
+    // 权限来源只列直接部门（子部门），父部门不在列表中
+    expect(member.departments).toEqual([
+      { id: 2, path: "企业 / 申请服务部", role: "ADVISOR" },
+    ]);
   });
 
   it("recomputes access and revokes sessions when a department mapping is removed", () => {
