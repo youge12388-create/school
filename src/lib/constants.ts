@@ -7,6 +7,9 @@ export const USER_ROLES = [
 ] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const AUTH_PROVIDERS = ["LOCAL", "WECOM"] as const;
+export type AuthProvider = (typeof AUTH_PROVIDERS)[number];
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "高级管理员",
   ADVISOR: "顾问",

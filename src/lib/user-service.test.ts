@@ -84,6 +84,21 @@ describe("user service", () => {
     expect(count.value).toBe(1);
   });
 
+  it("reserves the enterprise WeChat username namespace", async () => {
+    await expect(
+      createUser(
+        {
+          username: "WECOM:manual-account",
+          displayName: "本地账号",
+          password: "test-password-123",
+          role: "ADVISOR",
+        },
+        "admin-id",
+        database,
+      ),
+    ).rejects.toEqual(new UserManagementError("wecom: 前缀由企业微信账号保留"));
+  });
+
   it("updates an account role and records the previous and new roles", async () => {
     const created = await createUser(
       {

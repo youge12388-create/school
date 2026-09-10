@@ -277,3 +277,4 @@ tr td:last-child{border-bottom:0}
 .confidential-school-fields legend{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--text);font-size:16px;font-weight:700}
 .confidential-school-fields:disabled{opacity:.78}
 .confidential-school-fields:disabled input,.confidential-school-fields:disabled textarea,.confidential-school-fields:disabled select{background:#f8fafc;color:#526176;cursor:not-allowed}
+.form-inline{display:flex;min-width:300px;align-items:center;gap:8px}.form-inline select{min-width:150px;flex:1}.form-inline button{white-space:nowrap}button:disabled,.button:disabled{cursor:not-allowed;opacity:.55}

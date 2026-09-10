@@ -79,6 +79,13 @@ export function migrateDatabase(databaseFile?: string) {
         "utf8",
       ),
     },
+    {
+      name: "0006_wecom_identity",
+      sql: readFileSync(
+        resolve(process.cwd(), "drizzle/0006_wecom_identity.sql"),
+        "utf8",
+      ),
+    },
   ];
 
   database.exec(`

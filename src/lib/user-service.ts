@@ -38,6 +38,10 @@ export async function createUser(
   const displayName = input.displayName.trim();
   const role = input.role as UserRole;
 
+  if (username.startsWith("wecom:")) {
+    throw new UserManagementError("wecom: 前缀由企业微信账号保留");
+  }
+
   if (!username || !displayName || !USER_ROLES.includes(role)) {
     throw new UserManagementError("账号信息不完整");
   }
@@ -99,10 +103,13 @@ export async function updateUserRole(
   }
 
   const user = database
-    .prepare("SELECT username, role FROM users WHERE id = ? LIMIT 1")
-    .get(input.userId) as { username: string; role: UserRole } | undefined;
+    .prepare("SELECT username, role, auth_provider AS authProvider FROM users WHERE id = ? LIMIT 1")
+    .get(input.userId) as { username: string; role: UserRole; authProvider?: string } | undefined;
   if (!user) {
     throw new UserManagementError("用户不存在");
+  }
+  if (user.authProvider === "WECOM") {
+    throw new UserManagementError("企业微信账号请通过部门权限配置角色");
   }
   if (user.role === role) {
     return { changed: false };
@@ -144,10 +151,13 @@ export async function resetUserPassword(
   assertPassword(password);
 
   const user = database
-    .prepare("SELECT id FROM users WHERE username = ? LIMIT 1")
-    .get(username) as { id: string } | undefined;
+    .prepare("SELECT id, auth_provider AS authProvider FROM users WHERE username = ? LIMIT 1")
+    .get(username) as { id: string; authProvider?: string } | undefined;
   if (!user) {
     throw new UserManagementError("用户不存在");
+  }
+  if (user.authProvider === "WECOM") {
+    throw new UserManagementError("企业微信账号不能使用密码重置");
   }
 
   const passwordHash = await hashPassword(password);

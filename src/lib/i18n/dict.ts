@@ -125,6 +125,18 @@ export const EN_DICT: Record<string, string> = {
   "进入工作台": "Open workspace",
   "无法登录？请联系系统管理员协助处理。":
     "Can't sign in? Contact your system administrator for help.",
+  "企业微信登录": "Sign in with WeCom",
+  "企业微信登录尚未配置，请联系管理员":
+    "WeCom sign-in is not configured. Contact an administrator.",
+  "企业微信登录暂时不可用，请联系管理员":
+    "WeCom sign-in is temporarily unavailable. Contact an administrator.",
+  "企业微信登录验证已过期，请重新尝试":
+    "The WeCom sign-in verification expired. Please try again.",
+  "企业微信没有返回授权码，请重新尝试":
+    "WeCom did not return an authorization code. Please try again.",
+  "企业微信登录失败，请重试或联系管理员":
+    "WeCom sign-in failed. Try again or contact an administrator.",
+  "或": "or",
   "登录区域": "Sign-in area",
   "系统覆盖范围": "What it covers",
   "院校访查": "School visits",
@@ -260,6 +272,29 @@ export const EN_DICT: Record<string, string> = {
   "停用": "Disable",
   "账号已创建并写入当前数据库。": "Account created and written to the current database.",
   "账号角色已更新。": "Account role updated.",
+  "企业微信组织架构": "WeCom organization",
+  "同步企业微信部门和成员，并按部门映射系统角色。未配置角色的成员不能登录。":
+    "Sync WeCom departments and members, then map system roles by department. Members without a mapped role cannot sign in.",
+  "立即同步": "Sync now",
+  "企业微信配置未完成，请在运行环境设置 WECOM_CORP_ID、WECOM_SECRET 和 WECOM_REDIRECT_URI。":
+    "WeCom is not configured. Set WECOM_CORP_ID, WECOM_SECRET and WECOM_REDIRECT_URI in the runtime environment.",
+  "组织架构同步完成：{departments} 个部门，{members} 名成员。":
+    "Organization sync complete: {departments} departments and {members} members.",
+  "部门角色映射已更新，相关账号的现有会话已刷新。":
+    "Department role mapping updated; existing sessions for affected accounts were refreshed.",
+  "部门": "Department",
+  "成员数": "Members",
+  "登录角色": "Sign-in role",
+  "无权限（禁止登录）": "No access (sign-in disabled)",
+  "已配置": "Configured",
+  "未配置": "Not configured",
+  "尚未同步企业微信组织架构。": "The WeCom organization has not been synced yet.",
+  "来源": "Source",
+  "本地账号": "Local account",
+  "由部门映射": "Mapped from department",
+  "由企业微信状态控制": "Controlled by WeCom status",
+  "角色由部门映射": "Role is mapped from department",
+  "{name} 的登录角色": "{name}'s sign-in role",
   "顾问：": "Advisor: ",
   "筛选、客户、跟进、申请和材料。": "Screening, customers, follow-ups, applications and documents.",
   "数据管理员：": "Data Manager: ",

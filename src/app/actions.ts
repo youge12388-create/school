@@ -195,6 +195,14 @@ export async function toggleUserAction(formData: FormData) {
   const userId = asText(formData.get("userId"));
   const active = formData.get("active") === "true";
   if (userId === admin.id && !active) throw new Error("不能停用当前管理员账号");
+  const [target] = await db
+    .select({ authProvider: users.authProvider })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (target?.authProvider === "WECOM") {
+    throw new Error("企业微信账号请通过企业微信成员状态或部门权限管理");
+  }
   await db
     .update(users)
     .set({ active, updatedAt: new Date() })

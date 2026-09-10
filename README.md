@@ -132,7 +132,12 @@ IMPORT_DIR=/data/imports
 APP_KEY_PATH=/data/app.key
 SESSION_TTL_HOURS=24
 MAX_UPLOAD_MB=20
+WECOM_CORP_ID=企业微信CorpID
+WECOM_SECRET=企业微信自建应用Secret
+WECOM_REDIRECT_URI=https://check.medicalchinaway.com/api/auth/wecom/callback
 ```
+
+企业微信登录使用自建应用的网页授权。`WECOM_SECRET` 只配置在服务器运行环境，不能提交到 Git，也不能使用 `NEXT_PUBLIC_` 前缀。首次使用前，在企业微信自建应用中配置可信域名，并确保应用具有通讯录读取权限和需要同步的部门可见范围。登录后进入“账号管理”，先同步组织架构，再为部门配置系统角色；未配置角色的成员默认不能登录。生产环境回调地址必须使用 HTTPS。
 
 ### 2. 持久化 Volume
 
@@ -238,4 +243,4 @@ npm run backup
 
 ## 暂不包含
 
-首版不包含企业微信集成、客户公开分享链接、自动翻译、短信通知、支付和外部 AI 推荐。企业微信将在本地流程稳定后接入登录、组织架构或消息提醒。
+客户公开分享链接、自动翻译、短信通知、支付和外部 AI 推荐暂不包含在当前版本。企业微信自建应用登录和组织架构同步已作为独立适配层接入。

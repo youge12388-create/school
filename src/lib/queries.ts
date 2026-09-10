@@ -857,6 +857,7 @@ export async function listUsers() {
       username: users.username,
       displayName: users.displayName,
       role: users.role,
+      authProvider: users.authProvider,
       active: users.active,
       lastLoginAt: users.lastLoginAt,
     })

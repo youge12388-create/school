@@ -109,6 +109,12 @@ export default async function LoginPage({
             </svg>
           </button>
 
+          <div className={styles.divider}><span>{t("或")}</span></div>
+          <a className={styles.wecomButton} href="/api/auth/wecom">
+            <span className={styles.wecomMark} aria-hidden="true">企</span>
+            {t("企业微信登录")}
+          </a>
+
           <p className={styles.helpText}>{t("无法登录？请联系系统管理员协助处理。")}</p>
         </form>
       </section>

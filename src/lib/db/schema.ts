@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -24,6 +25,11 @@ export const users = sqliteTable(
     username: text("username").notNull(),
     displayName: text("display_name").notNull(),
     passwordHash: text("password_hash").notNull(),
+    authProvider: text("auth_provider", { enum: ["LOCAL", "WECOM"] })
+      .notNull()
+      .default("LOCAL"),
+    wecomUserId: text("wecom_user_id"),
+    wecomEnabled: integer("wecom_enabled", { mode: "boolean" }).notNull().default(true),
     role: text("role", {
       enum: [
         "ADMIN",
@@ -39,7 +45,56 @@ export const users = sqliteTable(
     lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
     ...timestamps,
   },
-  (table) => [uniqueIndex("users_username_unique").on(table.username)],
+  (table) => [
+    uniqueIndex("users_username_unique").on(table.username),
+    uniqueIndex("users_wecom_user_id_unique").on(table.wecomUserId),
+  ],
+);
+
+export const wecomDepartments = sqliteTable(
+  "wecom_departments",
+  {
+    id: integer("id").primaryKey(),
+    name: text("name").notNull(),
+    parentId: integer("parent_id").notNull().default(0),
+    displayOrder: integer("display_order").notNull().default(0),
+    syncedAt: integer("synced_at", { mode: "timestamp_ms" }).notNull(),
+    ...timestamps,
+  },
+  (table) => [index("wecom_departments_parent_idx").on(table.parentId)],
+);
+
+export const wecomDepartmentRoles = sqliteTable("wecom_department_roles", {
+  departmentId: integer("department_id")
+    .primaryKey()
+    .references(() => wecomDepartments.id),
+  role: text("role", {
+    enum: [
+      "ADMIN",
+      "ADVISOR",
+      "DATA_MANAGER",
+      "CHANNEL_RESOURCE",
+      "MARKET_MANAGER",
+    ],
+  }).notNull(),
+  updatedBy: text("updated_by").references(() => users.id),
+  ...timestamps,
+});
+
+export const wecomUserDepartments = sqliteTable(
+  "wecom_user_departments",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    departmentId: integer("department_id")
+      .notNull()
+      .references(() => wecomDepartments.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.departmentId] }),
+    index("wecom_user_departments_department_idx").on(table.departmentId),
+  ],
 );
 
 export const sessions = sqliteTable(

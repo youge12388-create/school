@@ -8,6 +8,8 @@ import { makeBadgeT, makeMessageT, makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
+import { isWeComConfigured } from "@/lib/wecom";
+import { listWeComDepartments } from "@/lib/wecom-service";
 
 const roleOptions = [
   "ADVISOR",
@@ -20,16 +22,34 @@ const roleOptions = [
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; roleUpdated?: string; error?: string }>;
+    searchParams: Promise<{
+      created?: string;
+      roleUpdated?: string;
+      error?: string;
+      wecomSynced?: string;
+      wecomDepartments?: string;
+      wecomRoleUpdated?: string;
+      wecomError?: string;
+    }>;
 }) {
   await requireRole(["ADMIN"]);
-  const { created, roleUpdated, error } = await searchParams;
+  const {
+    created,
+    roleUpdated,
+    error,
+    wecomSynced,
+    wecomDepartments,
+    wecomRoleUpdated,
+    wecomError,
+  } = await searchParams;
   const locale = await getUiLocale();
   const t = makeT(locale);
   const bt = makeBadgeT(locale);
   const tv = makeTv(locale);
   const tm = makeMessageT(locale);
   const rows = await listUsers();
+  const wecomDepartmentsRows = listWeComDepartments();
+  const wecomConfigured = isWeComConfigured();
 
   return (
     <>
@@ -106,6 +126,85 @@ export default async function UsersPage({
         </div>
       </section>
 
+      <section className="card" style={{ marginTop: 16 }}>
+        <div className="card-header">
+          <div>
+            <h3>{t("企业微信组织架构")}</h3>
+            <p className="muted small">
+              {t("同步企业微信部门和成员，并按部门映射系统角色。未配置角色的成员不能登录。")}
+            </p>
+          </div>
+          <form action="/api/admin/wecom" method="post">
+            <input type="hidden" name="intent" value="sync" />
+            <button className="primary" type="submit" disabled={!wecomConfigured}>
+              {t("立即同步")}
+            </button>
+          </form>
+        </div>
+        <div className="card-body">
+          {!wecomConfigured ? (
+            <div className="alert error">
+              {t("企业微信配置未完成，请在运行环境设置 WECOM_CORP_ID、WECOM_SECRET 和 WECOM_REDIRECT_URI。")}
+            </div>
+          ) : null}
+          {wecomSynced ? (
+            <div className="alert success">
+              {tv("组织架构同步完成：{departments} 个部门，{members} 名成员。", {
+                departments: wecomDepartments || "0",
+                members: wecomSynced,
+              })}
+            </div>
+          ) : null}
+          {wecomRoleUpdated ? <div className="alert success">{t("部门角色映射已更新，相关账号的现有会话已刷新。")}</div> : null}
+          {wecomError ? <div className="alert error">{tm(wecomError)}</div> : null}
+          {wecomDepartmentsRows.length ? (
+            <div className="table-wrap">
+              <table className="wecom-department-table">
+                <thead>
+                  <tr>
+                    <th>{t("部门")}</th>
+                    <th>{t("成员数")}</th>
+                    <th>{t("登录角色")}</th>
+                    <th>{t("操作")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wecomDepartmentsRows.map((department) => (
+                    <tr key={department.id}>
+                      <td data-label={t("部门")}>
+                        <span style={{ paddingLeft: `${department.depth * 18}px` }}>
+                          {department.path}
+                        </span>
+                        <div className="small muted">ID: {department.id}</div>
+                      </td>
+                      <td data-label={t("成员数")}>{department.memberCount}</td>
+                      <td data-label={t("登录角色")}>
+                        {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("无权限（禁止登录）")}
+                      </td>
+                      <td data-label={t("操作")}>
+                        <form action="/api/admin/wecom" method="post" className="form-inline">
+                          <input type="hidden" name="intent" value="update-role" />
+                          <input type="hidden" name="departmentId" value={department.id} />
+                          <select name="role" defaultValue={department.role ?? ""} aria-label={tv("{name} 的登录角色", { name: department.path })}>
+                            <option value="">{t("无权限（禁止登录）")}</option>
+                            {roleOptions.map((role) => (
+                              <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                            ))}
+                          </select>
+                          <button type="submit">{t("保存")}</button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted">{t("尚未同步企业微信组织架构。")}</p>
+          )}
+        </div>
+      </section>
+
       <section className="card desktop-only" style={{ marginTop: 16 }}>
         <div className="card-header">
           <h3>{t("已有账号")}</h3>
@@ -117,6 +216,7 @@ export default async function UsersPage({
                 <tr>
                   <th>{t("账号")}</th>
                   <th>{t("角色")}</th>
+                  <th>{t("来源")}</th>
                   <th>{t("状态")}</th>
                   <th>{t("最近登录")}</th>
                   <th>{t("操作")}</th>
@@ -130,17 +230,25 @@ export default async function UsersPage({
                       <div className="small muted">{user.username}</div>
                     </td>
                     <td>
-                      <form action="/api/admin/users" method="post">
-                        <input type="hidden" name="intent" value="update-role" />
-                        <input type="hidden" name="userId" value={user.id} />
-                        <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
-                          {roleOptions.map((role) => (
-                            <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                          ))}
-                        </select>
-                        <button type="submit">{t("保存角色")}</button>
-                      </form>
+                      {user.authProvider === "WECOM" ? (
+                        <>
+                          {t(ROLE_OPTION_LABELS[user.role])}
+                          <div className="small muted">{t("由部门映射")}</div>
+                        </>
+                      ) : (
+                        <form action="/api/admin/users" method="post">
+                          <input type="hidden" name="intent" value="update-role" />
+                          <input type="hidden" name="userId" value={user.id} />
+                          <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
+                            {roleOptions.map((role) => (
+                              <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                            ))}
+                          </select>
+                          <button type="submit">{t("保存角色")}</button>
+                        </form>
+                      )}
                     </td>
+                    <td>{user.authProvider === "WECOM" ? t("企业微信") : t("本地账号")}</td>
                     <td>
                       <Badge tone={user.active ? "green" : "red"}>
                         {bt(user.active ? "启用" : "停用")}
@@ -148,17 +256,15 @@ export default async function UsersPage({
                     </td>
                     <td>{formatDate(user.lastLoginAt)}</td>
                     <td>
-                      <form action={toggleUserAction}>
-                        <input type="hidden" name="userId" value={user.id} />
-                        <input
-                          type="hidden"
-                          name="active"
-                          value={String(!user.active)}
-                        />
-                        <button type="submit">
-                          {t(user.active ? "停用" : "启用")}
-                        </button>
-                      </form>
+                      {user.authProvider === "WECOM" ? (
+                        <span className="small muted">{t("由企业微信状态控制")}</span>
+                      ) : (
+                        <form action={toggleUserAction}>
+                          <input type="hidden" name="userId" value={user.id} />
+                          <input type="hidden" name="active" value={String(!user.active)} />
+                          <button type="submit">{t(user.active ? "停用" : "启用")}</button>
+                        </form>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -242,33 +348,36 @@ export default async function UsersPage({
               <div className="mobile-account-info">
                 <div className="mobile-account-name">{user.displayName}</div>
                 <div className="small muted">{user.username}</div>
+                <div className="small muted">{user.authProvider === "WECOM" ? t("企业微信") : t("本地账号")}</div>
                 <div className="small muted mobile-login-line"><Calendar aria-hidden="true" /> {tv("最近登录：{date}", { date: formatDate(user.lastLoginAt) || "—" })}</div>
               </div>
               <div className="mobile-account-actions">
-                <form action="/api/admin/users" method="post">
-                  <input type="hidden" name="intent" value="update-role" />
-                  <input type="hidden" name="userId" value={user.id} />
-                  <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
-                    {roleOptions.map((role) => (
-                      <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                    ))}
-                  </select>
-                  <button type="submit" className="mobile-toggle-btn">{t("保存角色")}</button>
-                </form>
+                  {user.authProvider === "WECOM" ? (
+                    <span className="small muted">{t("角色由部门映射")}</span>
+                  ) : (
+                    <form action="/api/admin/users" method="post">
+                      <input type="hidden" name="intent" value="update-role" />
+                      <input type="hidden" name="userId" value={user.id} />
+                      <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
+                        {roleOptions.map((role) => (
+                          <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                        ))}
+                      </select>
+                      <button type="submit" className="mobile-toggle-btn">{t("保存角色")}</button>
+                    </form>
+                  )}
                 <Badge tone={user.active ? "green" : "red"}>
                   {bt(user.active ? "启用" : "停用")}
                 </Badge>
-                <form action={toggleUserAction}>
-                  <input type="hidden" name="userId" value={user.id} />
-                  <input
-                    type="hidden"
-                    name="active"
-                    value={String(!user.active)}
-                  />
-                  <button type="submit" className="mobile-toggle-btn">
-                    {t(user.active ? "停用" : "启用")}
-                  </button>
-                </form>
+                {user.authProvider === "WECOM" ? null : (
+                  <form action={toggleUserAction}>
+                    <input type="hidden" name="userId" value={user.id} />
+                    <input type="hidden" name="active" value={String(!user.active)} />
+                    <button type="submit" className="mobile-toggle-btn">
+                      {t(user.active ? "停用" : "启用")}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
           ))}

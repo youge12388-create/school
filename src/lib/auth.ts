@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import type { UserRole } from "@/lib/constants";
+import type { AuthProvider, UserRole } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { db, sqlite } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
@@ -68,6 +68,7 @@ export async function getCurrentUser() {
       u.username AS username,
       u.display_name AS displayName,
       u.role AS role,
+      u.auth_provider AS authProvider,
       u.active AS active,
       s.id AS sessionId
     FROM sessions s
@@ -82,6 +83,7 @@ export async function getCurrentUser() {
           username: string;
           displayName: string;
           role: UserRole;
+          authProvider: AuthProvider;
           active: number;
           sessionId: string;
         }

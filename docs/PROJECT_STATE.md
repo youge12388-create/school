@@ -2,6 +2,17 @@
 
 最后更新：2026-09-04
 
+## 企业微信自建应用登录与组织架构权限（2026-09-10）
+
+- 新增企业微信自建应用 OAuth 登录：`/api/auth/wecom` 发起授权，`/api/auth/wecom/callback` 校验短期 httpOnly state Cookie、读取成员身份并复用现有 Session；原有用户名密码登录保持不变。
+- 新增迁移 `drizzle/0006_wecom_identity.sql`：用户增加 `auth_provider`、`wecom_user_id`、`wecom_enabled`；新增企业微信部门、部门角色映射和成员部门关系表。
+- 新增 `src/lib/wecom.ts`：服务端读取 `WECOM_CORP_ID`、`WECOM_SECRET`、`WECOM_REDIRECT_URI`，调用企业微信 token、成员、部门接口；Secret 不进入客户端、代码或日志。
+- 新增 `src/lib/wecom-service.ts`：管理员同步组织架构和成员；账号角色由部门映射决定，多部门按 `ADMIN > DATA_MANAGER > CHANNEL_RESOURCE > ADVISOR > MARKET_MANAGER` 取最高角色，未匹配部门默认停用；角色、成员状态变化或成员在完整组织快照中消失时吊销现有会话。
+- `/admin/users` 新增组织架构同步与部门角色配置区；企业微信账号禁止手工改角色、密码重置和本地启停，权限管理回到企业微信状态与部门映射。
+- 新增企业微信适配器、权限计算、数据库生命周期和 OAuth 回调测试；配置模板与 README 已补充回调地址和可信域名要求。
+- 验证：`npm run typecheck`、`npm run lint`、全量测试（56 个文件，359 项通过、2 项跳过）和 `npm run build` 均已通过；本地后台预览可访问。
+- 风险与未指定：真实联调依赖企业微信后台配置可信域名、通讯录读取权限和应用可见范围；当前未执行真实企业微信 API 调用，也未将提供的 Secret 写入 `.env.local` 或生产环境。
+
 ## 侧栏折叠修复与英文界面（2026-09-04）
 
 **需求 1：折叠后内容区真正变宽**
