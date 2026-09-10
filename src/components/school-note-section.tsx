@@ -3,16 +3,19 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useT, useTm } from "@/lib/i18n/locale-context";
+import { useT, useTm, useTv } from "@/lib/i18n/locale-context";
+import { formatDateTime } from "@/lib/utils";
 
 export function SchoolNoteSection({
   schoolId,
   note,
   canEdit = true,
+  activity,
 }: {
   schoolId: string;
   note: string | null;
   canEdit?: boolean;
+  activity?: { actorName: string | null; updatedAt: number };
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -22,6 +25,7 @@ export function SchoolNoteSection({
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
   const tm = useTm();
+  const tv = useTv();
 
   async function save(formData: FormData) {
     setLoading(true);
@@ -78,7 +82,19 @@ export function SchoolNoteSection({
           ) : null}
         </form>
       ) : note ? (
-        <p className="school-note-content">{note}</p>
+        <>
+          <p className="school-note-content">{note}</p>
+          {activity ? (
+            <p className="small muted">
+              {tv("最后维护：{name} · {time}", {
+                name: activity.actorName ?? t("未知"),
+                time: formatDateTime(activity.updatedAt),
+              })}
+            </p>
+          ) : (
+            <p className="small muted">{t("最后维护：未知（历史记录未留存）")}</p>
+          )}
+        </>
       ) : null}
     </div>
   );

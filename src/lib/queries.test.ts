@@ -95,6 +95,61 @@ function insertSchool(
   database.close();
 }
 
+function insertUser(databaseFile: string, id: string, displayName: string) {
+  const database = new DatabaseSync(databaseFile);
+  database
+    .prepare(
+      "INSERT INTO users (id, username, display_name, password_hash, role, active) VALUES (?, ?, ?, ?, 'ADVISOR', 1)",
+    )
+    .run(id, id, displayName, "hash");
+  database.close();
+}
+
+function insertAudit(
+  databaseFile: string,
+  values: { id: string; userId: string; schoolId: string; action: string; createdAt: number; details?: string | null },
+) {
+  const database = new DatabaseSync(databaseFile);
+  database
+    .prepare(
+      `INSERT INTO audit_logs
+       (id, user_id, action, entity_type, entity_id, details_json, created_at)
+       VALUES (?, ?, ?, 'SCHOOL', ?, ?, ?)`,
+    )
+    .run(values.id, values.userId, values.action, values.schoolId, values.details ?? null, values.createdAt);
+  database.close();
+}
+
+describe("getSchoolNoteActivity", () => {
+  it("returns the latest ordinary-note operator, including legacy note audits", async () => {
+    insertSchool(databaseFile, "school", { infoNote: "最新备注" });
+    insertUser(databaseFile, "first", "王老师");
+    insertUser(databaseFile, "latest", "李老师");
+    insertAudit(databaseFile, {
+      id: "legacy-note",
+      userId: "first",
+      schoolId: "school",
+      action: "SCHOOL_UPDATED",
+      details: JSON.stringify({ changed: ["infoNote"] }),
+      createdAt: 100,
+    });
+    insertAudit(databaseFile, {
+      id: "latest-note",
+      userId: "latest",
+      schoolId: "school",
+      action: "SCHOOL_NOTE_UPDATED",
+      createdAt: 200,
+    });
+
+    const { getSchoolNoteActivity } = await import("@/lib/queries");
+
+    expect(getSchoolNoteActivity("school")).toEqual({
+      actorName: "李老师",
+      updatedAt: 200,
+    });
+  });
+});
+
 describe("listNotedSchools", () => {
   it("filters noted schools by name and location", async () => {
     insertSchool(databaseFile, "beijing", {

@@ -33,10 +33,12 @@ export type BasicCardSchool = {
 export function SchoolBasicCard({
   school,
   canEditNote,
+  noteActivity,
   fields,
 }: {
   school: BasicCardSchool;
   canEditNote: boolean;
+  noteActivity?: { actorName: string | null; updatedAt: number };
   fields: readonly string[];
 }) {
   const router = useRouter();
@@ -231,7 +233,12 @@ export function SchoolBasicCard({
           <>
             <KnowledgeFieldGrid fields={fields} data={knowledge} hideEmpty />
             {canEditNote || school.infoNote ? (
-              <SchoolNoteSection schoolId={school.id} note={school.infoNote} canEdit={canEditNote} />
+              <SchoolNoteSection
+                schoolId={school.id}
+                note={school.infoNote}
+                canEdit={canEditNote}
+                activity={noteActivity}
+              />
             ) : null}
           </>
         )}

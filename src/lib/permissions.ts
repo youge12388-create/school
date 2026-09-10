@@ -1,4 +1,4 @@
-import type { UserRole } from "@/lib/constants";
+import { USER_ROLES, type UserRole } from "@/lib/constants";
 
 export const SCHOOL_EDITOR_ROLES: readonly UserRole[] = [
   "ADMIN",
@@ -104,6 +104,11 @@ export const MARKET_MANAGER_PROGRAM_LONG_FIELDS = ["专业列表"] as const;
 
 export function canEditSchool(role: UserRole) {
   return SCHOOL_EDITOR_ROLES.includes(role);
+}
+
+// 普通备注是全员协作信息：任一已登录、启用的角色均可维护。
+export function canEditSchoolNote(role: UserRole) {
+  return USER_ROLES.includes(role);
 }
 
 export function canManageImports(role: UserRole) {

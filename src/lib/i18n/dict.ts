@@ -172,6 +172,9 @@ export const EN_DICT: Record<string, string> = {
   "新建申请": "Created application",
   "申请状态变更": "Changed application status",
   "更新学校": "Updated school",
+  "新增普通备注": "Added school note",
+  "更新普通备注": "Updated school note",
+  "清空普通备注": "Cleared school note",
   "更新项目": "Updated program",
   "手工创建项目": "Created program manually",
   "导入确认": "Confirmed import",
@@ -553,6 +556,8 @@ export const EN_DICT: Record<string, string> = {
   "编辑备注": "Edit note",
   "添加备注": "Add note",
   "保存备注": "Save note",
+  "最后维护：{name} · {time}": "Last updated by {name} · {time}",
+  "最后维护：未知（历史记录未留存）": "Last updated by: unknown (no retained history)",
   "例如：每周同步申请进度；常见咨询口径；材料提交提醒。":
     "e.g. sync application progress weekly; FAQ talking points; material submission reminders.",
   "院校信息更新": "School information update",

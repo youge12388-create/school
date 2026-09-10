@@ -17,6 +17,7 @@ import { getUiLocale } from "@/lib/i18n/server";
 import {
   canEditConfidentialSchoolFields,
   canEditSchool,
+  canEditSchoolNote,
   canManageSchoolUpdates,
   canViewConfidentialSchoolFields,
   isMarketManager,
@@ -24,7 +25,7 @@ import {
   MARKET_MANAGER_PROGRAM_LONG_FIELDS,
   MARKET_MANAGER_SCHOOL_FIELDS,
 } from "@/lib/permissions";
-import { getSchoolDetails, getSchoolUpdates } from "@/lib/queries";
+import { getSchoolDetails, getSchoolNoteActivity, getSchoolUpdates } from "@/lib/queries";
 import { serializeSchoolUpdate } from "@/lib/school-updates";
 import { safeJson } from "@/lib/utils";
 
@@ -123,6 +124,7 @@ export default async function SchoolDetailsPage({
   const t = makeT(locale);
   const tv = makeTv(locale);
   const canEdit = canEditSchool(user.role);
+  const canEditNote = canEditSchoolNote(user.role);
   const canEditConfidential = canEditConfidentialSchoolFields(user.role);
   const canViewConfidential = canViewConfidentialSchoolFields(user.role);
   const canManageUpdates = canManageSchoolUpdates(user.role);
@@ -139,6 +141,7 @@ export default async function SchoolDetailsPage({
   const data = await getSchoolDetails(id);
   if (!data) notFound();
   const { school, programs } = data;
+  const noteActivity = school.infoNote ? getSchoolNoteActivity(id) : undefined;
   const updateItems = marketManagerView ? [] : await getSchoolUpdates(id);
   const screeningContext = {
     programId: query.programId,
@@ -269,7 +272,8 @@ export default async function SchoolDetailsPage({
 
       <SchoolBasicCard
         school={basicCardSchool}
-        canEditNote={canEdit}
+        canEditNote={canEditNote}
+        noteActivity={noteActivity}
         fields={schoolFields}
       />
 

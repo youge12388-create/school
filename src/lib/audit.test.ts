@@ -15,6 +15,12 @@ describe("AUDIT_ACTION_LABELS", () => {
     expect(AUDIT_ACTION_LABELS["SCHOOL_UPDATED"]).toBe("更新学校");
   });
 
+  it("普通备注操作有明确审计标签", () => {
+    expect(AUDIT_ACTION_LABELS["SCHOOL_NOTE_CREATED"]).toBe("新增普通备注");
+    expect(AUDIT_ACTION_LABELS["SCHOOL_NOTE_UPDATED"]).toBe("更新普通备注");
+    expect(AUDIT_ACTION_LABELS["SCHOOL_NOTE_CLEARED"]).toBe("清空普通备注");
+  });
+
   it("IMPORT_CONFIRMED 中文标签", () => {
     expect(AUDIT_ACTION_LABELS["IMPORT_CONFIRMED"]).toBe("导入确认");
   });

@@ -550,6 +550,32 @@ export async function getSchoolDetails(id: string) {
     .orderBy(asc(programs.programType), asc(programs.teachingLanguage));
   return { school, programs: schoolPrograms };
 }
+
+export function getSchoolNoteActivity(schoolId: string) {
+  const row = sqlite
+    .prepare(
+      `SELECT
+        u.display_name AS actorName,
+        a.created_at AS updatedAt
+       FROM audit_logs a
+       LEFT JOIN users u ON u.id = a.user_id
+       WHERE a.entity_type = 'SCHOOL'
+         AND a.entity_id = ?
+         AND (
+           a.action IN ('SCHOOL_NOTE_CREATED', 'SCHOOL_NOTE_UPDATED')
+           OR (
+             a.action = 'SCHOOL_UPDATED'
+             AND a.details_json LIKE '%"infoNote"%'
+           )
+         )
+       ORDER BY a.created_at DESC
+       LIMIT 1`,
+    )
+    .get(schoolId) as { actorName: string | null; updatedAt: number } | undefined;
+  return row
+    ? { actorName: row.actorName, updatedAt: row.updatedAt }
+    : undefined;
+}
 export type CustomerListFilters = {
   query?: string;
   ownerId?: string;

@@ -4,6 +4,7 @@ import type { UserRole } from "@/lib/constants";
 import {
   canEditConfidentialSchoolFields,
   canEditSchool,
+  canEditSchoolNote,
   canManageImports,
   canManageSchoolUpdates,
   canViewConfidentialSchoolFields,
@@ -44,6 +45,12 @@ describe("permissions", () => {
     for (const role of ROLES) {
       expect(canEditSchool(role)).toBe(expected(role));
       expect(canManageImports(role)).toBe(expected(role));
+    }
+  });
+
+  it("all active roles can maintain ordinary school notes", () => {
+    for (const role of ROLES) {
+      expect(canEditSchoolNote(role)).toBe(true);
     }
   });
 

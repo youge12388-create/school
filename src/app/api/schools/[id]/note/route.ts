@@ -1,9 +1,8 @@
 import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
-import { SCHOOL_EDITOR_ROLES } from "@/lib/permissions";
 import { asText } from "@/lib/utils";
 
 // 详情页内联备注编辑：只更新 info_note，避免整页表单一并提交
@@ -11,7 +10,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+  const user = await requireUser();
   const { id } = await context.params;
   const school = sqlite
     .prepare("SELECT id, name_zh FROM schools WHERE id = ? AND archived = 0")
@@ -32,10 +31,14 @@ export async function PATCH(
       .run(infoNote, Date.now(), id);
     writeAudit({
       userId: user.id,
-      action: "SCHOOL_UPDATED",
+      action: infoNote
+        ? existingNote?.infoNote
+          ? "SCHOOL_NOTE_UPDATED"
+          : "SCHOOL_NOTE_CREATED"
+        : "SCHOOL_NOTE_CLEARED",
       entityType: "SCHOOL",
       entityId: id,
-      details: { nameZh: school.name_zh, changed: ["infoNote"] },
+      details: { nameZh: school.name_zh },
     });
   }
   revalidatePath(`/schools/${id}`);
