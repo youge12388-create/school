@@ -17,6 +17,7 @@ import {
   syncWeComOrganization,
   listWeComMembers,
   updateWeComDepartmentRole,
+  updateWeComUserAccess,
   upsertWeComLogin,
   WeComAccessError,
 } from "@/lib/wecom-service";
@@ -118,6 +119,150 @@ describe("WeCom identity persistence", () => {
       departmentIds: [2],
       enabled: true,
     }, database)).toThrow(WeComAccessError);
+  });
+
+  it("allows a member with an individual role when the department is not mapped", async () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "申请服务部");
+    addAdmin(database);
+    fetchWeComOrganization.mockResolvedValue({
+      departments: [{ id: 2, name: "申请服务部", parentId: 1, displayOrder: 0 }],
+      members: [{
+        userId: "individual-allow",
+        displayName: "单独允许",
+        departmentIds: [2],
+        enabled: true,
+      }],
+    });
+
+    await syncWeComOrganization("admin-1", database);
+    const account = database
+      .prepare("SELECT id, active FROM users WHERE wecom_user_id = ?")
+      .get("individual-allow") as { id: string; active: number };
+    expect(account.active).toBe(0);
+
+    updateWeComUserAccess(account.id, "ROLE", "DATA_MANAGER", "admin-1", database);
+
+    expect(upsertWeComLogin({
+      userId: "individual-allow",
+      displayName: "单独允许",
+      departmentIds: [2],
+      enabled: true,
+    }, database)).toMatchObject({ role: "DATA_MANAGER" });
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      accessMode: "ROLE",
+      accessRole: "DATA_MANAGER",
+      role: "DATA_MANAGER",
+      canLogin: true,
+    });
+  });
+
+  it("blocks an individually denied member and revokes existing sessions", () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "顾问部");
+    addAdmin(database);
+    database
+      .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (2, 'ADVISOR', 'admin-1')")
+      .run();
+    const account = upsertWeComLogin({
+      userId: "individual-deny",
+      displayName: "单独禁止",
+      departmentIds: [2],
+      enabled: true,
+    }, database);
+    database
+      .prepare(
+        `INSERT INTO sessions (id, user_id, token_hash, expires_at, last_seen_at)
+         VALUES ('session-denied', ?, 'hash-denied', ?, ?)`,
+      )
+      .run(account.userId, Date.now() + 60_000, Date.now());
+
+    updateWeComUserAccess(account.userId, "DENY", "", "admin-1", database);
+
+    expect(database.prepare("SELECT active FROM users WHERE id = ?").get(account.userId)).toEqual({ active: 0 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM sessions WHERE user_id = ?").get(account.userId)).toEqual({ count: 0 });
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      accessMode: "DENY",
+      accessRole: null,
+      role: null,
+      canLogin: false,
+      accessReason: "个人权限已禁止登录",
+    });
+    expect(() => upsertWeComLogin({
+      userId: "individual-deny",
+      displayName: "单独禁止",
+      departmentIds: [2],
+      enabled: true,
+    }, database)).toThrow(WeComAccessError);
+  });
+
+  it("keeps an individual role across department changes and restores inheritance", () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "顾问部");
+    addAdmin(database);
+    database
+      .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (2, 'ADVISOR', 'admin-1')")
+      .run();
+    const account = upsertWeComLogin({
+      userId: "individual-inherit",
+      displayName: "恢复继承",
+      departmentIds: [2],
+      enabled: true,
+    }, database);
+
+    updateWeComUserAccess(account.userId, "ROLE", "DATA_MANAGER", "admin-1", database);
+    updateWeComDepartmentRole("2", "", "admin-1", database);
+    expect(database.prepare("SELECT role, active FROM users WHERE id = ?").get(account.userId)).toEqual({
+      role: "DATA_MANAGER",
+      active: 1,
+    });
+
+    updateWeComUserAccess(account.userId, "INHERIT", "", "admin-1", database);
+    expect(database.prepare("SELECT role, active FROM users WHERE id = ?").get(account.userId)).toEqual({
+      role: "ADVISOR",
+      active: 0,
+    });
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      accessMode: "INHERIT",
+      accessRole: null,
+      role: null,
+      canLogin: false,
+      accessReason: "所属部门未配置登录角色",
+    });
+  });
+
+  it("preserves an individual role during organization sync", async () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "顾问部");
+    addAdmin(database);
+    database
+      .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (2, 'ADVISOR', 'admin-1')")
+      .run();
+    const account = upsertWeComLogin({
+      userId: "individual-sync",
+      displayName: "同步保留",
+      departmentIds: [2],
+      enabled: true,
+    }, database);
+    updateWeComUserAccess(account.userId, "ROLE", "DATA_MANAGER", "admin-1", database);
+    fetchWeComOrganization.mockResolvedValue({
+      departments: [{ id: 2, name: "顾问部", parentId: 1, displayOrder: 0 }],
+      members: [{
+        userId: "individual-sync",
+        displayName: "同步保留",
+        departmentIds: [2],
+        enabled: true,
+      }],
+    });
+
+    await syncWeComOrganization("admin-1", database);
+
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      accessMode: "ROLE",
+      accessRole: "DATA_MANAGER",
+      role: "DATA_MANAGER",
+      canLogin: true,
+    });
   });
 
   it("resolves role only from direct departments and lists only them as the source", () => {

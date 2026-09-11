@@ -2917,6 +2917,70 @@ button.school-note-edit:hover {
   padding: 10px 12px 10px 36px;
 }
 
+.wecom-user-access-details {
+  border-top: 1px solid var(--border-soft);
+  background: #fbfcff;
+}
+
+.wecom-user-access-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 12px 8px 36px;
+}
+
+.wecom-user-access-summary > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.wecom-user-access-summary strong {
+  font-size: 12px;
+}
+
+.wecom-user-access-summary .is-good {
+  color: var(--green);
+}
+
+.wecom-user-access-summary .is-bad {
+  color: var(--red);
+}
+
+.wecom-user-access-form {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.2fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 0 12px 9px 36px;
+}
+
+.wecom-user-access-form label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.wecom-user-access-form select {
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.wecom-user-access-form button {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wecom-user-access-hint {
+  margin: 0;
+  padding: 0 12px 11px 36px;
+}
+
 .wecom-tree-content {
   border-top: 1px solid var(--border-soft);
   background: #fbfcff;
@@ -3137,6 +3201,25 @@ button.school-note-edit:hover {
   }
 
   .wecom-member-details {
+    padding-left: 28px;
+  }
+
+  .wecom-user-access-summary {
+    grid-template-columns: 1fr;
+    padding-left: 28px;
+  }
+
+  .wecom-user-access-form {
+    grid-template-columns: 1fr;
+    padding-left: 28px;
+  }
+
+  .wecom-user-access-form button,
+  .wecom-user-access-hint {
+    margin-left: 0;
+  }
+
+  .wecom-user-access-hint {
     padding-left: 28px;
   }
 

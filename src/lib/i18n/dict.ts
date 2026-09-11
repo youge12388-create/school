@@ -285,6 +285,36 @@ export const EN_DICT: Record<string, string> = {
     "Organization sync complete: {departments} departments and {members} members.",
   "部门角色映射已更新，相关账号的现有会话已刷新。":
     "Department role mapping updated; existing sessions for affected accounts were refreshed.",
+  "成员个人权限已更新，相关会话已刷新。":
+    "Member-specific access updated; related sessions were refreshed.",
+  "按部门独立配置角色，子部门不继承上级权限；个人单独权限在右侧设置。":
+    "Configure department roles independently; child departments do not inherit. Set individual overrides on the right.",
+  "成员单独权限": "Individual member access",
+  "展开某个成员后，可覆盖部门默认权限":
+    "Expand a member to override the department default.",
+  "已设置 {count} 人": "{count} configured",
+  "未设置": "None",
+  "跟随部门": "Follow department",
+  "单独允许": "Allow individually",
+  "单独禁止": "Deny individually",
+  "当前生效角色": "Effective role",
+  "个人权限模式": "Individual access mode",
+  "单独角色（选择“单独允许”时生效）":
+    "Individual role (used when allowing individually)",
+  "保存个人权限": "Save individual access",
+  "为{name}设置个人角色": "Set individual role for {name}",
+  "单独允许会覆盖部门角色；跟随部门会恢复部门默认；单独禁止会阻止登录。":
+    "Allow individually overrides the department role; follow department restores the default; deny individually blocks sign-in.",
+  "企业微信成员个人权限已禁止登录":
+    "This WeCom member has been denied sign-in by an individual override.",
+  "个人权限已禁止登录": "Denied by individual access override",
+  "尚未同步企业微信成员。": "No WeCom members have been synced yet.",
+  "个人权限模式无效": "The individual access mode is invalid.",
+  "企业微信成员个人角色无效": "The individual WeCom role is invalid.",
+  "单独允许时必须选择有效角色":
+    "Choose a valid role when allowing a member individually.",
+  "只有企业微信成员支持个人权限设置":
+    "Only WeCom members support individual access settings.",
   "部门": "Department",
   "成员数": "Members",
   "登录角色": "Sign-in role",

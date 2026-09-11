@@ -13,6 +13,7 @@ import { isWeComConfigured } from "@/lib/wecom";
 import {
   listWeComDepartments,
   listWeComMembers,
+  type WeComAccessMode,
   type WeComDepartmentRow,
   type WeComMemberRow,
 } from "@/lib/wecom-service";
@@ -70,6 +71,7 @@ export default async function UsersPage({
       wecomSynced?: string;
       wecomDepartments?: string;
       wecomRoleUpdated?: string;
+      wecomUserUpdated?: string;
       wecomError?: string;
     }>;
 }) {
@@ -81,6 +83,7 @@ export default async function UsersPage({
     wecomSynced,
     wecomDepartments,
     wecomRoleUpdated,
+    wecomUserUpdated,
     wecomError,
   } = await searchParams;
   const locale = await getUiLocale();
@@ -93,8 +96,88 @@ export default async function UsersPage({
   const wecomMemberRows = listWeComMembers();
   const wecomDepartmentTree = buildWeComDepartmentTree(wecomDepartmentsRows, wecomMemberRows);
   const wecomLoginableMemberRows = wecomMemberRows.filter((member) => member.canLogin);
+  const wecomPersonalizedMemberRows = wecomMemberRows.filter((member) => member.accessMode !== "INHERIT");
   const localRows = rows.filter((user) => user.authProvider !== "WECOM");
   const wecomConfigured = isWeComConfigured();
+  const renderWeComMemberAccess = (member: WeComMemberRow): ReactNode => {
+    const modeTone = member.accessMode === "ROLE"
+      ? "blue"
+      : member.accessMode === "DENY"
+        ? "red"
+        : "gray";
+    return (
+      <details className="wecom-member-item wecom-user-access-item" key={member.id}>
+        <summary>
+          <span className="wecom-disclosure" aria-hidden="true">›</span>
+          <span className="wecom-member-name">{member.displayName}</span>
+          <span className="wecom-member-role">
+            {member.role ? t(ROLE_OPTION_LABELS[member.role]) : t("无权限")}
+          </span>
+          <Badge tone={modeTone}>{t(WECOM_ACCESS_MODE_LABELS[member.accessMode])}</Badge>
+          <Badge tone={member.canLogin ? "green" : "red"}>
+            {t(member.canLogin ? "可登录" : "不可登录")}
+          </Badge>
+        </summary>
+        <div className="wecom-user-access-details">
+          <div className="wecom-user-access-summary">
+            <div>
+              <span className="small muted">{t("当前生效角色")}</span>
+              <strong>{member.role ? t(ROLE_OPTION_LABELS[member.role]) : t("无权限")}</strong>
+            </div>
+            <div>
+              <span className="small muted">{t("登录判断")}</span>
+              <strong className={member.canLogin ? "is-good" : "is-bad"}>{t(member.accessReason)}</strong>
+            </div>
+            <div>
+              <span className="small muted">{t("直接所属部门")}</span>
+              {member.departments.length ? (
+                <div className="wecom-source-list">
+                  {member.departments.map((department) => (
+                    <div className="wecom-source-item" key={`${member.id}-${department.id}`}>
+                      <span>{department.path}</span>
+                      <Badge tone={department.role ? "blue" : "gray"}>
+                        {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="small muted">{t("未找到部门归属，请重新同步组织架构")}</span>
+              )}
+            </div>
+          </div>
+          <form action="/api/admin/wecom" method="post" className="wecom-user-access-form">
+            <input type="hidden" name="intent" value="update-user-access" />
+            <input type="hidden" name="userId" value={member.id} />
+            <label>
+              <span className="small muted">{t("个人权限模式")}</span>
+              <select name="accessMode" defaultValue={member.accessMode}>
+                <option value="INHERIT">{t(WECOM_ACCESS_MODE_LABELS.INHERIT)}</option>
+                <option value="ROLE">{t(WECOM_ACCESS_MODE_LABELS.ROLE)}</option>
+                <option value="DENY">{t(WECOM_ACCESS_MODE_LABELS.DENY)}</option>
+              </select>
+            </label>
+            <label>
+              <span className="small muted">{t("单独角色（选择“单独允许”时生效）")}</span>
+              <select
+                name="role"
+                defaultValue={member.accessRole ?? member.role ?? "ADVISOR"}
+                aria-label={tv("为{name}设置个人角色", { name: member.displayName })}
+              >
+                {roleOptions.map((role) => (
+                  <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">{t("保存个人权限")}</button>
+          </form>
+          <p className="small muted wecom-user-access-hint">
+            {t("单独允许会覆盖部门角色；跟随部门会恢复部门默认；单独禁止会阻止登录。")}
+          </p>
+        </div>
+      </details>
+    );
+  };
   const renderWeComDepartment = (department: WeComDepartmentTreeNode): ReactNode => {
     const formId = `wecom-department-role-${department.id}`;
     const hasChildren = department.children.length > 0 || department.members.length > 0;
@@ -257,7 +340,7 @@ export default async function UsersPage({
           <div>
             <h3>{t("企业微信组织架构")}</h3>
             <p className="muted small">
-              {t("按部门独立配置角色，子部门不继承上级权限。展开部门后勾选并保存登录权限。")}
+              {t("按部门独立配置角色，子部门不继承上级权限；个人单独权限在右侧设置。")}
             </p>
           </div>
           <form action="/api/admin/wecom" method="post">
@@ -282,6 +365,7 @@ export default async function UsersPage({
             </div>
           ) : null}
           {wecomRoleUpdated ? <div className="alert success">{t("部门角色映射已更新，相关账号的现有会话已刷新。")}</div> : null}
+          {wecomUserUpdated ? <div className="alert success">{t("成员个人权限已更新，相关会话已刷新。")}</div> : null}
           {wecomError ? <div className="alert error">{tm(wecomError)}</div> : null}
           {wecomDepartmentsRows.length ? (
             <>
@@ -316,6 +400,24 @@ export default async function UsersPage({
                     {wecomDepartmentTree.map(renderWeComDepartment)}
                   </div>
                 </div>
+
+                <details className="wecom-panel wecom-member-panel">
+                  <summary className="wecom-panel-heading wecom-panel-summary">
+                    <span className="wecom-panel-disclosure" aria-hidden="true">›</span>
+                    <div>
+                      <strong>{t("成员单独权限")}</strong>
+                      <span className="small muted">{t("展开某个成员后，可覆盖部门默认权限")}</span>
+                    </div>
+                    <Badge tone={wecomPersonalizedMemberRows.length ? "blue" : "gray"}>
+                      {wecomPersonalizedMemberRows.length ? tv("已设置 {count} 人", { count: wecomPersonalizedMemberRows.length }) : t("未设置")}
+                    </Badge>
+                  </summary>
+                  <div className="wecom-member-list">
+                    {wecomMemberRows.length ? wecomMemberRows.map(renderWeComMemberAccess) : (
+                      <p className="wecom-empty-state">{t("尚未同步企业微信成员。")}</p>
+                    )}
+                  </div>
+                </details>
 
                 <details className="wecom-panel wecom-member-panel">
                   <summary className="wecom-panel-heading wecom-panel-summary">
@@ -558,4 +660,10 @@ const ROLE_OPTION_LABELS: Record<string, string> = {
   CHANNEL_RESOURCE: "渠道资源部",
   MARKET_MANAGER: "市场经理",
   ADMIN: "高级管理员",
+};
+
+const WECOM_ACCESS_MODE_LABELS: Record<WeComAccessMode, string> = {
+  INHERIT: "跟随部门",
+  ROLE: "单独允许",
+  DENY: "单独禁止",
 };

@@ -5,6 +5,7 @@ import { appUrl } from "@/lib/http";
 import {
   syncWeComOrganization,
   updateWeComDepartmentRole,
+  updateWeComUserAccess,
   WeComAccessError,
 } from "@/lib/wecom-service";
 import { asText } from "@/lib/utils";
@@ -50,6 +51,15 @@ export async function POST(request: Request) {
         admin.id,
       );
       return NextResponse.redirect(usersUrl(request, { wecomRoleUpdated: "1" }), 303);
+    }
+    if (intent === "update-user-access") {
+      updateWeComUserAccess(
+        asText(formData.get("userId")),
+        asText(formData.get("accessMode")),
+        asText(formData.get("role")),
+        admin.id,
+      );
+      return NextResponse.redirect(usersUrl(request, { wecomUserUpdated: "1" }), 303);
     }
     throw new WeComAccessError("企业微信管理操作无效");
   } catch (error) {

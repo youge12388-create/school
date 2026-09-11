@@ -81,6 +81,24 @@ export const wecomDepartmentRoles = sqliteTable("wecom_department_roles", {
   ...timestamps,
 });
 
+export const wecomUserAccess = sqliteTable("wecom_user_access", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  mode: text("mode", { enum: ["INHERIT", "ROLE", "DENY"] }).notNull(),
+  role: text("role", {
+    enum: [
+      "ADMIN",
+      "ADVISOR",
+      "DATA_MANAGER",
+      "CHANNEL_RESOURCE",
+      "MARKET_MANAGER",
+    ],
+  }),
+  updatedBy: text("updated_by").references(() => users.id),
+  ...timestamps,
+});
+
 export const wecomUserDepartments = sqliteTable(
   "wecom_user_departments",
   {

@@ -21,6 +21,9 @@ export const WECOM_ROLE_PRIORITY: readonly UserRole[] = [
   "MARKET_MANAGER",
 ];
 
+export const WECOM_ACCESS_MODES = ["INHERIT", "ROLE", "DENY"] as const;
+export type WeComAccessMode = (typeof WECOM_ACCESS_MODES)[number];
+
 const WECOM_PASSWORD_SENTINEL = "wecom$external$account$no-password";
 
 function weComUsername(userId: string) {
@@ -50,14 +53,25 @@ export type WeComMemberRow = {
   id: string;
   displayName: string;
   role: UserRole | null;
+  accessMode: WeComAccessMode;
+  accessRole: UserRole | null;
   active: boolean;
   wecomEnabled: boolean;
   canLogin: boolean;
-  accessReason: "可登录" | "企业微信成员未启用" | "所属部门未配置登录角色" | "账号状态待同步";
+  accessReason:
+    | "可登录"
+    | "企业微信成员未启用"
+    | "个人权限已禁止登录"
+    | "所属部门未配置登录角色"
+    | "账号状态待同步";
   departments: WeComMemberDepartmentRow[];
 };
 
 type RoleMappingRow = { departmentId: number; role: UserRole };
+type WeComUserAccessRow = {
+  mode: WeComAccessMode;
+  role: UserRole | null;
+};
 
 function roleMapping(database: DatabaseSync) {
   const rows = database
@@ -66,6 +80,33 @@ function roleMapping(database: DatabaseSync) {
     )
     .all() as RoleMappingRow[];
   return new Map(rows.map((row) => [row.departmentId, row.role]));
+}
+
+function accessMode(value: string | null | undefined): WeComAccessMode {
+  return WECOM_ACCESS_MODES.includes(value as WeComAccessMode)
+    ? (value as WeComAccessMode)
+    : "INHERIT";
+}
+
+function userAccessFromRow(row: {
+  mode?: string | null;
+  role?: string | null;
+} | undefined): WeComUserAccessRow {
+  const mode = accessMode(row?.mode);
+  return {
+    mode,
+    role: mode === "ROLE" ? assertRole(row?.role ?? null) : null,
+  };
+}
+
+function getWeComUserAccess(
+  database: DatabaseSync,
+  userId: string,
+): WeComUserAccessRow {
+  const row = database
+    .prepare("SELECT mode, role FROM wecom_user_access WHERE user_id = ? LIMIT 1")
+    .get(userId) as { mode: string; role: UserRole | null } | undefined;
+  return userAccessFromRow(row);
 }
 
 // 子部门权限不再继承父部门：仅按成员直接所属部门的角色配置解析。
@@ -81,10 +122,27 @@ export function resolveWeComRole(
   return WECOM_ROLE_PRIORITY.find((role) => roles.has(role)) ?? null;
 }
 
-function assertRole(role: string | null) {
+export function resolveWeComEffectiveRole(
+  departmentIds: readonly number[],
+  mapping: ReadonlyMap<number, UserRole>,
+  access: WeComUserAccessRow = { mode: "INHERIT", role: null },
+) {
+  if (access.mode === "DENY") return null;
+  if (access.mode === "ROLE") return access.role;
+  return resolveWeComRole(departmentIds, mapping);
+}
+
+function assertRole(role: string | null, message = "企业微信部门角色无效") {
   if (role === null || role === "") return null;
-  if (!USER_ROLES.includes(role as UserRole)) throw new WeComAccessError("企业微信部门角色无效");
+  if (!USER_ROLES.includes(role as UserRole)) throw new WeComAccessError(message);
   return role as UserRole;
+}
+
+function assertAccessMode(mode: string | null): WeComAccessMode {
+  if (WECOM_ACCESS_MODES.includes(mode as WeComAccessMode)) {
+    return mode as WeComAccessMode;
+  }
+  throw new WeComAccessError("企业微信成员个人权限模式无效");
 }
 
 function closeSessionsIfChanged(
@@ -109,8 +167,6 @@ function upsertWeComMember(
   knownDepartmentIds: ReadonlySet<number>,
   mapping: ReadonlyMap<number, UserRole>,
 ) {
-  const role = resolveWeComRole(member.departmentIds, mapping);
-  const active = member.enabled && role !== null;
   const previous = database
     .prepare(
       `SELECT id, role, active, wecom_enabled AS wecomEnabled
@@ -120,6 +176,11 @@ function upsertWeComMember(
     | { id: string; role: UserRole; active: number; wecomEnabled: number }
     | undefined;
   const userId = previous?.id ?? newId();
+  const access = previous
+    ? getWeComUserAccess(database, userId)
+    : { mode: "INHERIT", role: null } satisfies WeComUserAccessRow;
+  const role = resolveWeComEffectiveRole(member.departmentIds, mapping, access);
+  const active = member.enabled && role !== null;
   const now = Date.now();
 
   if (previous) {
@@ -174,14 +235,20 @@ function recomputeExternalUserAccess(database: DatabaseSync) {
   const mapping = roleMapping(database);
   const externalUsers = database
     .prepare(
-      `SELECT id, role, active, wecom_enabled AS wecomEnabled
-       FROM users WHERE auth_provider = 'WECOM'`,
+      `SELECT
+         u.id, u.role, u.active, u.wecom_enabled AS wecomEnabled,
+         a.mode AS accessMode, a.role AS accessRole
+       FROM users u
+       LEFT JOIN wecom_user_access a ON a.user_id = u.id
+       WHERE u.auth_provider = 'WECOM'`,
     )
     .all() as Array<{
     id: string;
     role: UserRole;
     active: number;
     wecomEnabled: number;
+    accessMode: string | null;
+    accessRole: UserRole | null;
   }>;
 
   for (const user of externalUsers) {
@@ -190,9 +257,10 @@ function recomputeExternalUserAccess(database: DatabaseSync) {
         "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
       )
       .all(user.id) as Array<{ departmentId: number }>;
-    const role = resolveWeComRole(
+    const role = resolveWeComEffectiveRole(
       departments.map((department) => department.departmentId),
       mapping,
+      userAccessFromRow({ mode: user.accessMode, role: user.accessRole }),
     );
     const active = Boolean(user.wecomEnabled) && role !== null;
     if (user.role === role && Boolean(user.active) === active) continue;
@@ -366,10 +434,14 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
   const mapping = roleMapping(database);
   const users = database
     .prepare(
-      `SELECT id, display_name AS displayName, role, active, wecom_enabled AS wecomEnabled
-       FROM users
-       WHERE auth_provider = 'WECOM'
-       ORDER BY display_name COLLATE NOCASE, id`,
+      `SELECT
+         u.id, u.display_name AS displayName, u.role, u.active,
+         u.wecom_enabled AS wecomEnabled,
+         a.mode AS accessMode, a.role AS accessRole
+       FROM users u
+       LEFT JOIN wecom_user_access a ON a.user_id = u.id
+       WHERE u.auth_provider = 'WECOM'
+       ORDER BY u.display_name COLLATE NOCASE, u.id`,
     )
     .all() as Array<{
     id: string;
@@ -377,6 +449,8 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
     role: UserRole;
     active: number;
     wecomEnabled: number;
+    accessMode: string | null;
+    accessRole: UserRole | null;
   }>;
   const memberships = database.prepare(
     "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
@@ -385,12 +459,15 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
   return users.map((user) => {
     const directDepartmentIds = (memberships.all(user.id) as Array<{ departmentId: number }>)
       .map((department) => department.departmentId);
-    const role = resolveWeComRole(directDepartmentIds, mapping);
+    const access = userAccessFromRow({ mode: user.accessMode, role: user.accessRole });
+    const role = resolveWeComEffectiveRole(directDepartmentIds, mapping, access);
     const active = Boolean(user.active);
     const wecomEnabled = Boolean(user.wecomEnabled);
     const canLogin = wecomEnabled && active && role !== null;
     const accessReason = !wecomEnabled
       ? "企业微信成员未启用"
+      : access.mode === "DENY"
+        ? "个人权限已禁止登录"
       : role === null
         ? "所属部门未配置登录角色"
         : canLogin
@@ -401,6 +478,8 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
       id: user.id,
       displayName: user.displayName,
       role,
+      accessMode: access.mode,
+      accessRole: access.role,
       active,
       wecomEnabled,
       canLogin,
@@ -469,11 +548,126 @@ export function updateWeComDepartmentRole(
   }
 }
 
+export function updateWeComUserAccess(
+  userIdInput: string,
+  modeInput: string,
+  roleInput: string,
+  actorId: string,
+  database: DatabaseSync = sqlite,
+) {
+  const userId = userIdInput.trim();
+  if (!userId) throw new WeComAccessError("企业微信成员无效，请先同步组织架构");
+
+  const mode = assertAccessMode(modeInput);
+  const role = mode === "ROLE"
+    ? assertRole(roleInput, "企业微信成员个人角色无效")
+    : null;
+  if (mode === "ROLE" && !role) {
+    throw new WeComAccessError("单独允许时必须选择有效角色");
+  }
+
+  const user = database
+    .prepare(
+      `SELECT id, display_name AS displayName, auth_provider AS authProvider,
+              role, active, wecom_enabled AS wecomEnabled
+       FROM users WHERE id = ? LIMIT 1`,
+    )
+    .get(userId) as
+    | {
+        id: string;
+        displayName: string;
+        authProvider: string;
+        role: UserRole;
+        active: number;
+        wecomEnabled: number;
+      }
+    | undefined;
+  if (!user || user.authProvider !== "WECOM") {
+    throw new WeComAccessError("只有企业微信成员支持个人权限设置");
+  }
+
+  const mapping = roleMapping(database);
+  const departments = database
+    .prepare(
+      "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
+    )
+    .all(userId) as Array<{ departmentId: number }>;
+  const effectiveRole = resolveWeComEffectiveRole(
+    departments.map((department) => department.departmentId),
+    mapping,
+    { mode, role },
+  );
+  const active = Boolean(user.wecomEnabled) && effectiveRole !== null;
+  const now = Date.now();
+
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database
+      .prepare(
+        `INSERT INTO wecom_user_access
+           (user_id, mode, role, updated_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           mode = excluded.mode,
+           role = excluded.role,
+           updated_by = excluded.updated_by,
+           updated_at = excluded.updated_at`,
+      )
+      .run(userId, mode, role, actorId, now, now);
+    database
+      .prepare(
+        "UPDATE users SET role = ?, active = ?, updated_at = ? WHERE id = ?",
+      )
+      .run(effectiveRole ?? "ADVISOR", active ? 1 : 0, now, userId);
+    closeSessionsIfChanged(database, userId, user, {
+      role: effectiveRole,
+      active,
+      wecomEnabled: Boolean(user.wecomEnabled),
+    });
+    writeAuditRecord(
+      {
+        userId: actorId,
+        action: "WECOM_USER_ACCESS_UPDATED",
+        entityType: "USER",
+        entityId: userId,
+        details: {
+          displayName: user.displayName,
+          mode,
+          role,
+          effectiveRole,
+          active,
+        },
+      },
+      database,
+    );
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return { userId, mode, role, effectiveRole, active };
+}
+
 export function upsertWeComLogin(identity: WeComIdentity, database: DatabaseSync = sqlite) {
   const mapping = roleMapping(database);
-  const role = resolveWeComRole(identity.departmentIds, mapping);
+  const existing = database
+    .prepare("SELECT id FROM users WHERE wecom_user_id = ? LIMIT 1")
+    .get(identity.userId) as { id: string } | undefined;
+  const access = existing
+    ? getWeComUserAccess(database, existing.id)
+    : { mode: "INHERIT", role: null } satisfies WeComUserAccessRow;
+  const role = resolveWeComEffectiveRole(
+    identity.departmentIds,
+    mapping,
+    access,
+  );
   if (!identity.enabled || !role) {
-    throw new WeComAccessError("企业微信账号尚未配置可用的部门权限");
+    throw new WeComAccessError(
+      access.mode === "DENY"
+        ? "企业微信成员的个人权限已禁止登录"
+        : "企业微信账号尚未配置可用的部门权限",
+    );
   }
   const knownDepartmentIds = new Set(
     (
