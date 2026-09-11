@@ -2762,7 +2762,7 @@ button.school-note-edit:hover {
 
 .wecom-admin-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
   gap: 14px;
   align-items: start;
 }
@@ -2795,38 +2795,51 @@ button.school-note-edit:hover {
   display: grid;
 }
 
-.wecom-department-item,
 .wecom-member-item {
   border-bottom: 1px solid var(--border-soft);
 }
 
-.wecom-department-item:last-child,
 .wecom-member-item:last-child {
   border-bottom: 0;
 }
 
-.wecom-department-item summary,
+.wecom-tree-node {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.wecom-tree-node:last-child {
+  border-bottom: 0;
+}
+
+.wecom-tree-row,
 .wecom-member-item summary {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
-  padding: 5px 10px;
+  min-height: 46px;
+  padding: 7px 10px 7px calc(10px + var(--wecom-tree-depth, 0) * 18px);
   cursor: pointer;
   list-style: none;
 }
 
-.wecom-department-item summary::-webkit-details-marker,
+.wecom-tree-row::-webkit-details-marker,
 .wecom-member-item summary::-webkit-details-marker {
   display: none;
 }
 
-.wecom-department-item summary:hover,
+.wecom-tree-row:hover,
 .wecom-member-item summary:hover {
   background: #f8fbff;
 }
 
-.wecom-disclosure {
+.wecom-tree-node[open] > .wecom-tree-row,
+.wecom-tree-node:has(> .wecom-tree-row > .wecom-tree-checkbox:checked) > .wecom-tree-row {
+  background: #f4faf7;
+}
+
+.wecom-tree-disclosure,
+.wecom-disclosure,
+.wecom-panel-disclosure {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -2839,12 +2852,29 @@ button.school-note-edit:hover {
   transition: transform .15s ease;
 }
 
-.wecom-department-item[open] .wecom-disclosure,
+.wecom-tree-disclosure.is-empty {
+  visibility: hidden;
+}
+
+.wecom-tree-node[open] > .wecom-tree-row > .wecom-tree-disclosure,
 .wecom-member-item[open] .wecom-disclosure {
   transform: rotate(90deg);
 }
 
-.wecom-department-name,
+.wecom-member-panel[open] > .wecom-panel-summary .wecom-panel-disclosure {
+  transform: rotate(90deg);
+}
+
+.wecom-tree-checkbox {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  margin: 0 2px 0 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.wecom-tree-name,
 .wecom-member-name {
   min-width: 0;
   flex: 1;
@@ -2854,7 +2884,14 @@ button.school-note-edit:hover {
   white-space: nowrap;
 }
 
-.wecom-department-name small {
+.wecom-tree-name strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wecom-tree-name small {
   display: block;
   overflow: hidden;
   color: var(--muted);
@@ -2864,7 +2901,7 @@ button.school-note-edit:hover {
   white-space: nowrap;
 }
 
-.wecom-member-count,
+.wecom-tree-count,
 .wecom-member-role {
   flex: 0 0 auto;
   color: var(--muted);
@@ -2872,7 +2909,6 @@ button.school-note-edit:hover {
   white-space: nowrap;
 }
 
-.wecom-department-editor,
 .wecom-member-details {
   display: grid;
   gap: 8px;
@@ -2881,25 +2917,109 @@ button.school-note-edit:hover {
   padding: 10px 12px 10px 36px;
 }
 
-.wecom-department-editor .form-inline {
+.wecom-tree-content {
+  border-top: 1px solid var(--border-soft);
+  background: #fbfcff;
+}
+
+.wecom-department-editor {
+  display: grid;
+  gap: 8px;
+  padding: 11px 14px 12px calc(44px + var(--wecom-tree-depth, 0) * 18px);
+}
+
+.wecom-department-editor-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.wecom-role-form {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
 }
 
-.wecom-department-editor select {
+.wecom-role-form label {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+}
+
+.wecom-role-form select {
   min-width: 0;
   min-height: 34px;
-  flex: 1;
   padding: 6px 9px;
   font-size: 12px;
 }
 
-.wecom-department-editor button,
-.wecom-department-editor .form-inline button {
+.wecom-role-form button {
   min-height: 34px;
   padding: 6px 12px;
   font-size: 12px;
+}
+
+.wecom-tree-members {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--border-soft);
+  padding: 9px 14px 11px calc(44px + var(--wecom-tree-depth, 0) * 18px);
+}
+
+.wecom-tree-member {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.wecom-tree-member > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wecom-tree-member > span:last-child {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.wecom-tree-member-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #b6c0cb;
+}
+
+.wecom-tree-member .is-good {
+  color: var(--green);
+}
+
+.wecom-tree-member .is-muted {
+  color: var(--muted);
+}
+
+.wecom-tree-children {
+  border-top: 1px solid var(--border-soft);
+}
+
+.wecom-panel-summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.wecom-panel-summary::-webkit-details-marker {
+  display: none;
+}
+
+.wecom-panel-summary > div {
+  min-width: 0;
+  flex: 1;
 }
 
 .wecom-member-details {
@@ -2954,10 +3074,19 @@ button.school-note-edit:hover {
 
 .wecom-source-item .badge,
 .wecom-member-item .badge,
-.wecom-department-item .badge {
+.wecom-tree-row .badge,
+.wecom-panel-summary .badge {
   min-height: 22px;
   padding: 2px 8px;
   font-size: 10px;
+}
+
+.wecom-empty-state {
+  margin: 0;
+  padding: 18px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 @media (max-width: 980px) {
@@ -2981,22 +3110,37 @@ button.school-note-edit:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .wecom-department-item summary,
+  .wecom-tree-row,
   .wecom-member-item summary {
     min-height: 40px;
     padding: 5px 8px;
+  }
+
+  .wecom-tree-row {
+    padding-left: calc(8px + var(--wecom-tree-depth, 0) * 14px);
+  }
+
+  .wecom-tree-count {
+    display: none;
   }
 
   .wecom-member-role {
     display: none;
   }
 
-  .wecom-department-editor,
+  .wecom-department-editor {
+    padding: 10px 10px 11px calc(36px + var(--wecom-tree-depth, 0) * 14px);
+  }
+
+  .wecom-tree-members {
+    padding: 8px 10px 10px calc(36px + var(--wecom-tree-depth, 0) * 14px);
+  }
+
   .wecom-member-details {
     padding-left: 28px;
   }
 
-  .wecom-department-editor .form-inline {
+  .wecom-role-form {
     align-items: stretch;
     flex-direction: column;
   }

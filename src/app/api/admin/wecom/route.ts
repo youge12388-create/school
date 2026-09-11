@@ -36,9 +36,17 @@ export async function POST(request: Request) {
       );
     }
     if (intent === "update-role") {
+      const hasPermissionToggle = formData.get("permissionToggle") === "1";
+      const enabled = formData.get("enabled") === "1";
+      const submittedRole = asText(formData.get("role"));
+      const role = hasPermissionToggle
+        ? enabled
+          ? submittedRole || "ADVISOR"
+          : ""
+        : submittedRole;
       updateWeComDepartmentRole(
         asText(formData.get("departmentId")),
-        asText(formData.get("role")),
+        role,
         admin.id,
       );
       return NextResponse.redirect(usersUrl(request, { wecomRoleUpdated: "1" }), 303);

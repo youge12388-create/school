@@ -1,5 +1,6 @@
 import { Calendar, Settings } from "lucide-react";
 import Link from "next/link";
+import type { CSSProperties, ReactNode } from "react";
 
 import { toggleUserAction } from "@/app/actions";
 import { Badge, PageHeading } from "@/components/ui";
@@ -9,7 +10,12 @@ import { getUiLocale } from "@/lib/i18n/server";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import { isWeComConfigured } from "@/lib/wecom";
-import { listWeComDepartments, listWeComMembers } from "@/lib/wecom-service";
+import {
+  listWeComDepartments,
+  listWeComMembers,
+  type WeComDepartmentRow,
+  type WeComMemberRow,
+} from "@/lib/wecom-service";
 
 const roleOptions = [
   "ADVISOR",
@@ -18,6 +24,41 @@ const roleOptions = [
   "MARKET_MANAGER",
   "ADMIN",
 ] as const;
+
+type WeComDepartmentTreeNode = WeComDepartmentRow & {
+  children: WeComDepartmentTreeNode[];
+  members: WeComMemberRow[];
+};
+
+function buildWeComDepartmentTree(
+  departments: WeComDepartmentRow[],
+  members: WeComMemberRow[],
+) {
+  const nodes = new Map<number, WeComDepartmentTreeNode>();
+  for (const department of departments) {
+    nodes.set(department.id, { ...department, children: [], members: [] });
+  }
+
+  for (const member of members) {
+    for (const department of member.departments) {
+      nodes.get(department.id)?.members.push(member);
+    }
+  }
+
+  const roots: WeComDepartmentTreeNode[] = [];
+  for (const node of nodes.values()) {
+    const parent = nodes.get(node.parentId);
+    if (parent && parent.id !== node.id) parent.children.push(node);
+    else roots.push(node);
+  }
+
+  const sortNodes = (items: WeComDepartmentTreeNode[]) => {
+    items.sort((left, right) => left.displayOrder - right.displayOrder || left.id - right.id);
+    for (const item of items) sortNodes(item.children);
+  };
+  sortNodes(roots);
+  return roots;
+}
 
 export default async function UsersPage({
   searchParams,
@@ -50,8 +91,91 @@ export default async function UsersPage({
   const rows = await listUsers();
   const wecomDepartmentsRows = listWeComDepartments();
   const wecomMemberRows = listWeComMembers();
+  const wecomDepartmentTree = buildWeComDepartmentTree(wecomDepartmentsRows, wecomMemberRows);
+  const wecomLoginableMemberRows = wecomMemberRows.filter((member) => member.canLogin);
   const localRows = rows.filter((user) => user.authProvider !== "WECOM");
   const wecomConfigured = isWeComConfigured();
+  const renderWeComDepartment = (department: WeComDepartmentTreeNode): ReactNode => {
+    const formId = `wecom-department-role-${department.id}`;
+    const hasChildren = department.children.length > 0 || department.members.length > 0;
+    const rowStyle = { "--wecom-tree-depth": department.depth } as CSSProperties;
+
+    return (
+      <details className="wecom-tree-node" key={department.id}>
+        <summary className="wecom-tree-row" style={rowStyle}>
+          <span className={`wecom-tree-disclosure${hasChildren ? "" : " is-empty"}`} aria-hidden="true">
+            ›
+          </span>
+          <input
+            className="wecom-tree-checkbox"
+            type="checkbox"
+            name="enabled"
+            value="1"
+            form={formId}
+            defaultChecked={Boolean(department.role)}
+            aria-label={tv("启用{name}的登录权限", { name: department.path })}
+          />
+          <span className="wecom-tree-name">
+            <strong>{department.name}</strong>
+            <small>
+              {department.memberCount} {t("人")}
+            </small>
+          </span>
+          <span className="wecom-tree-count">{department.memberCount}</span>
+          <Badge tone={department.role ? "blue" : "gray"}>
+            {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
+          </Badge>
+        </summary>
+        <div className="wecom-tree-content" style={rowStyle}>
+          <div className="wecom-department-editor">
+            <div className="wecom-department-editor-copy">
+              <strong>{department.role ? t("已允许直接成员登录") : t("尚未允许直接成员登录")}</strong>
+              <span className="small muted">
+                {t("勾选后选择角色并保存；子部门权限不会自动继承。")}
+              </span>
+            </div>
+            <form id={formId} action="/api/admin/wecom" method="post" className="wecom-role-form">
+              <input type="hidden" name="intent" value="update-role" />
+              <input type="hidden" name="departmentId" value={department.id} />
+              <input type="hidden" name="permissionToggle" value="1" />
+              <label>
+                <span className="small muted">{t("登录角色")}</span>
+                <select
+                  name="role"
+                  defaultValue={department.role ?? "ADVISOR"}
+                  aria-label={tv("{name} 的登录角色", { name: department.path })}
+                >
+                  {roleOptions.map((role) => (
+                    <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit">{t("保存")}</button>
+            </form>
+          </div>
+          {department.members.length ? (
+            <div className="wecom-tree-members">
+              <span className="small muted">{t("直接成员")}</span>
+              {department.members.map((member) => (
+                <div className="wecom-tree-member" key={`${department.id}-${member.id}`}>
+                  <span className="wecom-tree-member-dot" aria-hidden="true" />
+                  <span>{member.displayName}</span>
+                  <span className={member.canLogin ? "is-good" : "is-muted"}>
+                    {t(member.canLogin ? "可登录" : "未授权")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {department.children.length ? (
+            <div className="wecom-tree-children">
+              {department.children.map(renderWeComDepartment)}
+            </div>
+          ) : null}
+        </div>
+      </details>
+    );
+  };
 
   return (
     <>
@@ -133,7 +257,7 @@ export default async function UsersPage({
           <div>
             <h3>{t("企业微信组织架构")}</h3>
             <p className="muted small">
-              {t("按部门独立配置角色，子部门不继承上级权限。点击部门或成员可查看细分权限。")}
+              {t("按部门独立配置角色，子部门不继承上级权限。展开部门后勾选并保存登录权限。")}
             </p>
           </div>
           <form action="/api/admin/wecom" method="post">
@@ -172,7 +296,7 @@ export default async function UsersPage({
                 </div>
                 <div>
                   <span>{t("可登录")}</span>
-                  <strong>{wecomMemberRows.filter((member) => member.canLogin).length}</strong>
+                  <strong>{wecomLoginableMemberRows.length}</strong>
                 </div>
                 <div>
                   <span>{t("待处理")}</span>
@@ -185,51 +309,27 @@ export default async function UsersPage({
                   <div className="wecom-panel-heading">
                     <div>
                       <strong>{t("部门权限")}</strong>
-                      <span className="small muted">{t("仅该部门直接成员生效，子部门需单独配置")}</span>
+                      <span className="small muted">{t("复选框控制直接成员登录，角色在展开后保存")}</span>
                     </div>
                   </div>
                   <div className="wecom-department-list">
-                    {wecomDepartmentsRows.map((department) => (
-                      <details className="wecom-department-item" key={department.id}>
-                        <summary>
-                          <span className="wecom-disclosure" aria-hidden="true">›</span>
-                          <span className="wecom-department-name" style={{ paddingLeft: `${Math.min(department.depth, 3) * 14}px` }}>
-                            {department.name}
-                            <small>ID {department.id}</small>
-                          </span>
-                          <span className="wecom-member-count">{department.memberCount} {t("人")}</span>
-                          <Badge tone={department.role ? "blue" : "gray"}>
-                            {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
-                          </Badge>
-                        </summary>
-                        <div className="wecom-department-editor">
-                          <span className="small muted">{t("仅对该部门直接成员生效，子部门需单独配置")}</span>
-                          <form action="/api/admin/wecom" method="post" className="form-inline">
-                            <input type="hidden" name="intent" value="update-role" />
-                            <input type="hidden" name="departmentId" value={department.id} />
-                            <select name="role" defaultValue={department.role ?? ""} aria-label={tv("{name} 的登录角色", { name: department.path })}>
-                              <option value="">{t("无权限（禁止登录）")}</option>
-                              {roleOptions.map((role) => (
-                                <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                              ))}
-                            </select>
-                            <button type="submit">{t("保存")}</button>
-                          </form>
-                        </div>
-                      </details>
-                    ))}
+                    {wecomDepartmentTree.map(renderWeComDepartment)}
                   </div>
                 </div>
 
-                <div className="wecom-panel">
-                  <div className="wecom-panel-heading">
+                <details className="wecom-panel wecom-member-panel">
+                  <summary className="wecom-panel-heading wecom-panel-summary">
+                    <span className="wecom-panel-disclosure" aria-hidden="true">›</span>
                     <div>
                       <strong>{t("成员权限明细")}</strong>
-                      <span className="small muted">{t("点击成员查看直接部门与登录状态")}</span>
+                      <span className="small muted">{t("仅展示当前可以登录的企业微信成员，点击成员查看细节")}</span>
                     </div>
-                  </div>
+                    <Badge tone={wecomLoginableMemberRows.length ? "green" : "gray"}>
+                      {wecomLoginableMemberRows.length} {t("人")}
+                    </Badge>
+                  </summary>
                   <div className="wecom-member-list">
-                    {wecomMemberRows.map((member) => (
+                    {wecomLoginableMemberRows.length ? wecomLoginableMemberRows.map((member) => (
                       <details className="wecom-member-item" key={member.id}>
                         <summary>
                           <span className="wecom-disclosure" aria-hidden="true">›</span>
@@ -263,9 +363,11 @@ export default async function UsersPage({
                           </div>
                         </div>
                       </details>
-                    ))}
+                    )) : (
+                      <p className="wecom-empty-state">{t("当前没有可登录的企业微信成员。")}</p>
+                    )}
                   </div>
-                </div>
+                </details>
               </div>
             </>
           ) : (
