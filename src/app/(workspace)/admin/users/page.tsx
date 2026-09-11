@@ -1,6 +1,5 @@
 import { Calendar, Settings } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
 
 import { toggleUserAction } from "@/app/actions";
 import { Badge, PageHeading } from "@/components/ui";
@@ -10,82 +9,26 @@ import { getUiLocale } from "@/lib/i18n/server";
 import { listUsers } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import { isWeComConfigured } from "@/lib/wecom";
-import {
-  listWeComDepartments,
-  listWeComMembers,
-  type WeComAccessMode,
-  type WeComDepartmentRow,
-  type WeComMemberRow,
-} from "@/lib/wecom-service";
+import { listWeComDepartments, listWeComMembers } from "@/lib/wecom-service";
 
-const roleOptions = [
-  "ADVISOR",
-  "DATA_MANAGER",
-  "CHANNEL_RESOURCE",
-  "MARKET_MANAGER",
-  "ADMIN",
-] as const;
+import { WeComAccessWorkspace } from "./wecom-access-workspace";
 
-type WeComDepartmentTreeNode = WeComDepartmentRow & {
-  children: WeComDepartmentTreeNode[];
-  members: WeComMemberRow[];
-};
+const roleOptions = ["ADVISOR", "DATA_MANAGER", "CHANNEL_RESOURCE", "MARKET_MANAGER", "ADMIN"] as const;
 
-function buildWeComDepartmentTree(
-  departments: WeComDepartmentRow[],
-  members: WeComMemberRow[],
-) {
-  const nodes = new Map<number, WeComDepartmentTreeNode>();
-  for (const department of departments) {
-    nodes.set(department.id, { ...department, children: [], members: [] });
-  }
-
-  for (const member of members) {
-    for (const department of member.departments) {
-      nodes.get(department.id)?.members.push(member);
-    }
-  }
-
-  const roots: WeComDepartmentTreeNode[] = [];
-  for (const node of nodes.values()) {
-    const parent = nodes.get(node.parentId);
-    if (parent && parent.id !== node.id) parent.children.push(node);
-    else roots.push(node);
-  }
-
-  const sortNodes = (items: WeComDepartmentTreeNode[]) => {
-    items.sort((left, right) => left.displayOrder - right.displayOrder || left.id - right.id);
-    for (const item of items) sortNodes(item.children);
-  };
-  sortNodes(roots);
-  return roots;
-}
-
-export default async function UsersPage({
-  searchParams,
-}: {
-    searchParams: Promise<{
-      created?: string;
-      roleUpdated?: string;
-      error?: string;
-      wecomSynced?: string;
-      wecomDepartments?: string;
-      wecomRoleUpdated?: string;
-      wecomUserUpdated?: string;
-      wecomError?: string;
-    }>;
+export default async function UsersPage({ searchParams }: {
+  searchParams: Promise<{
+    created?: string;
+    roleUpdated?: string;
+    error?: string;
+    wecomSynced?: string;
+    wecomDepartments?: string;
+    wecomRoleUpdated?: string;
+    wecomUserUpdated?: string;
+    wecomError?: string;
+  }>;
 }) {
   await requireRole(["ADMIN"]);
-  const {
-    created,
-    roleUpdated,
-    error,
-    wecomSynced,
-    wecomDepartments,
-    wecomRoleUpdated,
-    wecomUserUpdated,
-    wecomError,
-  } = await searchParams;
+  const { created, roleUpdated, error, wecomSynced, wecomDepartments, wecomRoleUpdated, wecomUserUpdated, wecomError } = await searchParams;
   const locale = await getUiLocale();
   const t = makeT(locale);
   const bt = makeBadgeT(locale);
@@ -94,557 +37,103 @@ export default async function UsersPage({
   const rows = await listUsers();
   const wecomDepartmentsRows = listWeComDepartments();
   const wecomMemberRows = listWeComMembers();
-  const wecomDepartmentTree = buildWeComDepartmentTree(wecomDepartmentsRows, wecomMemberRows);
-  const wecomLoginableMemberRows = wecomMemberRows.filter((member) => member.canLogin);
-  const wecomPersonalizedMemberRows = wecomMemberRows.filter((member) => member.accessMode !== "INHERIT");
   const localRows = rows.filter((user) => user.authProvider !== "WECOM");
   const wecomConfigured = isWeComConfigured();
-  const renderWeComMemberAccess = (member: WeComMemberRow): ReactNode => {
-    const modeTone = member.accessMode === "ROLE"
-      ? "blue"
-      : member.accessMode === "DENY"
-        ? "red"
-        : "gray";
-    return (
-      <details className="wecom-member-item wecom-user-access-item" key={member.id}>
-        <summary>
-          <span className="wecom-disclosure" aria-hidden="true">›</span>
-          <span className="wecom-member-name">{member.displayName}</span>
-          <span className="wecom-member-role">
-            {member.role ? t(ROLE_OPTION_LABELS[member.role]) : t("无权限")}
-          </span>
-          <Badge tone={modeTone}>{t(WECOM_ACCESS_MODE_LABELS[member.accessMode])}</Badge>
-          <Badge tone={member.canLogin ? "green" : "red"}>
-            {t(member.canLogin ? "可登录" : "不可登录")}
-          </Badge>
-        </summary>
-        <div className="wecom-user-access-details">
-          <div className="wecom-user-access-summary">
-            <div>
-              <span className="small muted">{t("当前生效角色")}</span>
-              <strong>{member.role ? t(ROLE_OPTION_LABELS[member.role]) : t("无权限")}</strong>
-            </div>
-            <div>
-              <span className="small muted">{t("登录判断")}</span>
-              <strong className={member.canLogin ? "is-good" : "is-bad"}>{t(member.accessReason)}</strong>
-            </div>
-            <div>
-              <span className="small muted">{t("直接所属部门")}</span>
-              {member.departments.length ? (
-                <div className="wecom-source-list">
-                  {member.departments.map((department) => (
-                    <div className="wecom-source-item" key={`${member.id}-${department.id}`}>
-                      <span>{department.path}</span>
-                      <Badge tone={department.role ? "blue" : "gray"}>
-                        {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="small muted">{t("未找到部门归属，请重新同步组织架构")}</span>
-              )}
-            </div>
-          </div>
-          <form action="/api/admin/wecom" method="post" className="wecom-user-access-form">
-            <input type="hidden" name="intent" value="update-user-access" />
-            <input type="hidden" name="userId" value={member.id} />
-            <label>
-              <span className="small muted">{t("个人权限模式")}</span>
-              <select name="accessMode" defaultValue={member.accessMode}>
-                <option value="INHERIT">{t(WECOM_ACCESS_MODE_LABELS.INHERIT)}</option>
-                <option value="ROLE">{t(WECOM_ACCESS_MODE_LABELS.ROLE)}</option>
-                <option value="DENY">{t(WECOM_ACCESS_MODE_LABELS.DENY)}</option>
-              </select>
-            </label>
-            <label>
-              <span className="small muted">{t("单独角色（选择“单独允许”时生效）")}</span>
-              <select
-                name="role"
-                defaultValue={member.accessRole ?? member.role ?? "ADVISOR"}
-                aria-label={tv("为{name}设置个人角色", { name: member.displayName })}
-              >
-                {roleOptions.map((role) => (
-                  <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                ))}
-              </select>
-            </label>
-            <button type="submit">{t("保存个人权限")}</button>
-          </form>
-          <p className="small muted wecom-user-access-hint">
-            {t("单独允许会覆盖部门角色；跟随部门会恢复部门默认；单独禁止会阻止登录。")}
-          </p>
-        </div>
-      </details>
-    );
-  };
-  const renderWeComDepartment = (department: WeComDepartmentTreeNode): ReactNode => {
-    const formId = `wecom-department-role-${department.id}`;
-    const hasChildren = department.children.length > 0 || department.members.length > 0;
-    const rowStyle = { "--wecom-tree-depth": department.depth } as CSSProperties;
 
-    return (
-      <details className="wecom-tree-node" key={department.id}>
-        <summary className="wecom-tree-row" style={rowStyle}>
-          <span className={`wecom-tree-disclosure${hasChildren ? "" : " is-empty"}`} aria-hidden="true">
-            ›
-          </span>
-          <input
-            className="wecom-tree-checkbox"
-            type="checkbox"
-            name="enabled"
-            value="1"
-            form={formId}
-            defaultChecked={Boolean(department.role)}
-            aria-label={tv("启用{name}的登录权限", { name: department.path })}
-          />
-          <span className="wecom-tree-name">
-            <strong>{department.name}</strong>
-            <small>
-              {department.memberCount} {t("人")}
-            </small>
-          </span>
-          <span className="wecom-tree-count">{department.memberCount}</span>
-          <Badge tone={department.role ? "blue" : "gray"}>
-            {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
-          </Badge>
-        </summary>
-        <div className="wecom-tree-content" style={rowStyle}>
-          <div className="wecom-department-editor">
-            <div className="wecom-department-editor-copy">
-              <strong>{department.role ? t("已允许直接成员登录") : t("尚未允许直接成员登录")}</strong>
-              <span className="small muted">
-                {t("勾选后选择角色并保存；子部门权限不会自动继承。")}
-              </span>
-            </div>
-            <form id={formId} action="/api/admin/wecom" method="post" className="wecom-role-form">
-              <input type="hidden" name="intent" value="update-role" />
-              <input type="hidden" name="departmentId" value={department.id} />
-              <input type="hidden" name="permissionToggle" value="1" />
-              <label>
-                <span className="small muted">{t("登录角色")}</span>
-                <select
-                  name="role"
-                  defaultValue={department.role ?? "ADVISOR"}
-                  aria-label={tv("{name} 的登录角色", { name: department.path })}
-                >
-                  {roleOptions.map((role) => (
-                    <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit">{t("保存")}</button>
-            </form>
-          </div>
-          {department.members.length ? (
-            <div className="wecom-tree-members">
-              <span className="small muted">{t("直接成员")}</span>
-              {department.members.map((member) => (
-                <div className="wecom-tree-member" key={`${department.id}-${member.id}`}>
-                  <span className="wecom-tree-member-dot" aria-hidden="true" />
-                  <span>{member.displayName}</span>
-                  <span className={member.canLogin ? "is-good" : "is-muted"}>
-                    {t(member.canLogin ? "可登录" : "未授权")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {department.children.length ? (
-            <div className="wecom-tree-children">
-              {department.children.map(renderWeComDepartment)}
-            </div>
-          ) : null}
+  const renderAccountForm = (mobile = false) => (
+    <form className="card" action="/api/admin/users" method="post">
+      <div className="card-header"><h3>{t("创建账号")}</h3></div>
+      <div className="card-body">
+        {error ? <div className="alert error">{tm(error)}</div> : null}
+        {created ? <div className="alert success">{t("账号已创建并写入当前数据库。")}</div> : null}
+        {roleUpdated ? <div className="alert success">{t("账号角色已更新。")}</div> : null}
+        <div className={`form-grid${mobile ? " mobile-two-col" : ""}`}>
+          <label>{t("用户名")}<input name="username" placeholder={mobile ? t("请输入用户名") : undefined} required /></label>
+          <label>{t("显示名称")}<input name="displayName" placeholder={mobile ? t("请输入显示名称") : undefined} required /></label>
+          <label>{t("角色")}<select name="role" defaultValue={mobile ? "ADVISOR" : undefined}>{roleOptions.map((role) => <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>)}</select></label>
+          <label>{t("初始密码")}<input name="password" type="password" placeholder={mobile ? t("请输入初始密码") : undefined} minLength={10} required /></label>
         </div>
-      </details>
-    );
-  };
+        <div className="form-actions"><button className="primary" type="submit">{t("创建账号")}</button></div>
+      </div>
+    </form>
+  );
+
+  const renderPermissionGuide = () => (
+    <div className="card">
+      <div className="card-header"><h3>{t("权限说明")}</h3></div>
+      <div className="card-body">
+        <p><strong>{t("顾问：")}</strong>{t("筛选、客户、跟进、申请和材料。")}</p>
+        <p><strong>{t("数据管理员：")}</strong>{t("顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。")}</p>
+        <p><strong>{t("渠道资源部：")}</strong>{t("院校信息录入与更新，不包含机密字段。")}</p>
+        <p><strong>{t("市场经理：")}</strong>{t("只读查看院校公开信息和备注。")}</p>
+        <p><strong>{t("高级管理员：")}</strong>{t("全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。")}</p>
+      </div>
+    </div>
+  );
 
   return (
     <>
       <PageHeading
         title={t("账号管理")}
         description={t("管理员创建和停用账号。停用后原有会话无法继续访问系统。")}
-        action={
-          <Link className="button mobile-header-icon-only" href="/account" aria-label={t("账号设置")}>
-            <Settings aria-hidden="true" />
-          </Link>
-        }
+        action={<Link className="button mobile-header-icon-only" href="/account" aria-label={t("账号设置")}><Settings aria-hidden="true" /></Link>}
       />
-      <section className="grid cols-2 desktop-only">
-        <form className="card" action="/api/admin/users" method="post">
-          <div className="card-header">
-            <h3>{t("创建账号")}</h3>
-          </div>
-          <div className="card-body">
-            {error ? <div className="alert error">{tm(error)}</div> : null}
-            {created ? (
-              <div className="alert success">{t("账号已创建并写入当前数据库。")}</div>
-            ) : null}
-            {roleUpdated ? <div className="alert success">{t("账号角色已更新。")}</div> : null}
-            <div className="form-grid">
-              <label>
-                {t("用户名")}
-                <input name="username" required />
-              </label>
-              <label>
-                {t("显示名称")}
-                <input name="displayName" required />
-              </label>
-              <label>
-                {t("角色")}
-                <select name="role">
-                  {roleOptions.map((role) => (
-                    <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {t("初始密码")}
-                <input name="password" type="password" minLength={10} required />
-              </label>
-            </div>
-            <div className="form-actions">
-              <button className="primary" type="submit">
-                {t("创建账号")}
-              </button>
-            </div>
-          </div>
-        </form>
-        <div className="card">
-          <div className="card-header">
-            <h3>{t("权限说明")}</h3>
-          </div>
-          <div className="card-body">
-            <p>
-              <strong>{t("顾问：")}</strong>{t("筛选、客户、跟进、申请和材料。")}
-            </p>
-            <p>
-              <strong>{t("数据管理员：")}</strong>{t("顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。")}
-            </p>
-            <p>
-              <strong>{t("渠道资源部：")}</strong>{t("院校信息录入与更新，不包含机密字段。")}
-            </p>
-            <p>
-              <strong>{t("市场经理：")}</strong>{t("只读查看院校公开信息和备注。")}
-            </p>
-            <p>
-              <strong>{t("高级管理员：")}</strong>{t("全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。")}
-            </p>
-          </div>
-        </div>
-      </section>
+      <section className="grid cols-2 desktop-only">{renderAccountForm()}{renderPermissionGuide()}</section>
 
       <section className="card wecom-admin-card" style={{ marginTop: 16 }}>
         <div className="card-header">
           <div>
-            <h3>{t("企业微信组织架构")}</h3>
-            <p className="muted small">
-              {t("按部门独立配置角色，子部门不继承上级权限；个人单独权限在右侧设置。")}
-            </p>
+            <h3>{t("企业微信成员与权限")}</h3>
+            <p className="muted small">{t("按组织查看成员的实际登录权限；部门规则仅作用于直属成员，个人设置可覆盖部门规则。")}</p>
           </div>
           <form action="/api/admin/wecom" method="post">
             <input type="hidden" name="intent" value="sync" />
-            <button className="primary" type="submit" disabled={!wecomConfigured}>
-              {t("立即同步")}
-            </button>
+            <button type="submit" disabled={!wecomConfigured}>{t("同步通讯录")}</button>
           </form>
         </div>
         <div className="card-body">
-          {!wecomConfigured ? (
-            <div className="alert error">
-              {t("企业微信配置未完成，请在运行环境设置 WECOM_CORP_ID、WECOM_SECRET 和 WECOM_REDIRECT_URI。")}
-            </div>
-          ) : null}
-          {wecomSynced ? (
-            <div className="alert success">
-              {tv("组织架构同步完成：{departments} 个部门，{members} 名成员。", {
-                departments: wecomDepartments || "0",
-                members: wecomSynced,
-              })}
-            </div>
-          ) : null}
+          {!wecomConfigured ? <div className="alert error">{t("企业微信配置未完成，请在运行环境设置 WECOM_CORP_ID、WECOM_SECRET 和 WECOM_REDIRECT_URI。")}</div> : null}
+          {wecomSynced ? <div className="alert success">{tv("组织架构同步完成：{departments} 个部门，{members} 名成员。", { departments: wecomDepartments || "0", members: wecomSynced })}</div> : null}
           {wecomRoleUpdated ? <div className="alert success">{t("部门角色映射已更新，相关账号的现有会话已刷新。")}</div> : null}
           {wecomUserUpdated ? <div className="alert success">{t("成员个人权限已更新，相关会话已刷新。")}</div> : null}
           {wecomError ? <div className="alert error">{tm(wecomError)}</div> : null}
-          {wecomDepartmentsRows.length ? (
-            <>
-              <div className="wecom-summary-grid">
-                <div>
-                  <span>{t("部门")}</span>
-                  <strong>{wecomDepartmentsRows.length}</strong>
-                </div>
-                <div>
-                  <span>{t("成员")}</span>
-                  <strong>{wecomMemberRows.length}</strong>
-                </div>
-                <div>
-                  <span>{t("可登录")}</span>
-                  <strong>{wecomLoginableMemberRows.length}</strong>
-                </div>
-                <div>
-                  <span>{t("待处理")}</span>
-                  <strong>{wecomMemberRows.filter((member) => !member.canLogin).length}</strong>
-                </div>
-              </div>
-
-              <div className="wecom-admin-columns">
-                <div className="wecom-panel">
-                  <div className="wecom-panel-heading">
-                    <div>
-                      <strong>{t("部门权限")}</strong>
-                      <span className="small muted">{t("复选框控制直接成员登录，角色在展开后保存")}</span>
-                    </div>
-                  </div>
-                  <div className="wecom-department-list">
-                    {wecomDepartmentTree.map(renderWeComDepartment)}
-                  </div>
-                </div>
-
-                <details className="wecom-panel wecom-member-panel">
-                  <summary className="wecom-panel-heading wecom-panel-summary">
-                    <span className="wecom-panel-disclosure" aria-hidden="true">›</span>
-                    <div>
-                      <strong>{t("成员单独权限")}</strong>
-                      <span className="small muted">{t("展开某个成员后，可覆盖部门默认权限")}</span>
-                    </div>
-                    <Badge tone={wecomPersonalizedMemberRows.length ? "blue" : "gray"}>
-                      {wecomPersonalizedMemberRows.length ? tv("已设置 {count} 人", { count: wecomPersonalizedMemberRows.length }) : t("未设置")}
-                    </Badge>
-                  </summary>
-                  <div className="wecom-member-list">
-                    {wecomMemberRows.length ? wecomMemberRows.map(renderWeComMemberAccess) : (
-                      <p className="wecom-empty-state">{t("尚未同步企业微信成员。")}</p>
-                    )}
-                  </div>
-                </details>
-
-                <details className="wecom-panel wecom-member-panel">
-                  <summary className="wecom-panel-heading wecom-panel-summary">
-                    <span className="wecom-panel-disclosure" aria-hidden="true">›</span>
-                    <div>
-                      <strong>{t("成员权限明细")}</strong>
-                      <span className="small muted">{t("仅展示当前可以登录的企业微信成员，点击成员查看细节")}</span>
-                    </div>
-                    <Badge tone={wecomLoginableMemberRows.length ? "green" : "gray"}>
-                      {wecomLoginableMemberRows.length} {t("人")}
-                    </Badge>
-                  </summary>
-                  <div className="wecom-member-list">
-                    {wecomLoginableMemberRows.length ? wecomLoginableMemberRows.map((member) => (
-                      <details className="wecom-member-item" key={member.id}>
-                        <summary>
-                          <span className="wecom-disclosure" aria-hidden="true">›</span>
-                          <span className="wecom-member-name">{member.displayName}</span>
-                          <span className="wecom-member-role">{member.role ? t(ROLE_OPTION_LABELS[member.role]) : t("无权限")}</span>
-                          <Badge tone={member.canLogin ? "green" : "red"}>
-                            {t(member.canLogin ? "可登录" : "不可登录")}
-                          </Badge>
-                        </summary>
-                        <div className="wecom-member-details">
-                          <div className="wecom-member-status">
-                            <span>{t("登录判断")}</span>
-                            <strong className={member.canLogin ? "is-good" : "is-bad"}>{t(member.accessReason)}</strong>
-                          </div>
-                          <div>
-                            <span className="small muted">{t("直接所属部门")}</span>
-                            {member.departments.length ? (
-                              <div className="wecom-source-list">
-                                {member.departments.map((department) => (
-                                  <div className="wecom-source-item" key={`${member.id}-${department.id}`}>
-                                    <span>{department.path}</span>
-                                    <Badge tone={department.role ? "blue" : "gray"}>
-                                      {department.role ? t(ROLE_OPTION_LABELS[department.role]) : t("未配置")}
-                                    </Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="small muted">{t("未找到部门归属，请重新同步组织架构")}</p>
-                            )}
-                          </div>
-                        </div>
-                      </details>
-                    )) : (
-                      <p className="wecom-empty-state">{t("当前没有可登录的企业微信成员。")}</p>
-                    )}
-                  </div>
-                </details>
-              </div>
-            </>
-          ) : (
-            <p className="muted">{t("尚未同步企业微信组织架构。")}</p>
-          )}
+          {wecomDepartmentsRows.length ? <WeComAccessWorkspace departments={wecomDepartmentsRows} members={wecomMemberRows} /> : <p className="muted">{t("尚未同步企业微信组织架构。")}</p>}
         </div>
       </section>
 
       <section className="card desktop-only" style={{ marginTop: 16 }}>
-        <div className="card-header">
-          <h3>{t("本地账号")}</h3>
-        </div>
-        <div className="card-body">
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>{t("账号")}</th>
-                  <th>{t("角色")}</th>
-                  <th>{t("来源")}</th>
-                  <th>{t("状态")}</th>
-                  <th>{t("最近登录")}</th>
-                  <th>{t("操作")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {localRows.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <strong>{user.displayName}</strong>
-                      <div className="small muted">{user.username}</div>
-                    </td>
-                    <td>
-                      {user.authProvider === "WECOM" ? (
-                        <>
-                          {t(ROLE_OPTION_LABELS[user.role])}
-                          <div className="small muted">{t("由部门映射")}</div>
-                        </>
-                      ) : (
-                        <form action="/api/admin/users" method="post">
-                          <input type="hidden" name="intent" value="update-role" />
-                          <input type="hidden" name="userId" value={user.id} />
-                          <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
-                            {roleOptions.map((role) => (
-                              <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                            ))}
-                          </select>
-                          <button type="submit">{t("保存角色")}</button>
-                        </form>
-                      )}
-                    </td>
-                    <td>{user.authProvider === "WECOM" ? t("企业微信") : t("本地账号")}</td>
-                    <td>
-                      <Badge tone={user.active ? "green" : "red"}>
-                        {bt(user.active ? "启用" : "停用")}
-                      </Badge>
-                    </td>
-                    <td>{formatDate(user.lastLoginAt)}</td>
-                    <td>
-                      {user.authProvider === "WECOM" ? (
-                        <span className="small muted">{t("由企业微信状态控制")}</span>
-                      ) : (
-                        <form action={toggleUserAction}>
-                          <input type="hidden" name="userId" value={user.id} />
-                          <input type="hidden" name="active" value={String(!user.active)} />
-                          <button type="submit">{t(user.active ? "停用" : "启用")}</button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div className="card-header"><h3>{t("本地账号")}</h3></div>
+        <div className="card-body"><div className="table-wrap"><table>
+          <thead><tr><th>{t("账号")}</th><th>{t("角色")}</th><th>{t("来源")}</th><th>{t("状态")}</th><th>{t("最近登录")}</th><th>{t("操作")}</th></tr></thead>
+          <tbody>{localRows.map((user) => (
+            <tr key={user.id}>
+              <td><strong>{user.displayName}</strong><div className="small muted">{user.username}</div></td>
+              <td><form action="/api/admin/users" method="post"><input type="hidden" name="intent" value="update-role" /><input type="hidden" name="userId" value={user.id} /><select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>{roleOptions.map((role) => <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>)}</select><button type="submit">{t("保存角色")}</button></form></td>
+              <td>{t("本地账号")}</td>
+              <td><Badge tone={user.active ? "green" : "red"}>{bt(user.active ? "启用" : "停用")}</Badge></td>
+              <td>{formatDate(user.lastLoginAt)}</td>
+              <td><form action={toggleUserAction}><input type="hidden" name="userId" value={user.id} /><input type="hidden" name="active" value={String(!user.active)} /><button type="submit">{t(user.active ? "停用" : "启用")}</button></form></td>
+            </tr>
+          ))}</tbody>
+        </table></div></div>
       </section>
 
       <section className="mobile-only mobile-account-form">
-        <form className="card" action="/api/admin/users" method="post">
-          <div className="card-header">
-            <h3>{t("创建账号")}</h3>
-          </div>
-          <div className="card-body">
-            {error ? <div className="alert error">{tm(error)}</div> : null}
-            {created ? (
-              <div className="alert success">{t("账号已创建并写入当前数据库。")}</div>
-            ) : null}
-            {roleUpdated ? <div className="alert success">{t("账号角色已更新。")}</div> : null}
-            <div className="form-grid mobile-two-col">
-              <label>
-                {t("用户名")}
-                <input name="username" placeholder={t("请输入用户名")} required />
-              </label>
-              <label>
-                {t("显示名称")}
-                <input name="displayName" placeholder={t("请输入显示名称")} required />
-              </label>
-              <label>
-                {t("角色")}
-                <select name="role" defaultValue="ADVISOR">
-                  {roleOptions.map((role) => (
-                    <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {t("初始密码")}
-                <input name="password" type="password" placeholder={t("请输入初始密码")} minLength={10} required />
-              </label>
-            </div>
-            <div className="form-actions">
-              <button className="primary" type="submit">
-                {t("创建账号")}
-              </button>
-            </div>
-          </div>
-        </form>
-
-        <div className="card mobile-permissions">
-          <div className="card-header">
-            <h3>{t("权限说明")}</h3>
-          </div>
-          <div className="card-body">
-            <p>
-              <strong>{t("顾问：")}</strong>{t("筛选、客户、跟进、申请和材料。")}
-            </p>
-            <p>
-              <strong>{t("数据管理员：")}</strong>{t("顾问权限，加 Excel 导入与项目复核；可查看院校机密字段，不可修改或导入机密字段。")}
-            </p>
-            <p>
-              <strong>{t("渠道资源部：")}</strong>{t("院校信息录入与更新，不包含机密字段。")}
-            </p>
-            <p>
-              <strong>{t("市场经理：")}</strong>{t("只读查看院校公开信息和备注。")}
-            </p>
-            <p>
-              <strong>{t("高级管理员：")}</strong>{t("全部权限，加账号与审计管理，含院校机密字段的查看、修改与导入。")}
-            </p>
-          </div>
-        </div>
-
+        {renderAccountForm(true)}
+        <div className="mobile-permissions">{renderPermissionGuide()}</div>
         <div className="mobile-account-list">
           <h3 className="mobile-section-title">{t("本地账号")}</h3>
           {localRows.map((user) => (
             <div key={user.id} className="mobile-account-card">
-              <div className="mobile-account-avatar">
-                {user.displayName.slice(0, 2).toUpperCase()}
-              </div>
+              <div className="mobile-account-avatar">{user.displayName.slice(0, 2).toUpperCase()}</div>
               <div className="mobile-account-info">
-                <div className="mobile-account-name">{user.displayName}</div>
-                <div className="small muted">{user.username}</div>
-                <div className="small muted">{t("本地账号")}</div>
+                <div className="mobile-account-name">{user.displayName}</div><div className="small muted">{user.username}</div><div className="small muted">{t("本地账号")}</div>
                 <div className="small muted mobile-login-line"><Calendar aria-hidden="true" /> {tv("最近登录：{date}", { date: formatDate(user.lastLoginAt) || "—" })}</div>
               </div>
               <div className="mobile-account-actions">
-                  <form action="/api/admin/users" method="post">
-                    <input type="hidden" name="intent" value="update-role" />
-                    <input type="hidden" name="userId" value={user.id} />
-                    <select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>
-                      {roleOptions.map((role) => (
-                        <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>
-                      ))}
-                    </select>
-                    <button type="submit" className="mobile-toggle-btn">{t("保存角色")}</button>
-                  </form>
-                <Badge tone={user.active ? "green" : "red"}>
-                  {bt(user.active ? "启用" : "停用")}
-                </Badge>
-                <form action={toggleUserAction}>
-                  <input type="hidden" name="userId" value={user.id} />
-                  <input type="hidden" name="active" value={String(!user.active)} />
-                  <button type="submit" className="mobile-toggle-btn">
-                    {t(user.active ? "停用" : "启用")}
-                  </button>
-                </form>
+                <form action="/api/admin/users" method="post"><input type="hidden" name="intent" value="update-role" /><input type="hidden" name="userId" value={user.id} /><select name="role" defaultValue={user.role} aria-label={tv("{name} 的角色", { name: user.displayName })}>{roleOptions.map((role) => <option key={role} value={role}>{t(ROLE_OPTION_LABELS[role])}</option>)}</select><button type="submit" className="mobile-toggle-btn">{t("保存角色")}</button></form>
+                <Badge tone={user.active ? "green" : "red"}>{bt(user.active ? "启用" : "停用")}</Badge>
+                <form action={toggleUserAction}><input type="hidden" name="userId" value={user.id} /><input type="hidden" name="active" value={String(!user.active)} /><button type="submit" className="mobile-toggle-btn">{t(user.active ? "停用" : "启用")}</button></form>
               </div>
             </div>
           ))}
@@ -660,10 +149,4 @@ const ROLE_OPTION_LABELS: Record<string, string> = {
   CHANNEL_RESOURCE: "渠道资源部",
   MARKET_MANAGER: "市场经理",
   ADMIN: "高级管理员",
-};
-
-const WECOM_ACCESS_MODE_LABELS: Record<WeComAccessMode, string> = {
-  INHERIT: "跟随部门",
-  ROLE: "单独允许",
-  DENY: "单独禁止",
 };
