@@ -1,10 +1,9 @@
 import * as XLSX from "xlsx";
 
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import {
-  canEditConfidentialSchoolFields,
   CONFIDENTIAL_TEMPLATE_HEADERS,
-  IMPORT_ROLES,
 } from "@/lib/permissions";
 
 // 与参照表“高校项目汇总-中文(20260704).xlsx”表头对齐；
@@ -51,8 +50,8 @@ const HEADERS = [
 ];
 
 export async function GET() {
-  const user = await requireRole([...IMPORT_ROLES]);
-  const canEditConfidential = canEditConfidentialSchoolFields(user.role);
+  const user = await requirePermission("DATA_IMPORT");
+  const canEditConfidential = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL");
   const headers = canEditConfidential
     ? HEADERS
     : HEADERS.filter((header) => !CONFIDENTIAL_TEMPLATE_HEADERS.includes(header));

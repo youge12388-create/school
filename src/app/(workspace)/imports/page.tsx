@@ -1,21 +1,18 @@
 import { ImportPanel } from "@/components/import-panel";
 import { SchoolUpdateImportPanel } from "@/components/school-update-import-panel";
 import { Badge, PageHeading } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
+import { requirePermission } from "@/lib/auth";
 import { makeT } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
-import {
-  canManageSchoolUpdates,
-  IMPORT_ROLES,
-} from "@/lib/permissions";
 import { listImports } from "@/lib/queries";
 import { formatDate, safeJson } from "@/lib/utils";
 
 export default async function ImportsPage() {
-  const user = await requireRole([...IMPORT_ROLES]);
+  const user = await requirePermission("DATA_IMPORT");
   const locale = await getUiLocale();
   const t = makeT(locale);
-  const canImportSchoolUpdates = canManageSchoolUpdates(user.role);
+  const canImportSchoolUpdates = userHasPermission(user, "SCHOOL_UPDATE_MANAGE");
   const batches = await listImports();
   return (
     <>

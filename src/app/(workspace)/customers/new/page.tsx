@@ -1,5 +1,5 @@
 import { PageHeading } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUSES,
@@ -15,7 +15,7 @@ export default async function NewCustomerPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const [{ error }, user] = await Promise.all([searchParams, requireUser()]);
+  const [{ error }, user] = await Promise.all([searchParams, requirePermission("CUSTOMER_EDIT")]);
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tm = makeMessageT(locale);

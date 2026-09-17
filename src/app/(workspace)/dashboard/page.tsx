@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { getUserPermissions } from "@/lib/access-control";
 import { AUDIT_ACTION_LABELS, ENTITY_TYPE_LABELS } from "@/lib/audit";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
-import { isMarketManager } from "@/lib/permissions";
+import { hasPermission, isMarketManager } from "@/lib/permissions";
 import { getDashboardData } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import {
@@ -15,10 +16,13 @@ import {
 } from "lucide-react";
 
 export default async function DashboardPage() {
-  const user = await requireUser();
+  const user = await requirePermission("WORKSPACE_VIEW");
   const t = await getT();
   const marketManagerView = isMarketManager(user.role);
-  const data = await getDashboardData();
+  const permissions = getUserPermissions(user);
+  const canViewScreening = hasPermission(permissions, "SCREENING_VIEW");
+  const canViewAudit = hasPermission(permissions, "AUDIT_VIEW");
+  const data = await getDashboardData({ includeAudit: canViewAudit });
   return (
     <>
       <PageHeading
@@ -28,11 +32,11 @@ export default async function DashboardPage() {
             ? t("查看学校项目与临近截止信息。")
             : t("集中查看临近截止项目和数据复核任务。")
         }
-        action={
+        action={canViewScreening ? (
           <Link className="button primary" href="/screening">
             {t("开始筛查")}
           </Link>
-        }
+        ) : undefined}
       />
 
       <section className="grid cols-4 desktop-only">
@@ -93,7 +97,10 @@ export default async function DashboardPage() {
         ) : null}
       </section>
 
-      <section className="grid cols-2 desktop-only" style={{ marginTop: 16 }}>
+      <section
+        className={`grid cols-2 desktop-only dashboard-secondary-grid${canViewAudit ? "" : " is-single"}`}
+        style={{ marginTop: 16 }}
+      >
         <DashboardCard
           title={t("30 天内截止项目")}
           empty={<EmptyState>{t("暂无已结构化的临近截止项目")}</EmptyState>}
@@ -110,7 +117,7 @@ export default async function DashboardPage() {
             </tr>
           ))}
         </DashboardCard>
-        {!marketManagerView ? (
+        {canViewAudit ? (
           <DashboardCard
             title={t("最近操作")}
             moreHref="/audit"
@@ -152,7 +159,7 @@ export default async function DashboardPage() {
           ) : null}
         </MobileSection>
 
-        {!marketManagerView ? (
+        {canViewAudit ? (
           <MobileSection title={t("最近操作")} href="/audit" more={t("操作审计")}>
             {data.recentAudit.map((log) => (
               <div key={log.id} className="mobile-list-item">

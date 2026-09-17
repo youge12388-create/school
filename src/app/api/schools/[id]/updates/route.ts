@@ -1,9 +1,7 @@
-import { requireRole, requireUser } from "@/lib/auth";
+import { requirePermission, requireUser } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { sqlite } from "@/lib/db";
-import {
-  SCHOOL_UPDATE_MANAGER_ROLES,
-} from "@/lib/permissions";
 import { getSchoolUpdates } from "@/lib/queries";
 import {
   serializeSchoolUpdate,
@@ -39,7 +37,11 @@ export async function GET(
   const items = await getSchoolUpdates(id);
   return Response.json(
     items.map((item) =>
-      serializeSchoolUpdate(item.update, item.attachments, user.role),
+      serializeSchoolUpdate(
+        item.update,
+        item.attachments,
+        userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
+      ),
     ),
   );
 }
@@ -48,7 +50,7 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
+  const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const { id } = await context.params;
   const school = sqlite
     .prepare("SELECT id, name_zh AS nameZh FROM schools WHERE id = ? AND archived = 0")
@@ -57,7 +59,10 @@ export async function POST(
     return Response.json({ error: "学校不存在" }, { status: 404 });
   }
   const body = (await request.json()) as Record<string, unknown>;
-  const input = stripSchoolUpdateInput(body, user.role);
+  const input = stripSchoolUpdateInput(
+    body,
+    userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
+  );
   const now = Date.now();
   const publicUrl = validateUrlField(optionalText(input.publicUrl));
   const secretUrl = validateUrlField(optionalText(input.secretUrl));
@@ -109,7 +114,11 @@ export async function POST(
   );
   return Response.json(
     created
-      ? serializeSchoolUpdate(created.update, created.attachments, user.role)
+      ? serializeSchoolUpdate(
+          created.update,
+          created.attachments,
+          userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
+        )
       : { id: updateId },
     { status: 201 },
   );

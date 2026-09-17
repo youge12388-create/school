@@ -10,16 +10,13 @@ import { SchoolBasicCard, type BasicCardSchool } from "@/components/school-basic
 import { SchoolConfidentialCard } from "@/components/school-confidential-card";
 import { SchoolProgramCard, type ProgramCardData } from "@/components/school-program-card";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { userHasPermission } from "@/lib/access-control";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { makeT, makeTv, translate, type UiLocale } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import {
-  canEditConfidentialSchoolFields,
-  canEditSchool,
   canEditSchoolNote,
-  canManageSchoolUpdates,
-  canViewConfidentialSchoolFields,
   isMarketManager,
   MARKET_MANAGER_PROGRAM_CORE_FIELDS,
   MARKET_MANAGER_PROGRAM_LONG_FIELDS,
@@ -119,15 +116,15 @@ export default async function SchoolDetailsPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const user = await requireUser();
+  const user = await requirePermission("SCHOOL_VIEW_PUBLIC");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
-  const canEdit = canEditSchool(user.role);
   const canEditNote = canEditSchoolNote(user.role);
-  const canEditConfidential = canEditConfidentialSchoolFields(user.role);
-  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
-  const canManageUpdates = canManageSchoolUpdates(user.role);
+  const canEditConfidential = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL");
+  const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
+  const canManageUpdates = userHasPermission(user, "SCHOOL_UPDATE_MANAGE");
+  const canEdit = userHasPermission(user, "SCHOOL_EDIT_PUBLIC");
   const marketManagerView = isMarketManager(user.role);
   const schoolFields = marketManagerView
     ? MARKET_MANAGER_SCHOOL_FIELDS
@@ -246,7 +243,7 @@ export default async function SchoolDetailsPage({
                 const view = serializeSchoolUpdate(
                   item.update,
                   item.attachments,
-                  user.role,
+                  canViewConfidential,
                 );
                 return (
                   <SchoolUpdateItem

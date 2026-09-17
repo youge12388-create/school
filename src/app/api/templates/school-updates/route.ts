@@ -1,11 +1,13 @@
-import { requireRole } from "@/lib/auth";
-import { SCHOOL_UPDATE_MANAGER_ROLES } from "@/lib/permissions";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { buildSchoolUpdateTemplateBuffer } from "@/lib/school-update-import";
 
 export async function GET() {
-  await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
+  const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
 
-  const buffer = buildSchoolUpdateTemplateBuffer();
+  const buffer = buildSchoolUpdateTemplateBuffer(
+    userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
+  );
 
   return new Response(buffer, {
     headers: {

@@ -1,18 +1,17 @@
 import { ZodError } from "zod";
 
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { createManualEntry } from "@/lib/import-service";
 import {
-  canEditConfidentialSchoolFields,
-  IMPORT_ROLES,
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
 
 export async function POST(request: Request) {
-  const user = await requireRole([...IMPORT_ROLES]);
+  const user = await requirePermission("DATA_IMPORT");
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const payload = canEditConfidentialSchoolFields(user.role)
+    const payload = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")
       ? body
       : stripConfidentialSchoolUpdates(body);
     const result = createManualEntry(payload, user.id);

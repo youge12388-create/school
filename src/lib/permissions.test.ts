@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { UserRole } from "@/lib/constants";
 import {
+  defaultPermissionsForRole,
   canEditConfidentialSchoolFields,
   canEditSchool,
   canEditSchoolNote,
@@ -12,6 +13,8 @@ import {
   isMarketManager,
   stripConfidentialSchoolData,
   stripConfidentialSchoolUpdates,
+  normalizePermissionSet,
+  PERMISSION_KEYS,
 } from "@/lib/permissions";
 
 const ROLES: UserRole[] = [
@@ -23,6 +26,27 @@ const ROLES: UserRole[] = [
 ];
 
 describe("permissions", () => {
+  it("exposes a workspace-safe template for every login role", () => {
+    for (const role of ROLES) {
+      const permissions = defaultPermissionsForRole(role);
+      expect(permissions).toContain("WORKSPACE_VIEW");
+      expect(new Set(permissions).size).toBe(permissions.length);
+    }
+    expect(defaultPermissionsForRole("ADMIN")).toEqual([...PERMISSION_KEYS]);
+    expect(defaultPermissionsForRole("ADVISOR")).toContain("AUDIT_VIEW");
+    expect(defaultPermissionsForRole("CHANNEL_RESOURCE")).toContain("AUDIT_VIEW");
+    expect(defaultPermissionsForRole("MARKET_MANAGER")).not.toContain("AUDIT_VIEW");
+  });
+
+  it("normalizes custom permissions and rejects unknown or non-loginable sets", () => {
+    expect(normalizePermissionSet(["DOCUMENT_UPLOAD", "WORKSPACE_VIEW", "DOCUMENT_UPLOAD"])).toEqual([
+      "WORKSPACE_VIEW",
+      "DOCUMENT_UPLOAD",
+    ]);
+    expect(() => normalizePermissionSet(["UNKNOWN_PERMISSION"])).toThrow("权限标识无效");
+    expect(() => normalizePermissionSet([])).toThrow("工作台访问权限");
+  });
+
   it("ADMIN and DATA_MANAGER can view confidential school fields", () => {
     for (const role of ROLES) {
       expect(canViewConfidentialSchoolFields(role)).toBe(

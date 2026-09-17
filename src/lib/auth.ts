@@ -5,10 +5,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import type { AuthProvider, UserRole } from "@/lib/constants";
+import { getUserPermissions } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { db, sqlite } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
 import { newId } from "@/lib/utils";
+import type { PermissionKey } from "@/lib/permissions";
 
 const COOKIE_NAME = "school_syt_session";
 const DEFAULT_SESSION_TTL_HOURS = 12;
@@ -100,6 +102,12 @@ export async function requireUser() {
 export async function requireRole(allowed: UserRole[]) {
   const user = await requireUser();
   if (!allowed.includes(user.role)) redirect("/");
+  return user;
+}
+
+export async function requirePermission(permission: PermissionKey) {
+  const user = await requireUser();
+  if (!getUserPermissions(user).includes(permission)) redirect("/");
   return user;
 }
 

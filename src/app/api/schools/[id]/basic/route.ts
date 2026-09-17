@@ -1,10 +1,9 @@
 import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { RULE_STATUSES } from "@/lib/constants";
 import { sqlite } from "@/lib/db";
-import { SCHOOL_EDITOR_ROLES } from "@/lib/permissions";
 import { asText } from "@/lib/utils";
 
 function optionalText(value: unknown) {
@@ -37,7 +36,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+  const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
   const { id } = await context.params;
   const school = sqlite
     .prepare("SELECT id, name_zh FROM schools WHERE id = ? AND archived = 0")

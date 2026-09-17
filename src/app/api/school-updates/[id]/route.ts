@@ -1,7 +1,7 @@
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { sqlite } from "@/lib/db";
-import { SCHOOL_UPDATE_MANAGER_ROLES } from "@/lib/permissions";
 import { stripSchoolUpdateInput } from "@/lib/school-updates";
 import { safeHttpUrl } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
+  const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const { id } = await context.params;
   const existing = sqlite
     .prepare(
@@ -58,7 +58,10 @@ export async function PATCH(
     return Response.json({ error: "更新记录不存在" }, { status: 404 });
   }
   const body = (await request.json()) as Record<string, unknown>;
-  const input = stripSchoolUpdateInput(body, user.role);
+  const input = stripSchoolUpdateInput(
+    body,
+    userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
+  );
   const changed = UPDATE_COLUMNS.filter((column) => column in input);
   if (!changed.length) {
     return Response.json({ error: "没有可更新的字段" }, { status: 400 });
@@ -106,7 +109,7 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
+  const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const { id } = await context.params;
   const existing = sqlite
     .prepare(
