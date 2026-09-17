@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
 import { asText } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole(["ADMIN"]);
+  const user = await requirePermission("SCHOOL_EDIT_CONFIDENTIAL");
   const { id } = await context.params;
   const school = sqlite
     .prepare("SELECT id, name_zh FROM schools WHERE id = ? AND archived = 0")

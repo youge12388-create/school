@@ -8,6 +8,7 @@ import {
   updateCustomerManagementAction,
 } from "@/app/actions";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { userHasPermission } from "@/lib/access-control";
 import {
   APPLICATION_STATUS_LABELS,
   CONTRACT_STATUS_LABELS,
@@ -17,8 +18,7 @@ import {
   type ApplicationStatus,
 } from "@/lib/constants";
 import { getCustomer, listCustomerOwners, listPrograms } from "@/lib/queries";
-import { canHandleCustomerCases } from "@/lib/permissions";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -29,11 +29,15 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await requireUser();
+  const user = await requirePermission("CUSTOMER_VIEW");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
-  const canHandleCase = canHandleCustomerCases(user.role);
+  const canEditCustomer = userHasPermission(user, "CUSTOMER_EDIT");
+  const canFollowUp = userHasPermission(user, "FOLLOW_UP_MANAGE");
+  const canManageApplication = userHasPermission(user, "APPLICATION_MANAGE");
+  const canUploadDocuments = userHasPermission(user, "DOCUMENT_UPLOAD");
+  const canDownloadDocuments = userHasPermission(user, "DOCUMENT_DOWNLOAD");
   const data = await getCustomer(id);
   if (!data) notFound();
   const [programOptions, owners] = await Promise.all([
@@ -48,7 +52,7 @@ export default async function CustomerDetailPage({
         title={customer.name}
         description={`${customer.customerNo} · ${customer.nationality || t("国籍未录入")}`}
         action={
-          canHandleCase ? (
+          canEditCustomer ? (
             <form action={archiveCustomerAction}>
               <input type="hidden" name="customerId" value={id} />
               <button className="danger" type="submit">{t("归档客户")}</button>
@@ -152,7 +156,7 @@ export default async function CustomerDetailPage({
           </div>
           <div className="card-body">
             <div className="detail-action-card">
-              {canHandleCase ? (
+              {canFollowUp ? (
                 <form action={addFollowUpAction}>
                   <input type="hidden" name="customerId" value={id} />
                   <div className="form-grid">
@@ -196,7 +200,7 @@ export default async function CustomerDetailPage({
           </div>
           <div className="card-body">
             <div className="detail-action-card">
-              {canHandleCase ? (
+              {canUploadDocuments ? (
                 <form action="/api/documents/upload" method="post" encType="multipart/form-data">
                   <input type="hidden" name="customerId" value={id} />
                   <div className="form-grid">
@@ -238,7 +242,7 @@ export default async function CustomerDetailPage({
                         <strong>{t(document.category)}</strong>
                         <div className="small muted">{document.originalName} · {Math.ceil(document.size / 1024)} KB</div>
                       </div>
-                      {canHandleCase ? (
+                      {canDownloadDocuments ? (
                         <a className="button" href={`/api/documents/${document.id}`}>{t("下载")}</a>
                       ) : (
                         <span className="small muted">{t("仅顾问可下载")}</span>
@@ -277,48 +281,52 @@ export default async function CustomerDetailPage({
             ) : <EmptyState>{t("尚未创建申请")}</EmptyState>}
           </div>
         </div>
-        {canHandleCase ? (
+        {canEditCustomer || canManageApplication ? (
           <div className="detail-action-card">
             <div className="card-header"><h3>{t("调整管理状态 / 新建申请")}</h3></div>
             <div className="card-body">
-              <form action={updateCustomerManagementAction} style={{ marginBottom: 14 }}>
-                <input type="hidden" name="customerId" value={id} />
-                <div className="customer-management-fields">
+              {canEditCustomer ? (
+                <form action={updateCustomerManagementAction} style={{ marginBottom: 14 }}>
+                  <input type="hidden" name="customerId" value={id} />
+                  <div className="customer-management-fields">
+                    <label>
+                      {t("负责老师")}
+                      <select name="ownerId" defaultValue={customer.ownerId || ""} required>
+                        {owners.map((owner) => (
+                          <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t("签约状态")}
+                      <select name="contractStatus" defaultValue={customer.contractStatus}>
+                        {CONTRACT_STATUSES.map((status) => (
+                          <option value={status} key={status}>{t(CONTRACT_STATUS_LABELS[status])}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="primary" type="submit">{t("更新")}</button>
+                  </div>
+                </form>
+              ) : null}
+              {canManageApplication ? (
+                <form action={createApplicationAction}>
+                  <input type="hidden" name="customerId" value={id} />
                   <label>
-                    {t("负责老师")}
-                    <select name="ownerId" defaultValue={customer.ownerId || ""} required>
-                      {owners.map((owner) => (
-                        <option value={owner.id} key={owner.id}>{owner.displayName}</option>
+                    {t("申请项目")}
+                    <select name="programId" required>
+                      <option value="">{t("请选择")}</option>
+                      {programOptions.map((program) => (
+                        <option value={program.id} key={program.id}>
+                          {program.schoolName} · {t(PROGRAM_TYPE_LABELS[program.programType])} · {t(LANGUAGE_LABELS[program.teachingLanguage])}
+                        </option>
                       ))}
                     </select>
                   </label>
-                  <label>
-                    {t("签约状态")}
-                    <select name="contractStatus" defaultValue={customer.contractStatus}>
-                      {CONTRACT_STATUSES.map((status) => (
-                        <option value={status} key={status}>{t(CONTRACT_STATUS_LABELS[status])}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="primary" type="submit">{t("更新")}</button>
-                </div>
-              </form>
-              <form action={createApplicationAction}>
-                <input type="hidden" name="customerId" value={id} />
-                <label>
-                  {t("申请项目")}
-                  <select name="programId" required>
-                    <option value="">{t("请选择")}</option>
-                    {programOptions.map((program) => (
-                      <option value={program.id} key={program.id}>
-                        {program.schoolName} · {t(PROGRAM_TYPE_LABELS[program.programType])} · {t(LANGUAGE_LABELS[program.teachingLanguage])}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label style={{ marginTop: 10 }}>{t("备注")}<textarea name="notes" /></label>
-                <div className="form-actions"><button type="submit">{t("创建申请")}</button></div>
-              </form>
+                  <label style={{ marginTop: 10 }}>{t("备注")}<textarea name="notes" /></label>
+                  <div className="form-actions"><button type="submit">{t("创建申请")}</button></div>
+                </form>
+              ) : null}
             </div>
           </div>
         ) : (

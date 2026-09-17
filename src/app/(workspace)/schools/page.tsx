@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Pagination } from "@/components/pagination";
 import { Badge, PageHeading } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { makeT } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { isMarketManager } from "@/lib/permissions";
@@ -15,7 +15,7 @@ export default async function SchoolsPage({
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const params = await searchParams;
-  const user = await requireUser();
+  const user = await requirePermission("SCHOOL_VIEW_PUBLIC");
   const t = makeT(await getUiLocale());
   const marketManagerView = isMarketManager(user.role);
   const { q = "" } = params;

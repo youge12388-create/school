@@ -54,6 +54,12 @@ export type SchoolUpdateView = {
   secretUpdatedAt?: number | null;
 };
 
+type SchoolUpdateSecretAccess = boolean | UserRole;
+
+function hasSecretAccess(access: SchoolUpdateSecretAccess) {
+  return typeof access === "boolean" ? access : canViewSchoolUpdateSecret(access);
+}
+
 const SECRET_INPUT_KEYS = [
   "submitter",
   "publicOperator",
@@ -66,9 +72,9 @@ const SECRET_INPUT_KEYS = [
 export function serializeSchoolUpdate(
   update: SchoolUpdateRow,
   attachments: SchoolUpdateAttachment[],
-  role: UserRole,
+  canSecret: SchoolUpdateSecretAccess,
 ): SchoolUpdateView {
-  const canSecret = canViewSchoolUpdateSecret(role);
+  const canViewSecret = hasSecretAccess(canSecret);
   const base: SchoolUpdateView = {
     id: update.id,
     schoolId: update.schoolId,
@@ -78,7 +84,7 @@ export function serializeSchoolUpdate(
     publicUpdatedAt: update.publicUpdatedAt,
     createdAt: update.createdAt,
     attachments: attachments
-      .filter((attachment) => canSecret || attachment.groupName !== "SECRET")
+      .filter((attachment) => canViewSecret || attachment.groupName !== "SECRET")
       .map((attachment) => ({
         id: attachment.id,
         groupName: attachment.groupName,
@@ -88,7 +94,7 @@ export function serializeSchoolUpdate(
         createdAt: attachment.createdAt,
       })),
   };
-  if (!canSecret) return base;
+  if (!canViewSecret) return base;
   return {
     ...base,
     submitter: update.submitter,
@@ -103,8 +109,8 @@ export function serializeSchoolUpdate(
 // 非机密人员提交机密/人员字段时，防御性剥离，避免绕过前端写入。
 export function stripSchoolUpdateInput<
   T extends Record<string, unknown>,
->(input: T, role: UserRole): T {
-  if (canViewSchoolUpdateSecret(role)) return input;
+>(input: T, canSecret: SchoolUpdateSecretAccess): T {
+  if (hasSecretAccess(canSecret)) return input;
   const copy = { ...input };
   for (const key of SECRET_INPUT_KEYS) {
     delete copy[key];

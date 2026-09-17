@@ -4,8 +4,7 @@ import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
 
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
-import { CUSTOMER_CASE_ROLES } from "@/lib/permissions";
+import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documents } from "@/lib/db/schema";
 import { decryptBuffer } from "@/lib/file-crypto";
@@ -14,7 +13,7 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("DOCUMENT_DOWNLOAD");
   const { id } = await context.params;
   const [document] = await db
     .select()

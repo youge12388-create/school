@@ -1,16 +1,16 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { ALLOWED_DOCUMENT_TYPES } from "@/lib/constants";
 import { sqlite } from "@/lib/db";
 import { encryptBuffer } from "@/lib/file-crypto";
-import { SCHOOL_UPDATE_MANAGER_ROLES } from "@/lib/permissions";
 import { asText, newId } from "@/lib/utils";
 
 export async function POST(request: Request) {
-  const user = await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
+  const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const formData = await request.formData();
   const file = formData.get("file");
   const schoolUpdateId = asText(formData.get("schoolUpdateId"));
@@ -20,6 +20,9 @@ export async function POST(request: Request) {
   }
   if (groupName !== "PUBLIC" && groupName !== "SECRET") {
     return Response.json({ error: "附件分组无效" }, { status: 400 });
+  }
+  if (groupName === "SECRET" && !userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL")) {
+    return Response.json({ error: "没有机密院校动态权限" }, { status: 403 });
   }
   const update = sqlite
     .prepare(

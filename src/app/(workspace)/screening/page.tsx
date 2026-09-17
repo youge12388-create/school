@@ -3,7 +3,7 @@ import { ClearScreeningFilters } from "@/components/clear-screening-filters";
 import { MajorPicker, type MajorCatalog } from "@/components/major-picker";
 import { ScreeningResultCard } from "@/components/screening-result-card";
 import { EmptyState, PageHeading } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
@@ -207,7 +207,7 @@ export default async function ScreeningPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const user = await requireUser();
+  const user = await requirePermission("SCREENING_VIEW");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);

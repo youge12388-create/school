@@ -1,5 +1,5 @@
-import { requireRole } from "@/lib/auth";
-import { SCHOOL_UPDATE_MANAGER_ROLES } from "@/lib/permissions";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import {
   importSchoolUpdateRows,
   parseSchoolUpdateWorkbook,
@@ -8,7 +8,7 @@ import {
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const user = await requireRole([...SCHOOL_UPDATE_MANAGER_ROLES]);
+  const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const formData = await request.formData();
   const file = formData.get("file");
   if (!(file instanceof File)) {
@@ -23,7 +23,20 @@ export async function POST(request: Request) {
   }
   const buffer = Buffer.from(await file.arrayBuffer());
   const parsed = parseSchoolUpdateWorkbook(buffer);
-  const result = importSchoolUpdateRows(parsed.rows, user.id);
+  const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
+  const rows = canViewConfidential
+    ? parsed.rows
+    : parsed.rows.map((row) => ({
+        ...row,
+        publicOperator: null,
+        secretContent: null,
+        secretUrl: null,
+        secretUpdatedAt: null,
+        secretOperator: null,
+        submitter: null,
+        submittedAt: null,
+      }));
+  const result = importSchoolUpdateRows(rows, user.id);
   return Response.json({
     summary: { ...result, skippedRows: parsed.skipped },
   });

@@ -286,23 +286,30 @@ export const SCHOOL_UPDATE_FIELD_NOTES: ReadonlyArray<{
   { column: "记录更新时间", required: false, note: "预留列，当前导入流程暂未解析该字段。" },
 ];
 
-export function buildSchoolUpdateTemplateBuffer() {
+export function buildSchoolUpdateTemplateBuffer(includeConfidential = true) {
   const workbook = XLSX.utils.book_new();
 
-  const headerCount = SCHOOL_UPDATE_TEMPLATE_HEADERS.length;
+  const headers = includeConfidential
+    ? SCHOOL_UPDATE_TEMPLATE_HEADERS
+    : SCHOOL_UPDATE_TEMPLATE_HEADERS.filter(
+        (header) => !header.startsWith("机密") && header !== "提交人" && header !== "提交时间" && header !== "操作人",
+      );
+  const headerCount = headers.length;
   const blankRows = Array.from({ length: 10 }, () =>
     Array.from({ length: headerCount }, () => ""),
   );
   const sheet = XLSX.utils.aoa_to_sheet([
     ["院校信息更新台账"],
-    [...SCHOOL_UPDATE_TEMPLATE_HEADERS],
+    [...headers],
     ...blankRows,
   ]);
   XLSX.utils.book_append_sheet(workbook, sheet, "院校信息更新");
 
   const noteRows: (string | number)[][] = [
     ["列名", "是否必填", "说明"],
-    ...SCHOOL_UPDATE_FIELD_NOTES.map((field) => [
+    ...SCHOOL_UPDATE_FIELD_NOTES.filter((field) => includeConfidential || (
+      !field.column.startsWith("机密") && field.column !== "提交人" && field.column !== "提交时间" && field.column !== "操作人"
+    )).map((field) => [
       field.column,
       field.required ? "必填" : "选填",
       field.note,

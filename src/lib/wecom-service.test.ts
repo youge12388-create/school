@@ -157,6 +157,101 @@ describe("WeCom identity persistence", () => {
     });
   });
 
+  it("applies custom department permissions and revokes sessions when they change", () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "顾问部");
+    addAdmin(database);
+
+    updateWeComDepartmentRole(
+      "2",
+      "ADVISOR",
+      "admin-1",
+      database,
+      { source: "CUSTOM", permissions: ["WORKSPACE_VIEW", "SCHOOL_VIEW_PUBLIC"] },
+    );
+    const account = upsertWeComLogin({
+      userId: "custom-department",
+      displayName: "部门自定义",
+      departmentIds: [2],
+      enabled: true,
+    }, database);
+
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      permissionSource: "CUSTOM",
+      permissions: ["WORKSPACE_VIEW", "SCHOOL_VIEW_PUBLIC"],
+    });
+    database
+      .prepare(
+        `INSERT INTO sessions (id, user_id, token_hash, expires_at, last_seen_at)
+         VALUES ('session-permission-change', ?, 'hash-permission-change', ?, ?)`,
+      )
+      .run(account.userId, Date.now() + 60_000, Date.now());
+
+    updateWeComDepartmentRole(
+      "2",
+      "ADVISOR",
+      "admin-1",
+      database,
+      {
+        source: "CUSTOM",
+        permissions: ["WORKSPACE_VIEW", "SCHOOL_VIEW_PUBLIC", "AUDIT_VIEW"],
+      },
+    );
+
+    expect(database.prepare("SELECT COUNT(*) AS count FROM sessions WHERE user_id = ?").get(account.userId)).toEqual({ count: 0 });
+    expect(listWeComMembers(database)[0].permissions).toEqual([
+      "WORKSPACE_VIEW",
+      "SCHOOL_VIEW_PUBLIC",
+      "AUDIT_VIEW",
+    ]);
+  });
+
+  it("supports a custom member permission set while retaining the selected role", () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "顾问部");
+    addAdmin(database);
+    database
+      .prepare("INSERT INTO wecom_department_roles (department_id, role, updated_by) VALUES (2, 'ADVISOR', 'admin-1')")
+      .run();
+    const account = upsertWeComLogin({
+      userId: "custom-member",
+      displayName: "成员自定义",
+      departmentIds: [2],
+      enabled: true,
+    }, database);
+
+    updateWeComUserAccess(
+      account.userId,
+      "ROLE",
+      "ADVISOR",
+      "admin-1",
+      database,
+      { source: "CUSTOM", permissions: ["WORKSPACE_VIEW", "CUSTOMER_VIEW"] },
+    );
+
+    expect(listWeComMembers(database)[0]).toMatchObject({
+      accessMode: "ROLE",
+      accessRole: "ADVISOR",
+      permissionSource: "CUSTOM",
+      permissions: ["WORKSPACE_VIEW", "CUSTOMER_VIEW"],
+    });
+  });
+
+  it("rejects unknown permission identifiers at the persistence boundary", () => {
+    const database = openDatabase();
+    addDepartment(database, 2, "顾问部");
+    addAdmin(database);
+
+    expect(() => updateWeComDepartmentRole(
+      "2",
+      "ADVISOR",
+      "admin-1",
+      database,
+      { source: "CUSTOM", permissions: ["WORKSPACE_VIEW", "NOT_A_PERMISSION"] },
+    )).toThrow("权限标识无效");
+    expect(database.prepare("SELECT COUNT(*) AS count FROM wecom_department_roles").get()).toEqual({ count: 0 });
+  });
+
   it("blocks an individually denied member and revokes existing sessions", () => {
     const database = openDatabase();
     addDepartment(database, 2, "顾问部");

@@ -33,7 +33,8 @@ import {
   users,
 } from "@/lib/db/schema";
 
-export async function getDashboardData() {
+export async function getDashboardData(options: { includeAudit?: boolean } = {}) {
+  const includeAudit = options.includeAudit ?? true;
   const today = new Date();
   const thirtyDays = new Date(today.getTime() + 30 * 86400000);
   const schoolCountRow = sqlite.prepare(`SELECT COUNT(*) as cnt FROM schools WHERE archived = 0`).get() as { cnt: number };
@@ -92,18 +93,20 @@ export async function getDashboardData() {
       ),
     )
     .limit(8);
-  const recentAudit = await db
-    .select({
-      id: auditLogs.id,
-      action: auditLogs.action,
-      entityType: auditLogs.entityType,
-      createdAt: auditLogs.createdAt,
-      displayName: users.displayName,
-    })
-    .from(auditLogs)
-    .leftJoin(users, eq(users.id, auditLogs.userId))
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(10);
+  const recentAudit = includeAudit
+    ? await db
+      .select({
+        id: auditLogs.id,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        createdAt: auditLogs.createdAt,
+        displayName: users.displayName,
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.userId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(10)
+    : [];
 
   return {
     counts: {

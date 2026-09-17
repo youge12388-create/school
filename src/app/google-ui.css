@@ -321,6 +321,10 @@ label {
   gap: 16px;
 }
 
+.dashboard-secondary-grid.is-single {
+  grid-template-columns: 1fr;
+}
+
 .card,
 .table-wrap,
 .toolbar {
@@ -3424,6 +3428,8 @@ button.school-note-edit:hover {
 .wecom-effective-access > span { color: var(--muted); font-size: 11px; }
 .wecom-effective-access > strong { font-size: 15px; }
 .wecom-effective-access .badge { justify-self: start; }
+.wecom-permission-source-label { color: var(--muted); font-size: 11px; }
+.wecom-department-permission-source { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 16px 16px; color: var(--muted); font-size: 11px; }
 
 .wecom-inspector-section { display: grid; gap: 8px; margin: 0 16px 16px; }
 .wecom-inspector-source { display: flex; align-items: center; justify-content: space-between; gap: 7px; font-size: 11px; }
@@ -3439,6 +3445,12 @@ button.school-note-edit:hover {
 .wecom-inspector-form { display: grid; gap: 12px; padding: 0 16px 16px; }
 .wecom-inspector-form label { display: grid; gap: 5px; color: var(--text); font-size: 12px; font-weight: 600; }
 .wecom-inspector-form select { min-height: 36px; padding: 6px 9px; font-size: 12px; }
+.wecom-permission-picker { display: grid; gap: 10px; }
+.wecom-permission-list { display: grid; gap: 8px; }
+.wecom-permission-list fieldset { display: grid; gap: 5px; margin: 0; border: 1px solid var(--border-soft); border-radius: 9px; padding: 8px 10px 9px; }
+.wecom-permission-list legend { padding: 0 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.wecom-permission-option { display: flex !important; grid-template-columns: 16px 1fr; align-items: center; gap: 7px !important; color: var(--text) !important; font-size: 11px !important; font-weight: 500 !important; }
+.wecom-permission-option input { width: 15px; min-height: 15px; margin: 0; accent-color: var(--primary); }
 .wecom-enabled-control { display: flex !important; grid-template-columns: 18px 1fr; align-items: center; gap: 8px !important; }
 .wecom-enabled-control input { width: 16px; min-height: 16px; margin: 0; accent-color: var(--primary); }
 .wecom-form-hint { margin: -2px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }

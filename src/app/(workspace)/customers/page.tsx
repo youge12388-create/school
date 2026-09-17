@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Pagination } from "@/components/pagination";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { userHasPermission } from "@/lib/access-control";
 import {
   ADMISSION_STATUS_LABELS,
   ADMISSION_STATUSES,
@@ -14,6 +15,7 @@ import {
 import { makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { listCustomerOwners, listCustomers } from "@/lib/queries";
+import { requirePermission } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 
 function contractTone(status: ContractStatus) {
@@ -41,6 +43,8 @@ export default async function CustomersPage({
   }>;
 }) {
   const params = await searchParams;
+  const user = await requirePermission("CUSTOMER_VIEW");
+  const canEditCustomer = userHasPermission(user, "CUSTOMER_EDIT");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
@@ -69,11 +73,11 @@ export default async function CustomersPage({
       <PageHeading
         title={t("客户管理")}
         description={t("集中查看负责老师、签约进度、院校录取情况和后续跟进记录。")}
-        action={
+        action={canEditCustomer ? (
           <Link className="button primary" href="/customers/new">
             {t("新增客户")}
           </Link>
-        }
+        ) : undefined}
       />
 
       <form className="toolbar customer-filter-toolbar desktop-only">

@@ -15,6 +15,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState } from "react";
 import { useT } from "@/lib/i18n/locale-context";
+import type { PermissionKey } from "@/lib/permissions";
 
 const drawerItems = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
@@ -38,26 +39,35 @@ export function useMobileDrawer() {
 
 export function MobileShell({
   role,
+  permissions,
   children,
 }: {
   role: string;
+  permissions: readonly PermissionKey[];
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <MobileDrawerContext.Provider value={{ open, setOpen }}>
       {children}
-      <MobileDrawer role={role} open={open} onClose={() => setOpen(false)} />
+      <MobileDrawer
+        role={role}
+        permissions={permissions}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
     </MobileDrawerContext.Provider>
   );
 }
 
 function MobileDrawer({
   role,
+  permissions,
   open,
   onClose,
 }: {
   role: string;
+  permissions: readonly PermissionKey[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -65,15 +75,16 @@ function MobileDrawer({
   const t = useT();
   const isNotedRoute = pathname.startsWith("/schools/noted");
   const items = drawerItems.filter((item) => {
+    if (item.href === "/dashboard") return permissions.includes("WORKSPACE_VIEW");
+    if (item.href === "/screening") return permissions.includes("SCREENING_VIEW");
+    if (item.href === "/schools" || item.href === "/schools/noted") {
+      return permissions.includes("SCHOOL_VIEW_PUBLIC");
+    }
     if (item.href === "/admin/users") return role === "ADMIN";
     if (item.href === "/imports") {
-      return (
-        role === "ADMIN" ||
-        role === "DATA_MANAGER" ||
-        role === "CHANNEL_RESOURCE"
-      );
+      return permissions.includes("DATA_IMPORT");
     }
-    if (item.href === "/audit") return role === "ADMIN" || role === "DATA_MANAGER";
+    if (item.href === "/audit") return permissions.includes("AUDIT_VIEW");
     if (item.href === "/security") return role !== "MARKET_MANAGER";
     return true;
   });

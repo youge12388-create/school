@@ -11,12 +11,10 @@ import {
   type ApplicationStatus,
   type ContractStatus,
 } from "@/lib/constants";
+import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
+import { requirePermission, requireRole } from "@/lib/auth";
 import {
-  canEditConfidentialSchoolFields,
-  CUSTOMER_CASE_ROLES,
-  SCHOOL_EDITOR_ROLES,
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
 import { db } from "@/lib/db";
@@ -37,7 +35,7 @@ import { invalidateMajorCatalog } from "@/lib/queries";
 import { asText, newId, normalizeKeyword, parseDateInput } from "@/lib/utils";
 
 export async function addFollowUpAction(formData: FormData) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("FOLLOW_UP_MANAGE");
   const customerId = asText(formData.get("customerId"));
   const content = asText(formData.get("content"));
   if (!customerId || !content) throw new Error("客户和沟通内容不能为空");
@@ -67,7 +65,7 @@ export async function addFollowUpAction(formData: FormData) {
 }
 
 export async function updateCustomerManagementAction(formData: FormData) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("CUSTOMER_EDIT");
   const customerId = asText(formData.get("customerId"));
   const ownerId = asText(formData.get("ownerId"));
   const contractStatus = asText(formData.get("contractStatus")) as ContractStatus;
@@ -97,7 +95,7 @@ export async function updateCustomerManagementAction(formData: FormData) {
   revalidatePath("/customers");
 }
 export async function archiveCustomerAction(formData: FormData) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("CUSTOMER_EDIT");
   const customerId = asText(formData.get("customerId"));
   await db
     .update(customers)
@@ -113,7 +111,7 @@ export async function archiveCustomerAction(formData: FormData) {
 }
 
 export async function createApplicationAction(formData: FormData) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("APPLICATION_MANAGE");
   const customerId = asText(formData.get("customerId"));
   const programId = asText(formData.get("programId"));
   if (!customerId || !programId) throw new Error("客户和项目不能为空");
@@ -144,7 +142,7 @@ export async function createApplicationAction(formData: FormData) {
 }
 
 export async function updateApplicationStatusAction(formData: FormData) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("APPLICATION_MANAGE");
   const applicationId = asText(formData.get("applicationId"));
   const toStatus = asText(formData.get("toStatus")) as ApplicationStatus;
   const reason = asText(formData.get("reason"));
@@ -247,7 +245,7 @@ function optionalFormNumber(formData: FormData, key: string) {
 export async function updateSchoolAction(formData: FormData) {
   let schoolId: string | undefined;
   try {
-    const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+    const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
     const id = asText(formData.get("id"));
     if (!id) throw new Error("缺少学校ID");
     schoolId = id;
@@ -293,7 +291,7 @@ export async function updateSchoolAction(formData: FormData) {
       reviewStatus: "VERIFIED" as const,
       updatedAt: new Date(),
     };
-    const permittedUpdates = canEditConfidentialSchoolFields(user.role)
+    const permittedUpdates = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")
       ? updates
       : stripConfidentialSchoolUpdates(updates);
 
@@ -424,7 +422,7 @@ async function updateSingleProgram(userId: string, formData: FormData, index: nu
 }
 
 export async function updateProgramAction(formData: FormData) {
-  const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+  const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
   const id = asText(formData.get("id"));
   if (!id) throw new Error("缺少项目ID");
 
@@ -519,7 +517,7 @@ export async function updateProgramAction(formData: FormData) {
   revalidatePath(`/schools/${oldProgram.schoolId}`);
 }
 export async function saveRecommendationAction(formData: FormData) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("RECOMMENDATION_MANAGE");
   const customerId = asText(formData.get("customerId"));
   const title = asText(formData.get("title"));
   const criteriaJson = asText(formData.get("criteriaJson"));

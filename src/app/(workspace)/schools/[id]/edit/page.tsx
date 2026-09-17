@@ -2,15 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeading } from "@/components/ui";
+import { userHasPermission } from "@/lib/access-control";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { makeMessageT, makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
-import {
-  canEditConfidentialSchoolFields,
-  canViewConfidentialSchoolFields,
-  SCHOOL_EDITOR_ROLES,
-} from "@/lib/permissions";
 import { getSchoolDetails } from "@/lib/queries";
 
 export default async function SchoolEditPage({
@@ -20,13 +16,13 @@ export default async function SchoolEditPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+  const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
   const tm = makeMessageT(locale);
-  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
-  const canEditConfidential = canEditConfidentialSchoolFields(user.role);
+  const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
+  const canEditConfidential = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL");
   const { id } = await params;
   const query = await searchParams;
   const errorMessage = query.error;

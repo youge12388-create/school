@@ -9,6 +9,11 @@ import * as XLSX from "xlsx";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({
   requireRole: async () => ({ id: "user-import", role: "ADMIN" }),
+  requirePermission: async () => ({
+    id: "user-import",
+    role: "DATA_MANAGER",
+    authProvider: "LOCAL",
+  }),
 }));
 
 import { migrateDatabase } from "@/lib/db/migration";

@@ -40,6 +40,8 @@ export async function POST(request: Request) {
       const hasPermissionToggle = formData.get("permissionToggle") === "1";
       const enabled = formData.get("enabled") === "1";
       const submittedRole = asText(formData.get("role"));
+      const permissionSource = asText(formData.get("permissionSource")) || "TEMPLATE";
+      const permissions = formData.getAll("permissions").map(asText).filter(Boolean);
       const role = hasPermissionToggle
         ? enabled
           ? submittedRole || "ADVISOR"
@@ -49,15 +51,21 @@ export async function POST(request: Request) {
         asText(formData.get("departmentId")),
         role,
         admin.id,
+        undefined,
+        { source: permissionSource, permissions },
       );
       return NextResponse.redirect(usersUrl(request, { wecomRoleUpdated: "1" }), 303);
     }
     if (intent === "update-user-access") {
+      const permissionSource = asText(formData.get("permissionSource")) || "TEMPLATE";
+      const permissions = formData.getAll("permissions").map(asText).filter(Boolean);
       updateWeComUserAccess(
         asText(formData.get("userId")),
         asText(formData.get("accessMode")),
         asText(formData.get("role")),
         admin.id,
+        undefined,
+        { source: permissionSource, permissions },
       );
       return NextResponse.redirect(usersUrl(request, { wecomUserUpdated: "1" }), 303);
     }

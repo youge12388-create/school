@@ -1,10 +1,10 @@
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { confirmImport } from "@/lib/import-service";
-import { IMPORT_ROLES } from "@/lib/permissions";
 import { sqlite } from "@/lib/db";
 
 export async function POST(request: Request) {
-  const user = await requireRole([...IMPORT_ROLES]);
+  const user = await requirePermission("DATA_IMPORT");
   try {
     const body = (await request.json()) as { batchId?: string };
     if (!body.batchId) {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     if (!batch) {
       return Response.json({ error: "导入批次不存在" }, { status: 404 });
     }
-    if (batch.imported_by !== user.id && user.role !== "ADMIN") {
+    if (batch.imported_by !== user.id && !userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")) {
       return Response.json(
         { error: "只能确认自己创建的导入批次（高级管理员除外）" },
         { status: 403 },

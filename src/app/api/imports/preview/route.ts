@@ -1,11 +1,11 @@
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { createImportPreview } from "@/lib/import-service";
-import { canEditConfidentialSchoolFields, IMPORT_ROLES } from "@/lib/permissions";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: Request) {
-  const user = await requireRole([...IMPORT_ROLES]);
+  const user = await requirePermission("DATA_IMPORT");
   try {
     const formData = await request.formData();
     const file = formData.get("file");
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         fileName: file.name,
         userId: user.id,
       },
-      { stripConfidential: !canEditConfidentialSchoolFields(user.role) },
+      { stripConfidential: !userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL") },
     );
 
     return Response.json({

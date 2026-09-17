@@ -12,6 +12,13 @@ import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui";
 import { useT, useTv } from "@/lib/i18n/locale-context";
+import {
+  defaultPermissionsForRole,
+  PERMISSION_GROUPS,
+  PERMISSION_LABELS,
+  type PermissionKey,
+  type PermissionSource,
+} from "@/lib/permissions";
 
 type Role = "ADVISOR" | "DATA_MANAGER" | "CHANNEL_RESOURCE" | "MARKET_MANAGER" | "ADMIN";
 type AccessMode = "INHERIT" | "ROLE" | "DENY";
@@ -25,6 +32,8 @@ type Department = {
   memberCount: number;
   path: string;
   depth: number;
+  permissions: PermissionKey[];
+  permissionSource: PermissionSource | "NONE";
 };
 
 type MemberDepartment = {
@@ -44,6 +53,8 @@ type Member = {
   canLogin: boolean;
   accessReason: string;
   departments: MemberDepartment[];
+  permissions: PermissionKey[];
+  permissionSource: PermissionSource | "INHERIT" | "DENY";
 };
 
 type DepartmentNode = Department & {
@@ -111,6 +122,243 @@ function memberSource(member: Member, t: (source: string) => string) {
   if (member.accessMode === "DENY") return t("个人禁止");
   const department = member.departments.find((item) => item.role === member.role);
   return department?.path ?? t("部门规则");
+}
+
+function permissionSourceLabel(member: Member, t: (source: string) => string) {
+  if (member.accessMode === "DENY") return t("个人禁止");
+  if (member.accessMode === "ROLE") {
+    return member.permissionSource === "CUSTOM"
+      ? t("个人自定义")
+      : t("个人模板");
+  }
+  return member.permissionSource === "CUSTOM"
+    ? t("部门自定义")
+    : t("部门模板");
+}
+
+function PermissionPicker({
+  role,
+  permissions,
+  source,
+  disabled = false,
+  onTemplateChange,
+  onToggle,
+}: {
+  role: Role;
+  permissions: PermissionKey[];
+  source: PermissionSource;
+  disabled?: boolean;
+  onTemplateChange: (role: Role) => void;
+  onToggle: (permission: PermissionKey, checked: boolean) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="wecom-permission-picker">
+      <label>
+        <span>{t("快速套用模板")}</span>
+        <select
+          value={source === "TEMPLATE" ? role : "CUSTOM"}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (value !== "CUSTOM") onTemplateChange(value as Role);
+          }}
+          disabled={disabled}
+        >
+          {(Object.keys(roleLabels) as Role[]).map((templateRole) => (
+            <option key={templateRole} value={templateRole}>
+              {t(roleLabels[templateRole])}
+            </option>
+          ))}
+          <option value="CUSTOM">{t("自定义权限")}</option>
+        </select>
+      </label>
+      <input type="hidden" name="permissionSource" value={source} />
+      <input type="hidden" name="permissions" value="WORKSPACE_VIEW" />
+      <div className="wecom-permission-list">
+        {PERMISSION_GROUPS.map((group) => (
+          <fieldset key={group.label} disabled={disabled}>
+            <legend>{t(group.label)}</legend>
+            {group.keys.map((permission) => {
+              const checked = permissions.includes(permission);
+              const mandatory = permission === "WORKSPACE_VIEW";
+              return (
+                <label className="wecom-permission-option" key={permission}>
+                  <input
+                    type="checkbox"
+                    name="permissions"
+                    value={permission}
+                    checked={checked}
+                    disabled={disabled || mandatory}
+                    onChange={(event) => onToggle(permission, event.target.checked)}
+                  />
+                  <span>{t(PERMISSION_LABELS[permission])}</span>
+                </label>
+              );
+            })}
+          </fieldset>
+        ))}
+      </div>
+      <p className="wecom-form-hint">
+        {disabled
+          ? t("当前权限跟随上级规则，查看明细但不能在这里修改。")
+          : source === "CUSTOM"
+            ? t("已使用自定义权限，勾选结果将作为最终权限。")
+            : t("模板会自动填充权限，也可以继续调整为自定义权限。")}
+      </p>
+    </div>
+  );
+}
+
+function DepartmentRuleForm({ department }: { department: DepartmentNode }) {
+  const t = useT();
+  const [enabled, setEnabled] = useState(Boolean(department.role));
+  const [role, setRole] = useState<Role>(department.role ?? "ADVISOR");
+  const [permissions, setPermissions] = useState<PermissionKey[]>(department.permissions);
+  const [source, setSource] = useState<PermissionSource>(
+    department.permissionSource === "CUSTOM" ? "CUSTOM" : "TEMPLATE",
+  );
+
+  const applyTemplate = (nextRole: Role) => {
+    setRole(nextRole);
+    setPermissions(defaultPermissionsForRole(nextRole));
+    setSource("TEMPLATE");
+  };
+
+  const togglePermission = (permission: PermissionKey, checked: boolean) => {
+    setSource("CUSTOM");
+    setPermissions((current) => {
+      const next = new Set(current);
+      if (checked) next.add(permission);
+      else next.delete(permission);
+      return [...next];
+    });
+  };
+
+  return (
+    <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">
+      <input type="hidden" name="intent" value="update-role" />
+      <input type="hidden" name="departmentId" value={department.id} />
+      <input type="hidden" name="permissionToggle" value="1" />
+      <label className="wecom-enabled-control">
+        <input
+          type="checkbox"
+          name="enabled"
+          value="1"
+          checked={enabled}
+          onChange={(event) => setEnabled(event.target.checked)}
+        />
+        <span>{t("允许直属成员登录")}</span>
+      </label>
+      <label>
+        <span>{t("登录角色")}</span>
+        <select
+          name="role"
+          value={enabled ? role : ""}
+          onChange={(event) => {
+            const nextRole = event.target.value as Role;
+            if (nextRole) applyTemplate(nextRole);
+          }}
+          disabled={!enabled}
+        >
+          {!enabled ? <option value="" disabled>{t("未配置")}</option> : null}
+          {(Object.keys(roleLabels) as Role[]).map((roleOption) => (
+            <option key={roleOption} value={roleOption}>{t(roleLabels[roleOption])}</option>
+          ))}
+        </select>
+      </label>
+      <PermissionPicker
+        role={role}
+        permissions={permissions}
+        source={source}
+        disabled={!enabled}
+        onTemplateChange={applyTemplate}
+        onToggle={togglePermission}
+      />
+      <p className="wecom-form-hint">{t("保存后会重新计算直属成员权限，并刷新已登录会话。")}</p>
+      <button className="primary" type="submit">{t("保存部门规则")}</button>
+    </form>
+  );
+}
+
+function MemberAccessForm({ member }: { member: Member }) {
+  const t = useT();
+  const [mode, setMode] = useState<AccessMode>(member.accessMode);
+  const [role, setRole] = useState<Role>(member.accessRole ?? member.role ?? "ADVISOR");
+  const [permissions, setPermissions] = useState<PermissionKey[]>(member.permissions);
+  const [source, setSource] = useState<PermissionSource>(
+    member.permissionSource === "CUSTOM" ? "CUSTOM" : "TEMPLATE",
+  );
+
+  const applyTemplate = (nextRole: Role) => {
+    setRole(nextRole);
+    setPermissions(defaultPermissionsForRole(nextRole));
+    setSource("TEMPLATE");
+  };
+
+  const togglePermission = (permission: PermissionKey, checked: boolean) => {
+    setSource("CUSTOM");
+    setPermissions((current) => {
+      const next = new Set(current);
+      if (checked) next.add(permission);
+      else next.delete(permission);
+      return [...next];
+    });
+  };
+
+  const editable = mode === "ROLE";
+
+  return (
+    <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">
+      <input type="hidden" name="intent" value="update-user-access" />
+      <input type="hidden" name="userId" value={member.id} />
+      <label>
+        <span>{t("权限处理方式")}</span>
+        <select
+          name="accessMode"
+          value={mode}
+          onChange={(event) => {
+            const nextMode = event.target.value as AccessMode;
+            setMode(nextMode);
+            if (nextMode === "ROLE") {
+              setPermissions(defaultPermissionsForRole(role));
+              setSource("TEMPLATE");
+            }
+          }}
+        >
+          {(Object.keys(accessModeLabels) as AccessMode[]).map((accessMode) => (
+            <option key={accessMode} value={accessMode}>{t(accessModeLabels[accessMode])}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>{t("单独角色")}</span>
+        <select
+          name="role"
+          value={role}
+          onChange={(event) => {
+            const nextRole = event.target.value as Role;
+            setRole(nextRole);
+            if (source === "TEMPLATE") setPermissions(defaultPermissionsForRole(nextRole));
+          }}
+          disabled={!editable}
+        >
+          {(Object.keys(roleLabels) as Role[]).map((roleOption) => (
+            <option key={roleOption} value={roleOption}>{t(roleLabels[roleOption])}</option>
+          ))}
+        </select>
+      </label>
+      <PermissionPicker
+        role={role}
+        permissions={permissions}
+        source={source}
+        disabled={!editable}
+        onTemplateChange={applyTemplate}
+        onToggle={togglePermission}
+      />
+      <p className="wecom-form-hint">{t("跟随部门会恢复部门默认；单独禁止会立即阻止登录。")}</p>
+      <button className="primary" type="submit">{t("保存成员权限")}</button>
+    </form>
+  );
 }
 
 export function WeComAccessWorkspace({
@@ -306,6 +554,9 @@ export function WeComAccessWorkspace({
               <div className="wecom-effective-access">
                 <span>{t("当前生效")}</span>
                 <strong>{roleLabel(selectedMember.role, t)}</strong>
+                <span className="wecom-permission-source-label">
+                  {t("权限来源")}：{permissionSourceLabel(selectedMember, t)}
+                </span>
                 <Badge tone={selectedMember.canLogin ? "green" : "red"}>
                   {t(selectedMember.accessReason)}
                 </Badge>
@@ -321,28 +572,7 @@ export function WeComAccessWorkspace({
                   </div>
                 )) : <p className="small muted">{t("未找到部门归属，请重新同步组织架构")}</p>}
               </div>
-              <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">
-                <input type="hidden" name="intent" value="update-user-access" />
-                <input type="hidden" name="userId" value={selectedMember.id} />
-                <label>
-                  <span>{t("权限处理方式")}</span>
-                  <select name="accessMode" defaultValue={selectedMember.accessMode}>
-                    {(Object.keys(accessModeLabels) as AccessMode[]).map((mode) => (
-                      <option key={mode} value={mode}>{t(accessModeLabels[mode])}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>{t("单独角色")}</span>
-                  <select name="role" defaultValue={selectedMember.accessRole ?? selectedMember.role ?? "ADVISOR"}>
-                    {(Object.keys(roleLabels) as Role[]).map((role) => (
-                      <option key={role} value={role}>{t(roleLabels[role])}</option>
-                    ))}
-                  </select>
-                </label>
-                <p className="wecom-form-hint">{t("跟随部门会恢复部门默认；单独禁止会立即阻止登录。")}</p>
-                <button className="primary" type="submit">{t("保存成员权限")}</button>
-              </form>
+              <MemberAccessForm key={selectedMember.id} member={selectedMember} />
             </>
           ) : selectedDepartment ? (
             <>
@@ -368,25 +598,13 @@ export function WeComAccessWorkspace({
                   </span>
                 </div>
               </div>
-              <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">
-                <input type="hidden" name="intent" value="update-role" />
-                <input type="hidden" name="departmentId" value={selectedDepartment.id} />
-                <input type="hidden" name="permissionToggle" value="1" />
-                <label className="wecom-enabled-control">
-                  <input type="checkbox" name="enabled" value="1" defaultChecked={Boolean(selectedDepartment.role)} />
-                  <span>{t("允许直属成员登录")}</span>
-                </label>
-                <label>
-                  <span>{t("登录角色")}</span>
-                  <select name="role" defaultValue={selectedDepartment.role ?? "ADVISOR"}>
-                    {(Object.keys(roleLabels) as Role[]).map((role) => (
-                      <option key={role} value={role}>{t(roleLabels[role])}</option>
-                    ))}
-                  </select>
-                </label>
-                <p className="wecom-form-hint">{t("保存后会重新计算相关成员权限，并刷新已登录会话。")}</p>
-                <button className="primary" type="submit">{t("保存部门规则")}</button>
-              </form>
+              <div className="wecom-department-permission-source">
+                <span>{t("当前权限来源")}</span>
+                <Badge tone={selectedDepartment.permissionSource === "CUSTOM" ? "amber" : "blue"}>
+                  {selectedDepartment.permissionSource === "CUSTOM" ? t("部门自定义") : selectedDepartment.role ? t("部门模板") : t("未配置")}
+                </Badge>
+              </div>
+              <DepartmentRuleForm key={selectedDepartment.id} department={selectedDepartment} />
             </>
           ) : null}
         </aside>

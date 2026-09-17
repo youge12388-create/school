@@ -3,13 +3,10 @@ import { revalidatePath } from "next/cache";
 
 import { RULE_STATUSES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { sqlite } from "@/lib/db";
-import {
-  canEditConfidentialSchoolFields,
-  SCHOOL_EDITOR_ROLES,
-  stripConfidentialSchoolUpdates,
-} from "@/lib/permissions";
+import { stripConfidentialSchoolUpdates } from "@/lib/permissions";
 import { saveProgramFields } from "@/lib/program-editor";
 import { appUrl } from "@/lib/http";
 import { asText } from "@/lib/utils";
@@ -84,7 +81,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await requireRole([...SCHOOL_EDITOR_ROLES]);
+    const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
 
     const nameZh = asText(formData.get("nameZh"));
     if (!nameZh) throw new Error("学校中文名不能为空");
@@ -129,7 +126,7 @@ export async function POST(request: Request) {
       reviewStatus: "VERIFIED" as const,
       updatedAt: Date.now(),
     };
-    const permittedUpdates = canEditConfidentialSchoolFields(user.role)
+    const permittedUpdates = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")
       ? updates
       : stripConfidentialSchoolUpdates(updates);
 

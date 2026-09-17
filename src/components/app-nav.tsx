@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebarCollapsed } from "@/components/sidebar-shell";
 import { useT } from "@/lib/i18n/locale-context";
+import type { PermissionKey } from "@/lib/permissions";
 
 const items = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
@@ -25,7 +26,13 @@ const items = [
   { href: "/admin/users", label: "账号管理", icon: UserRoundCog },
 ];
 
-export function AppNav({ role }: { role: string }) {
+export function AppNav({
+  role,
+  permissions,
+}: {
+  role: string;
+  permissions: readonly PermissionKey[];
+}) {
   const pathname = usePathname();
   const collapsed = useSidebarCollapsed();
   const t = useT();
@@ -33,19 +40,17 @@ export function AppNav({ role }: { role: string }) {
     <nav className="nav" aria-label={t("主导航")}>
       {items
         .filter((item) => {
+          if (item.href === "/dashboard") return permissions.includes("WORKSPACE_VIEW");
+          if (item.href === "/screening") return permissions.includes("SCREENING_VIEW");
+          if (item.href === "/schools" || item.href === "/schools/noted") {
+            return permissions.includes("SCHOOL_VIEW_PUBLIC");
+          }
           if (item.href === "/admin/users") return role === "ADMIN";
           if (item.href === "/imports") {
-            return (
-              role !== "MARKET_MANAGER" &&
-              (
-              role === "ADMIN" ||
-              role === "DATA_MANAGER" ||
-              role === "CHANNEL_RESOURCE"
-              )
-            );
+            return permissions.includes("DATA_IMPORT");
           }
           if (item.href === "/audit") {
-            return role !== "MARKET_MANAGER" && (role === "ADMIN" || role === "DATA_MANAGER");
+            return permissions.includes("AUDIT_VIEW");
           }
           return true;
         })

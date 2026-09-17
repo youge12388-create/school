@@ -8,8 +8,8 @@ import {
   type ApplicationStatus,
 } from "@/lib/constants";
 import { getApplication } from "@/lib/queries";
-import { canHandleCustomerCases } from "@/lib/permissions";
-import { requireUser } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
+import { requirePermission } from "@/lib/auth";
 import { makeT, makeTv } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
@@ -20,11 +20,11 @@ export default async function ApplicationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await requireUser();
+  const user = await requirePermission("CUSTOMER_VIEW");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
-  const canHandleCase = canHandleCustomerCases(user.role);
+  const canHandleCase = userHasPermission(user, "APPLICATION_MANAGE");
   const data = await getApplication(id);
   if (!data) notFound();
   const application = data.application;

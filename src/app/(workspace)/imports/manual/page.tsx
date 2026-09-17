@@ -1,16 +1,13 @@
 import { ImportMethodTabs } from "@/components/import-method-tabs";
 import { ManualEntryForm } from "@/components/manual-entry-form";
 import { PageHeading } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
+import { requirePermission } from "@/lib/auth";
 import { makeT } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
-import {
-  canEditConfidentialSchoolFields,
-  IMPORT_ROLES,
-} from "@/lib/permissions";
 
 export default async function ManualImportPage() {
-  const user = await requireRole([...IMPORT_ROLES]);
+  const user = await requirePermission("DATA_IMPORT");
   const t = makeT(await getUiLocale());
 
   return (
@@ -21,7 +18,7 @@ export default async function ManualImportPage() {
       />
       <ImportMethodTabs active="manual" />
       <ManualEntryForm
-        canEditConfidential={canEditConfidentialSchoolFields(user.role)}
+        canEditConfidential={userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")}
       />
     </>
   );

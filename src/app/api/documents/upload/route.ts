@@ -5,8 +5,7 @@ import { NextResponse } from "next/server";
 
 import { ALLOWED_DOCUMENT_TYPES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
-import { CUSTOMER_CASE_ROLES } from "@/lib/permissions";
+import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documents } from "@/lib/db/schema";
 import { encryptBuffer } from "@/lib/file-crypto";
@@ -14,7 +13,7 @@ import { appUrl } from "@/lib/http";
 import { asText, newId } from "@/lib/utils";
 
 export async function POST(request: Request) {
-  const user = await requireRole([...CUSTOMER_CASE_ROLES]);
+  const user = await requirePermission("DOCUMENT_UPLOAD");
   const formData = await request.formData();
   const file = formData.get("file");
   const customerId = asText(formData.get("customerId"));

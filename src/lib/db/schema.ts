@@ -77,6 +77,7 @@ export const wecomDepartmentRoles = sqliteTable("wecom_department_roles", {
       "MARKET_MANAGER",
     ],
   }).notNull(),
+  permissionsJson: text("permissions_json"),
   updatedBy: text("updated_by").references(() => users.id),
   ...timestamps,
 });
@@ -95,6 +96,7 @@ export const wecomUserAccess = sqliteTable("wecom_user_access", {
       "MARKET_MANAGER",
     ],
   }),
+  permissionsJson: text("permissions_json"),
   updatedBy: text("updated_by").references(() => users.id),
   ...timestamps,
 });

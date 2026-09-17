@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 
 import { writeAudit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { sqlite } from "@/lib/db";
 import { decryptBuffer } from "@/lib/file-crypto";
-import { canViewSchoolUpdateSecret } from "@/lib/permissions";
 
 export async function GET(
   _request: Request,
@@ -39,7 +39,7 @@ export async function GET(
   if (
     !attachment ||
     (attachment.groupName === "SECRET" &&
-      !canViewSchoolUpdateSecret(user.role))
+      !userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"))
   ) {
     return new Response("文件不存在", { status: 404 });
   }

@@ -8,6 +8,13 @@ import { writeAudit as writeAuditRecord } from "@/lib/audit";
 import { sqlite } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import {
+  defaultPermissionsForRole,
+  normalizePermissionSet,
+  parsePermissionSet,
+  type PermissionKey,
+  type PermissionSource,
+} from "@/lib/permissions";
+import {
   fetchWeComOrganization,
   type WeComIdentity,
   type WeComMember,
@@ -41,6 +48,8 @@ export type WeComDepartmentRow = {
   memberCount: number;
   path: string;
   depth: number;
+  permissions: PermissionKey[];
+  permissionSource: PermissionSource | "NONE";
 };
 
 export type WeComMemberDepartmentRow = {
@@ -65,13 +74,30 @@ export type WeComMemberRow = {
     | "所属部门未配置登录角色"
     | "账号状态待同步";
   departments: WeComMemberDepartmentRow[];
+  permissions: PermissionKey[];
+  permissionSource: PermissionSource | "INHERIT" | "DENY";
 };
 
 type RoleMappingRow = { departmentId: number; role: UserRole };
 type WeComUserAccessRow = {
   mode: WeComAccessMode;
   role: UserRole | null;
+  permissions?: PermissionKey[] | null;
 };
+
+export type WeComPermissionInput = {
+  source?: string | null;
+  permissions?: readonly string[];
+};
+
+export type WeComEffectiveAccess = {
+  role: UserRole | null;
+  permissions: PermissionKey[];
+  permissionSource: PermissionSource | "INHERIT" | "DENY";
+  departmentId: number | null;
+};
+
+type DepartmentPermissionMap = ReadonlyMap<number, PermissionKey[] | null>;
 
 function roleMapping(database: DatabaseSync) {
   const rows = database
@@ -80,6 +106,38 @@ function roleMapping(database: DatabaseSync) {
     )
     .all() as RoleMappingRow[];
   return new Map(rows.map((row) => [row.departmentId, row.role]));
+}
+
+function departmentPermissionMapping(database: DatabaseSync): DepartmentPermissionMap {
+  const rows = database
+    .prepare(
+      `SELECT department_id AS departmentId, permissions_json AS permissionsJson
+       FROM wecom_department_roles`,
+    )
+    .all() as Array<{ departmentId: number; permissionsJson: string | null }>;
+  return new Map(
+    rows.map((row) => [row.departmentId, parsePermissionSet(row.permissionsJson)]),
+  );
+}
+
+function permissionJsonForInput(
+  role: UserRole | null,
+  input: WeComPermissionInput,
+) {
+  const source = input.source == null || input.source === "" ? "TEMPLATE" : input.source;
+  if (source !== "TEMPLATE" && source !== "CUSTOM") {
+    throw new WeComAccessError("企业微信权限来源无效");
+  }
+  if (input.permissions !== undefined) {
+    const normalized = normalizePermissionSet([...input.permissions]);
+    if (role && source === "CUSTOM") return JSON.stringify(normalized);
+  }
+  return null;
+}
+
+function permissionSource(value: string | null | undefined): PermissionSource {
+  if (value === "CUSTOM") return "CUSTOM";
+  return "TEMPLATE";
 }
 
 function accessMode(value: string | null | undefined): WeComAccessMode {
@@ -91,11 +149,13 @@ function accessMode(value: string | null | undefined): WeComAccessMode {
 function userAccessFromRow(row: {
   mode?: string | null;
   role?: string | null;
+  permissionsJson?: string | null;
 } | undefined): WeComUserAccessRow {
   const mode = accessMode(row?.mode);
   return {
     mode,
     role: mode === "ROLE" ? assertRole(row?.role ?? null) : null,
+    permissions: mode === "ROLE" ? parsePermissionSet(row?.permissionsJson) : null,
   };
 }
 
@@ -104,8 +164,13 @@ function getWeComUserAccess(
   userId: string,
 ): WeComUserAccessRow {
   const row = database
-    .prepare("SELECT mode, role FROM wecom_user_access WHERE user_id = ? LIMIT 1")
-    .get(userId) as { mode: string; role: UserRole | null } | undefined;
+    .prepare(
+      `SELECT mode, role, permissions_json AS permissionsJson
+       FROM wecom_user_access WHERE user_id = ? LIMIT 1`,
+    )
+    .get(userId) as
+    | { mode: string; role: UserRole | null; permissionsJson: string | null }
+    | undefined;
   return userAccessFromRow(row);
 }
 
@@ -122,14 +187,77 @@ export function resolveWeComRole(
   return WECOM_ROLE_PRIORITY.find((role) => roles.has(role)) ?? null;
 }
 
+function resolveWeComDepartmentRole(
+  departmentIds: readonly number[],
+  mapping: ReadonlyMap<number, UserRole>,
+) {
+  const orderedDepartmentIds = [...new Set(departmentIds)].sort((left, right) => left - right);
+  for (const role of WECOM_ROLE_PRIORITY) {
+    const departmentId = orderedDepartmentIds.find(
+      (candidate) => mapping.get(candidate) === role,
+    );
+    if (departmentId !== undefined) return { role, departmentId };
+  }
+  return { role: null, departmentId: null };
+}
+
+export function resolveWeComEffectiveAccess(
+  departmentIds: readonly number[],
+  mapping: ReadonlyMap<number, UserRole>,
+  access: WeComUserAccessRow = { mode: "INHERIT", role: null, permissions: null },
+  departmentPermissions: DepartmentPermissionMap = new Map(),
+): WeComEffectiveAccess {
+  if (access.mode === "DENY") {
+    return {
+      role: null,
+      permissions: [],
+      permissionSource: "DENY",
+      departmentId: null,
+    };
+  }
+
+  if (access.mode === "ROLE") {
+    const role = access.role;
+    if (!role) {
+      return {
+        role: null,
+        permissions: [],
+        permissionSource: "INHERIT",
+        departmentId: null,
+      };
+    }
+    return {
+      role,
+      permissions: access.permissions ?? defaultPermissionsForRole(role),
+      permissionSource: access.permissions ? "CUSTOM" : "TEMPLATE",
+      departmentId: null,
+    };
+  }
+
+  const selected = resolveWeComDepartmentRole(departmentIds, mapping);
+  if (!selected.role || selected.departmentId === null) {
+    return {
+      role: null,
+      permissions: [],
+      permissionSource: "INHERIT",
+      departmentId: null,
+    };
+  }
+  const explicitPermissions = departmentPermissions.get(selected.departmentId) ?? null;
+  return {
+    role: selected.role,
+    permissions: explicitPermissions ?? defaultPermissionsForRole(selected.role),
+    permissionSource: explicitPermissions ? "CUSTOM" : "TEMPLATE",
+    departmentId: selected.departmentId,
+  };
+}
+
 export function resolveWeComEffectiveRole(
   departmentIds: readonly number[],
   mapping: ReadonlyMap<number, UserRole>,
   access: WeComUserAccessRow = { mode: "INHERIT", role: null },
 ) {
-  if (access.mode === "DENY") return null;
-  if (access.mode === "ROLE") return access.role;
-  return resolveWeComRole(departmentIds, mapping);
+  return resolveWeComEffectiveAccess(departmentIds, mapping, access).role;
 }
 
 function assertRole(role: string | null, message = "企业微信部门角色无效") {
@@ -150,12 +278,14 @@ function closeSessionsIfChanged(
   userId: string,
   previous: { role: UserRole; active: number; wecomEnabled: number } | undefined,
   next: { role: UserRole | null; active: boolean; wecomEnabled: boolean },
+  permissionsChanged = false,
 ) {
   if (
     previous &&
     (previous.role !== next.role ||
       Boolean(previous.active) !== next.active ||
-      Boolean(previous.wecomEnabled) !== next.wecomEnabled)
+      Boolean(previous.wecomEnabled) !== next.wecomEnabled ||
+      permissionsChanged)
   ) {
     database.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
   }
@@ -179,7 +309,30 @@ function upsertWeComMember(
   const access = previous
     ? getWeComUserAccess(database, userId)
     : { mode: "INHERIT", role: null } satisfies WeComUserAccessRow;
-  const role = resolveWeComEffectiveRole(member.departmentIds, mapping, access);
+  const departmentPermissions = departmentPermissionMapping(database);
+  const previousDepartmentIds = previous
+    ? (database
+        .prepare(
+          "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
+        )
+        .all(userId) as Array<{ departmentId: number }>)
+        .map((department) => department.departmentId)
+    : [];
+  const previousEffective = previous
+    ? resolveWeComEffectiveAccess(
+        previousDepartmentIds,
+        mapping,
+        access,
+        departmentPermissions,
+      )
+    : null;
+  const effective = resolveWeComEffectiveAccess(
+    member.departmentIds,
+    mapping,
+    access,
+    departmentPermissions,
+  );
+  const role = effective.role;
   const active = member.enabled && role !== null;
   const now = Date.now();
 
@@ -196,7 +349,10 @@ function upsertWeComMember(
       role,
       active,
       wecomEnabled: member.enabled,
-    });
+    }, Boolean(
+      previousEffective &&
+        JSON.stringify(previousEffective.permissions) !== JSON.stringify(effective.permissions),
+    ));
   } else {
     database
       .prepare(
@@ -233,11 +389,13 @@ function upsertWeComMember(
 
 function recomputeExternalUserAccess(database: DatabaseSync) {
   const mapping = roleMapping(database);
+  const departmentPermissions = departmentPermissionMapping(database);
   const externalUsers = database
     .prepare(
       `SELECT
          u.id, u.role, u.active, u.wecom_enabled AS wecomEnabled,
-         a.mode AS accessMode, a.role AS accessRole
+         a.mode AS accessMode, a.role AS accessRole,
+         a.permissions_json AS permissionsJson
        FROM users u
        LEFT JOIN wecom_user_access a ON a.user_id = u.id
        WHERE u.auth_provider = 'WECOM'`,
@@ -249,6 +407,7 @@ function recomputeExternalUserAccess(database: DatabaseSync) {
     wecomEnabled: number;
     accessMode: string | null;
     accessRole: UserRole | null;
+    permissionsJson: string | null;
   }>;
 
   for (const user of externalUsers) {
@@ -257,16 +416,21 @@ function recomputeExternalUserAccess(database: DatabaseSync) {
         "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
       )
       .all(user.id) as Array<{ departmentId: number }>;
-    const role = resolveWeComEffectiveRole(
+    const effective = resolveWeComEffectiveAccess(
       departments.map((department) => department.departmentId),
       mapping,
-      userAccessFromRow({ mode: user.accessMode, role: user.accessRole }),
+      userAccessFromRow({
+        mode: user.accessMode,
+        role: user.accessRole,
+        permissionsJson: user.permissionsJson,
+      }),
+      departmentPermissions,
     );
-    const active = Boolean(user.wecomEnabled) && role !== null;
-    if (user.role === role && Boolean(user.active) === active) continue;
+    const active = Boolean(user.wecomEnabled) && effective.role !== null;
+    if (user.role === effective.role && Boolean(user.active) === active) continue;
     database
       .prepare("UPDATE users SET role = ?, active = ?, updated_at = ? WHERE id = ?")
-      .run(role ?? "ADVISOR", active ? 1 : 0, Date.now(), user.id);
+      .run(effective.role ?? "ADVISOR", active ? 1 : 0, Date.now(), user.id);
     database.prepare("DELETE FROM sessions WHERE user_id = ?").run(user.id);
   }
 }
@@ -390,7 +554,7 @@ export function listWeComDepartments(database: DatabaseSync = sqlite): WeComDepa
     .prepare(
       `SELECT
          d.id, d.name, d.parent_id AS parentId, d.display_order AS displayOrder,
-         r.role AS role,
+         r.role AS role, r.permissions_json AS permissionsJson,
          COUNT(ud.user_id) AS memberCount
        FROM wecom_departments d
        LEFT JOIN wecom_department_roles r ON r.department_id = d.id
@@ -404,6 +568,7 @@ export function listWeComDepartments(database: DatabaseSync = sqlite): WeComDepa
     parentId: number;
     displayOrder: number;
     role: UserRole | null;
+    permissionsJson: string | null;
     memberCount: number;
   }>;
   const byId = new Map(rows.map((row) => [row.id, row]));
@@ -424,7 +589,21 @@ export function listWeComDepartments(database: DatabaseSync = sqlite): WeComDepa
   };
 
   return rows
-    .map((row) => ({ ...row, ...getPath(row.id) }))
+    .map((row) => {
+      const explicitPermissions = parsePermissionSet(row.permissionsJson);
+      return {
+        ...row,
+        ...getPath(row.id),
+        permissions: row.role
+          ? explicitPermissions ?? defaultPermissionsForRole(row.role)
+          : [],
+        permissionSource: row.role
+          ? explicitPermissions
+            ? "CUSTOM"
+            : "TEMPLATE"
+          : "NONE",
+      } satisfies WeComDepartmentRow;
+    })
     .sort((left, right) => left.path.localeCompare(right.path, "zh-CN"));
 }
 
@@ -437,7 +616,8 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
       `SELECT
          u.id, u.display_name AS displayName, u.role, u.active,
          u.wecom_enabled AS wecomEnabled,
-         a.mode AS accessMode, a.role AS accessRole
+         a.mode AS accessMode, a.role AS accessRole,
+         a.permissions_json AS permissionsJson
        FROM users u
        LEFT JOIN wecom_user_access a ON a.user_id = u.id
        WHERE u.auth_provider = 'WECOM'
@@ -451,16 +631,28 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
     wecomEnabled: number;
     accessMode: string | null;
     accessRole: UserRole | null;
+    permissionsJson: string | null;
   }>;
   const memberships = database.prepare(
     "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
   );
+  const departmentPermissions = departmentPermissionMapping(database);
 
   return users.map((user) => {
     const directDepartmentIds = (memberships.all(user.id) as Array<{ departmentId: number }>)
       .map((department) => department.departmentId);
-    const access = userAccessFromRow({ mode: user.accessMode, role: user.accessRole });
-    const role = resolveWeComEffectiveRole(directDepartmentIds, mapping, access);
+    const access = userAccessFromRow({
+      mode: user.accessMode,
+      role: user.accessRole,
+      permissionsJson: user.permissionsJson,
+    });
+    const effective = resolveWeComEffectiveAccess(
+      directDepartmentIds,
+      mapping,
+      access,
+      departmentPermissions,
+    );
+    const role = effective.role;
     const active = Boolean(user.active);
     const wecomEnabled = Boolean(user.wecomEnabled);
     const canLogin = wecomEnabled && active && role !== null;
@@ -484,6 +676,8 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
       wecomEnabled,
       canLogin,
       accessReason,
+      permissions: effective.permissions,
+      permissionSource: effective.permissionSource,
       departments: directDepartmentIds
         .map((departmentId) => {
           const department = departmentById.get(departmentId);
@@ -500,11 +694,64 @@ export function listWeComMembers(database: DatabaseSync = sqlite): WeComMemberRo
   });
 }
 
+export function getWeComEffectiveAccess(
+  userId: string,
+  database: DatabaseSync = sqlite,
+): WeComEffectiveAccess {
+  const user = database
+    .prepare(
+      `SELECT role, auth_provider AS authProvider, wecom_enabled AS wecomEnabled
+       FROM users WHERE id = ? LIMIT 1`,
+    )
+    .get(userId) as
+    | { role: UserRole; authProvider: string; wecomEnabled: number }
+    | undefined;
+  if (!user || user.authProvider !== "WECOM" || !user.wecomEnabled) {
+    return {
+      role: null,
+      permissions: [],
+      permissionSource: "INHERIT",
+      departmentId: null,
+    };
+  }
+
+  const departments = database
+    .prepare(
+      "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
+    )
+    .all(userId) as Array<{ departmentId: number }>;
+  return resolveWeComEffectiveAccess(
+    departments.map((department) => department.departmentId),
+    roleMapping(database),
+    getWeComUserAccess(database, userId),
+    departmentPermissionMapping(database),
+  );
+}
+
+export function getWeComEffectivePermissions(
+  userId: string,
+  database: DatabaseSync = sqlite,
+) {
+  return getWeComEffectiveAccess(userId, database).permissions;
+}
+
+function closeSessionsForDepartmentMembers(database: DatabaseSync, departmentId: number) {
+  database
+    .prepare(
+      `DELETE FROM sessions
+       WHERE user_id IN (
+         SELECT user_id FROM wecom_user_departments WHERE department_id = ?
+       )`,
+    )
+    .run(departmentId);
+}
+
 export function updateWeComDepartmentRole(
   departmentIdInput: string,
   roleInput: string,
   actorId: string,
   database: DatabaseSync = sqlite,
+  permissionInput: WeComPermissionInput = {},
 ) {
   const departmentId = Number(departmentIdInput);
   if (!Number.isInteger(departmentId) || departmentId <= 0) {
@@ -518,26 +765,35 @@ export function updateWeComDepartmentRole(
 
   database.exec("BEGIN IMMEDIATE");
   try {
+    const permissionsJson = permissionJsonForInput(role, permissionInput);
     if (role) {
       database
         .prepare(
-          `INSERT INTO wecom_department_roles (department_id, role, updated_by, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?)
+          `INSERT INTO wecom_department_roles
+             (department_id, role, permissions_json, updated_by, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(department_id) DO UPDATE SET
-             role = excluded.role, updated_by = excluded.updated_by, updated_at = excluded.updated_at`,
+             role = excluded.role, permissions_json = excluded.permissions_json,
+             updated_by = excluded.updated_by, updated_at = excluded.updated_at`,
         )
-        .run(departmentId, role, actorId, Date.now(), Date.now());
+        .run(departmentId, role, permissionsJson, actorId, Date.now(), Date.now());
     } else {
       database.prepare("DELETE FROM wecom_department_roles WHERE department_id = ?").run(departmentId);
     }
     recomputeExternalUserAccess(database);
+    closeSessionsForDepartmentMembers(database, departmentId);
     writeAuditRecord(
       {
         userId: actorId,
         action: "WECOM_DEPARTMENT_ROLE_UPDATED",
         entityType: "USER",
         entityId: String(departmentId),
-        details: { departmentId, role },
+        details: {
+          departmentId,
+          role,
+          permissionSource: permissionSource(permissionInput.source),
+          permissions: permissionsJson ? JSON.parse(permissionsJson) : null,
+        },
       },
       database,
     );
@@ -554,6 +810,7 @@ export function updateWeComUserAccess(
   roleInput: string,
   actorId: string,
   database: DatabaseSync = sqlite,
+  permissionInput: WeComPermissionInput = {},
 ) {
   const userId = userIdInput.trim();
   if (!userId) throw new WeComAccessError("企业微信成员无效，请先同步组织架构");
@@ -587,16 +844,31 @@ export function updateWeComUserAccess(
   }
 
   const mapping = roleMapping(database);
+  const departmentPermissions = departmentPermissionMapping(database);
   const departments = database
     .prepare(
       "SELECT department_id AS departmentId FROM wecom_user_departments WHERE user_id = ?",
     )
     .all(userId) as Array<{ departmentId: number }>;
-  const effectiveRole = resolveWeComEffectiveRole(
+  const previousEffective = resolveWeComEffectiveAccess(
     departments.map((department) => department.departmentId),
     mapping,
-    { mode, role },
+    getWeComUserAccess(database, userId),
+    departmentPermissions,
   );
+  const permissionsJson = permissionJsonForInput(role, permissionInput);
+  const nextAccess: WeComUserAccessRow = {
+    mode,
+    role,
+    permissions: parsePermissionSet(permissionsJson),
+  };
+  const effective = resolveWeComEffectiveAccess(
+    departments.map((department) => department.departmentId),
+    mapping,
+    nextAccess,
+    departmentPermissions,
+  );
+  const effectiveRole = effective.role;
   const active = Boolean(user.wecomEnabled) && effectiveRole !== null;
   const now = Date.now();
 
@@ -605,15 +877,16 @@ export function updateWeComUserAccess(
     database
       .prepare(
         `INSERT INTO wecom_user_access
-           (user_id, mode, role, updated_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)
+           (user_id, mode, role, permissions_json, updated_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(user_id) DO UPDATE SET
            mode = excluded.mode,
            role = excluded.role,
+           permissions_json = excluded.permissions_json,
            updated_by = excluded.updated_by,
            updated_at = excluded.updated_at`,
       )
-      .run(userId, mode, role, actorId, now, now);
+      .run(userId, mode, role, permissionsJson, actorId, now, now);
     database
       .prepare(
         "UPDATE users SET role = ?, active = ?, updated_at = ? WHERE id = ?",
@@ -623,7 +896,7 @@ export function updateWeComUserAccess(
       role: effectiveRole,
       active,
       wecomEnabled: Boolean(user.wecomEnabled),
-    });
+    }, JSON.stringify(previousEffective.permissions) !== JSON.stringify(effective.permissions));
     writeAuditRecord(
       {
         userId: actorId,
@@ -634,6 +907,8 @@ export function updateWeComUserAccess(
           displayName: user.displayName,
           mode,
           role,
+          permissionSource: permissionSource(permissionInput.source),
+          permissions: permissionsJson ? JSON.parse(permissionsJson) : null,
           effectiveRole,
           active,
         },

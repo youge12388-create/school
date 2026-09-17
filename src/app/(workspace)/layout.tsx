@@ -6,6 +6,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { MobileShell } from "@/components/mobile-shell";
 import { SidebarShell } from "@/components/sidebar-shell";
 import { GlobalSearch } from "@/components/global-search";
+import { getUserPermissions } from "@/lib/access-control";
 import { requireUser } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
 import { translate } from "@/lib/i18n/dict";
@@ -21,17 +22,18 @@ export default async function WorkspaceLayout({
   const locale = await getUiLocale();
   const t = (s: string) => translate(locale, s);
   const roleLabel = t(ROLE_LABELS[user.role]);
+  const permissions = getUserPermissions(user);
 
   return (
     <LocaleProvider locale={locale}>
-      <MobileShell role={user.role}>
+      <MobileShell role={user.role} permissions={permissions}>
         <div className="app-shell">
           <SidebarShell>
             <div className="brand">
               <div className="brand-mark">SYT</div>
               <div className="brand-name">{t("高校筛查与申请管理")}</div>
             </div>
-            <AppNav role={user.role} />
+            <AppNav role={user.role} permissions={permissions} />
             <div className="sidebar-user">
               <Link href="/account"><strong>{user.displayName}</strong></Link>
               <small>{roleLabel}</small>

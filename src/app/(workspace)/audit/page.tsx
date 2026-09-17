@@ -1,6 +1,6 @@
 import { Pagination } from "@/components/pagination";
 import { PageHeading } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { AUDIT_ACTION_LABELS, formatAuditDetails, formatAuditObject } from "@/lib/audit";
 import { makeT } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
@@ -12,7 +12,7 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requirePermission("AUDIT_VIEW");
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const locale = await getUiLocale();
   const t = makeT(locale);

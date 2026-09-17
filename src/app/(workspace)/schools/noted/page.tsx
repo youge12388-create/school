@@ -1,13 +1,10 @@
 import Link from "next/link";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
+import { requirePermission } from "@/lib/auth";
 import { makeT, makeTv, type UiLocale } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
-import {
-  canEditSchool,
-  canViewConfidentialSchoolFields,
-} from "@/lib/permissions";
 import {
   getNotedSchoolScopeCounts,
   listNotedSchools,
@@ -177,12 +174,12 @@ export default async function NotedSchoolsPage({
   searchParams: Promise<{ page?: string; scope?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const user = await requireUser();
+  const user = await requirePermission("SCHOOL_VIEW_PUBLIC");
   const locale = await getUiLocale();
   const t = makeT(locale);
   const tv = makeTv(locale);
-  const canViewConfidential = canViewConfidentialSchoolFields(user.role);
-  const canEdit = canEditSchool(user.role);
+  const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
+  const canEdit = userHasPermission(user, "SCHOOL_EDIT_PUBLIC");
   const scope = getScopeFromParams(params.scope, canViewConfidential);
   const query = params.q?.trim() ?? "";
   const page = Math.max(1, Number(params.page) || 1);
