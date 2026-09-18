@@ -319,7 +319,12 @@ export default async function SchoolDetailsPage({
         {visiblePrograms.length ? (
           visiblePrograms.map((program, index) => {
             const raw = safeJson<Record<string, unknown>>(program.rawJson, {});
+            // rawJson 是原始 Excel 行，可能含与归一化字段同名的键（如手工录入错位值）。
+            // 归一化字段（program.programType 等已通过 normalizeProgramType 校验）必须优先于 raw，
+            // 保证 core grid 与 summary 副标题显示同一来源，避免出现
+            // “副标题 UNKNOWN UNKNOWN / grid 项目类型=CHINESE” 这种不一致。
             const programKnowledge: Record<string, unknown> = {
+              ...raw,
               学校中文名: school.nameZh,
               项目类型: program.programType,
               学费: program.tuitionText,
@@ -342,9 +347,8 @@ export default async function SchoolDetailsPage({
               自费生申请费: program.applicationFeeText,
               奖学金申请费: program.scholarshipApplicationFeeText,
               费用备注: program.feeNote,
-              ...raw,
             };
-            // 市场经理只读视图不注入含内部口径的长文本字段（rawJson 可能覆盖同名键）。
+            // 市场经理只读视图不注入含内部口径的长文本字段。
             if (marketManagerView) {
               delete programKnowledge["申请要求及材料"];
             }

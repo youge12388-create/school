@@ -15,6 +15,7 @@ import { useT, useTv } from "@/lib/i18n/locale-context";
 import {
   defaultPermissionsForRole,
   PERMISSION_GROUPS,
+  PERMISSION_KEYS,
   PERMISSION_LABELS,
   type PermissionKey,
   type PermissionSource,
@@ -152,6 +153,24 @@ function PermissionPicker({
   onToggle: (permission: PermissionKey, checked: boolean) => void;
 }) {
   const t = useT();
+  const tv = useTv();
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    // 选了一部分（与模板有差异）的分组默认展开，方便直接看到自定义项。
+    const initial: Record<string, boolean> = {};
+    for (const group of PERMISSION_GROUPS) {
+      const selected = group.keys.filter((permission) => permissions.includes(permission)).length;
+      initial[group.label] = selected === 0 || selected === group.keys.length;
+    }
+    return initial;
+  });
+
+  const setGroupAll = (group: (typeof PERMISSION_GROUPS)[number], checked: boolean) => {
+    for (const permission of group.keys) {
+      if (permission === "WORKSPACE_VIEW") continue;
+      if (permissions.includes(permission) !== checked) onToggle(permission, checked);
+    }
+  };
+
   return (
     <div className="wecom-permission-picker">
       <label>
@@ -174,30 +193,62 @@ function PermissionPicker({
       </label>
       <input type="hidden" name="permissionSource" value={source} />
       <input type="hidden" name="permissions" value="WORKSPACE_VIEW" />
-      <div className="wecom-permission-list">
-        {PERMISSION_GROUPS.map((group) => (
-          <fieldset key={group.label} disabled={disabled}>
-            <legend>{t(group.label)}</legend>
-            {group.keys.map((permission) => {
-              const checked = permissions.includes(permission);
-              const mandatory = permission === "WORKSPACE_VIEW";
-              return (
-                <label className="wecom-permission-option" key={permission}>
-                  <input
-                    type="checkbox"
-                    name="permissions"
-                    value={permission}
-                    checked={checked}
-                    disabled={disabled || mandatory}
-                    onChange={(event) => onToggle(permission, event.target.checked)}
-                  />
-                  <span>{t(PERMISSION_LABELS[permission])}</span>
-                </label>
-              );
-            })}
-          </fieldset>
-        ))}
+      <div className="wecom-permission-groups">
+        {PERMISSION_GROUPS.map((group) => {
+          const selected = group.keys.filter((permission) => permissions.includes(permission)).length;
+          const collapsed = collapsedGroups[group.label] ?? true;
+          return (
+            <div className="wecom-permission-group" key={group.label}>
+              <div className="wecom-permission-group-head">
+                <button
+                  type="button"
+                  className="wecom-permission-group-toggle"
+                  aria-expanded={!collapsed}
+                  onClick={() => setCollapsedGroups((previous) => ({ ...previous, [group.label]: !collapsed }))}
+                >
+                  <span>{t(group.label)}</span>
+                  <span className={`wecom-permission-count${selected === group.keys.length ? " is-full" : ""}`}>
+                    {selected} / {group.keys.length}
+                  </span>
+                </button>
+                {!disabled && !collapsed ? (
+                  <span className="wecom-permission-group-actions">
+                    <button type="button" onClick={() => setGroupAll(group, true)}>{t("全选")}</button>
+                    <button type="button" onClick={() => setGroupAll(group, false)}>{t("清空")}</button>
+                  </span>
+                ) : null}
+              </div>
+              {collapsed ? null : (
+                <div className="wecom-permission-grid">
+                  {group.keys.map((permission) => {
+                    const checked = permissions.includes(permission);
+                    const mandatory = permission === "WORKSPACE_VIEW";
+                    return (
+                      <label
+                        className={`wecom-permission-chip${checked ? " is-on" : ""}${mandatory ? " is-locked" : ""}`}
+                        key={permission}
+                      >
+                        <input
+                          type="checkbox"
+                          name="permissions"
+                          value={permission}
+                          checked={checked}
+                          disabled={disabled || mandatory}
+                          onChange={(event) => onToggle(permission, event.target.checked)}
+                        />
+                        <span>{t(PERMISSION_LABELS[permission])}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
+      <p className="wecom-permission-summary">
+        {tv("已选 {count} / {total} 项", { count: permissions.length, total: PERMISSION_KEYS.length })}
+      </p>
       <p className="wecom-form-hint">
         {disabled
           ? t("当前权限跟随上级规则，查看明细但不能在这里修改。")

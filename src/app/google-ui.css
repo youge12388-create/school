@@ -3446,11 +3446,24 @@ button.school-note-edit:hover {
 .wecom-inspector-form label { display: grid; gap: 5px; color: var(--text); font-size: 12px; font-weight: 600; }
 .wecom-inspector-form select { min-height: 36px; padding: 6px 9px; font-size: 12px; }
 .wecom-permission-picker { display: grid; gap: 10px; }
-.wecom-permission-list { display: grid; gap: 8px; }
-.wecom-permission-list fieldset { display: grid; gap: 5px; margin: 0; border: 1px solid var(--border-soft); border-radius: 9px; padding: 8px 10px 9px; }
-.wecom-permission-list legend { padding: 0 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
-.wecom-permission-option { display: flex !important; grid-template-columns: 16px 1fr; align-items: center; gap: 7px !important; color: var(--text) !important; font-size: 11px !important; font-weight: 500 !important; }
-.wecom-permission-option input { width: 15px; min-height: 15px; margin: 0; accent-color: var(--primary); }
+.wecom-permission-groups { display: grid; gap: 8px; }
+.wecom-permission-group { border: 1px solid var(--border-soft); border-radius: 9px; overflow: hidden; }
+.wecom-permission-group-head { display: flex; align-items: center; gap: 4px; background: #fbfcfe; padding-right: 6px; }
+.wecom-permission-group-toggle { display: flex; flex: 1; align-items: center; gap: 8px; min-height: 34px; border: 0; background: transparent; padding: 0 4px 0 10px; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; text-align: left; }
+.wecom-permission-count { color: var(--subtle); font-weight: 600; }
+.wecom-permission-count.is-full { color: var(--green); }
+.wecom-permission-group-actions { display: flex; flex: 0 0 auto; gap: 2px; }
+.wecom-permission-group-actions button { min-height: 24px; border: 0; border-radius: 6px; background: transparent; padding: 2px 6px; color: var(--primary); cursor: pointer; font-size: 11px; }
+.wecom-permission-group-actions button:hover { background: var(--primary-soft); }
+.wecom-permission-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px 10px; }
+.wecom-permission-chip { position: relative; display: flex !important; align-items: center; min-height: 30px; border: 1px solid var(--border-soft); border-radius: 7px; background: var(--surface); padding: 3px 8px; color: var(--muted) !important; cursor: pointer; font-size: 11px !important; font-weight: 500 !important; transition: border-color .12s ease, background .12s ease, color .12s ease; }
+.wecom-permission-chip input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.wecom-permission-chip.is-on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary) !important; }
+.wecom-permission-chip.is-locked { opacity: .75; }
+.wecom-permission-chip:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 1px; }
+.wecom-permission-summary { margin: -2px 0 0; color: var(--text); font-size: 11px; font-weight: 600; }
+.wecom-permission-group-toggle,
+.wecom-permission-group-actions button { width: auto; }
 .wecom-enabled-control { display: flex !important; grid-template-columns: 18px 1fr; align-items: center; gap: 8px !important; }
 .wecom-enabled-control input { width: 16px; min-height: 16px; margin: 0; accent-color: var(--primary); }
 .wecom-form-hint { margin: -2px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
