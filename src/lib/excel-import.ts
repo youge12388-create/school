@@ -346,10 +346,54 @@ export function parseSchoolWorkbook(buffer: Buffer) {
   };
 }
 
+const TAG_VALUES = new Set(["chinese_taught", "english_taught", "french_taught"]);
+
+/**
+ * 列对位校验：检测 sheet_to_json 因空表头/合并单元格导致的列错位。
+ * 错位时 raw["学费"] 会是标签值、raw["项目类型"] 会是授课语言值。
+ * 检测到错位时抛错拒绝导入，避免污染数据库。
+ */
+function validateColumnAlignment(rows: Record<string, unknown>[]) {
+  if (!rows.length) return;
+  const misaligned: string[] = [];
+  rows.forEach((row, idx) => {
+    const tuition = asText(row["学费"]);
+    const programType = asText(row["项目类型"]);
+    const teachingLanguage = asText(row["授课语言"]);
+    const rowLabel = `第${idx + 2}行`; // +2: range=1 跳过标题行，所以数据从 Excel 第2行开始
+    if (tuition && TAG_VALUES.has(tuition)) {
+      misaligned.push(`${rowLabel} "学费"列值="${tuition}"（疑似标签值，列错位）`);
+    }
+    if (
+      programType &&
+      TEACHING_LANGUAGES.has(programType.toUpperCase()) &&
+      !PROGRAM_TYPES.has(programType)
+    ) {
+      misaligned.push(`${rowLabel} "项目类型"列值="${programType}"（疑似授课语言值，列错位）`);
+    }
+    if (
+      teachingLanguage &&
+      PROGRAM_TYPES.has(teachingLanguage) &&
+      !TEACHING_LANGUAGES.has(teachingLanguage.toUpperCase())
+    ) {
+      misaligned.push(`${rowLabel} "授课语言"列值="${teachingLanguage}"（疑似项目类型值，列错位）`);
+    }
+  });
+  if (misaligned.length) {
+    throw new Error(
+      `检测到 ${misaligned.length} 处列错位，已拒绝导入以防数据污染。\n` +
+        misaligned.slice(0, 5).join("\n") +
+        (misaligned.length > 5 ? `\n...（共 ${misaligned.length} 处）` : "") +
+        `\n请检查 Excel 表头是否有空列或合并单元格，确保 37 列表头与数据列一一对应。`,
+    );
+  }
+}
+
 export function parseProgramWorkbook(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const rows = sheetRows(workbook, "高校项目", 1);
   validateHeaders(rows, PROGRAM_HEADERS, "高校项目");
+  validateColumnAlignment(rows);
   const stats = { conflicts: 0, emptyRows: 0 };
   const schools = mergeSchoolRows(rows.map(toProgramSchool), stats);
   const programRows = rows.map(toProgram);
