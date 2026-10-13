@@ -86,10 +86,13 @@ export default async function UsersPage({ searchParams }: {
             <h3>{t("企业微信成员与权限")}</h3>
             <p className="muted small">{t("按组织查看成员的实际登录权限；部门规则仅作用于直属成员，个人设置可覆盖部门规则。")}</p>
           </div>
-          <form action="/api/admin/wecom" method="post">
-            <input type="hidden" name="intent" value="sync" />
-            <button type="submit" disabled={!wecomConfigured}>{t("同步通讯录")}</button>
-          </form>
+          <div className="wecom-admin-header-actions">
+            <Link className="button" href="/admin/users/wecom-preview">{t("预览示例")}</Link>
+            <form action="/api/admin/wecom" method="post">
+              <input type="hidden" name="intent" value="sync" />
+              <button type="submit" disabled={!wecomConfigured}>{t("同步通讯录")}</button>
+            </form>
+          </div>
         </div>
         <div className="card-body">
           {!wecomConfigured ? <div className="alert error">{t("企业微信配置未完成，请在运行环境设置 WECOM_CORP_ID、WECOM_SECRET 和 WECOM_REDIRECT_URI。")}</div> : null}

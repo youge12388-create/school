@@ -278,6 +278,14 @@ export const EN_DICT: Record<string, string> = {
   "企业微信组织架构": "WeCom organization",
   "企业微信成员与权限": "WeCom members & access",
   "企业微信权限概览": "WeCom access overview",
+  "预览示例": "Preview demo",
+  "虚构演示数据": "Fictional demo data",
+  "示例部门与成员均为虚构内容；此预览不会读取或保存真实账号和权限。":
+    "Departments and members here are fictional. This preview does not read or save real accounts or permissions.",
+  "查看虚构权限示例。": "View a fictional access demo.",
+  "返回账号管理": "Back to account management",
+  "只读预览": "Read-only preview",
+  "关闭面板": "Close panel",
   "按组织查看成员的实际登录权限；部门规则仅作用于直属成员，个人设置可覆盖部门规则。":
     "Review each member's effective sign-in access by organization. Department rules apply only to direct members; individual settings can override them.",
   "同步通讯录": "Sync directory",

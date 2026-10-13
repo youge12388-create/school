@@ -7,8 +7,9 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
+  X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui";
 import { useT, useTv } from "@/lib/i18n/locale-context";
@@ -21,10 +22,10 @@ import {
   type PermissionSource,
 } from "@/lib/permissions";
 
-type Role = "ADVISOR" | "DATA_MANAGER" | "CHANNEL_RESOURCE" | "MARKET_MANAGER" | "ADMIN";
-type AccessMode = "INHERIT" | "ROLE" | "DENY";
+export type Role = "ADVISOR" | "DATA_MANAGER" | "CHANNEL_RESOURCE" | "MARKET_MANAGER" | "ADMIN";
+export type AccessMode = "INHERIT" | "ROLE" | "DENY";
 
-type Department = {
+export type Department = {
   id: number;
   name: string;
   parentId: number;
@@ -37,13 +38,13 @@ type Department = {
   permissionSource: PermissionSource | "NONE";
 };
 
-type MemberDepartment = {
+export type MemberDepartment = {
   id: number;
   path: string;
   role: Role | null;
 };
 
-type Member = {
+export type Member = {
   id: string;
   displayName: string;
   role: Role | null;
@@ -127,6 +128,7 @@ function memberSource(member: Member, t: (source: string) => string) {
 
 function permissionSourceLabel(member: Member, t: (source: string) => string) {
   if (member.accessMode === "DENY") return t("个人禁止");
+  if (member.accessMode === "INHERIT" && member.role === null) return t("未配置");
   if (member.accessMode === "ROLE") {
     return member.permissionSource === "CUSTOM"
       ? t("个人自定义")
@@ -207,6 +209,7 @@ function PermissionPicker({
                   onClick={() => setCollapsedGroups((previous) => ({ ...previous, [group.label]: !collapsed }))}
                 >
                   <span>{t(group.label)}</span>
+                  <ChevronDown aria-hidden="true" className={`wecom-permission-chevron${collapsed ? " is-collapsed" : ""}`} />
                   <span className={`wecom-permission-count${selected === group.keys.length ? " is-full" : ""}`}>
                     {selected} / {group.keys.length}
                   </span>
@@ -260,7 +263,7 @@ function PermissionPicker({
   );
 }
 
-function DepartmentRuleForm({ department }: { department: DepartmentNode }) {
+function DepartmentRuleForm({ department, readOnly = false }: { department: DepartmentNode; readOnly?: boolean }) {
   const t = useT();
   const [enabled, setEnabled] = useState(Boolean(department.role));
   const [role, setRole] = useState<Role>(department.role ?? "ADVISOR");
@@ -285,8 +288,8 @@ function DepartmentRuleForm({ department }: { department: DepartmentNode }) {
     });
   };
 
-  return (
-    <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">
+  const fields = (
+    <>
       <input type="hidden" name="intent" value="update-role" />
       <input type="hidden" name="departmentId" value={department.id} />
       <input type="hidden" name="permissionToggle" value="1" />
@@ -296,6 +299,7 @@ function DepartmentRuleForm({ department }: { department: DepartmentNode }) {
           name="enabled"
           value="1"
           checked={enabled}
+          disabled={readOnly}
           onChange={(event) => setEnabled(event.target.checked)}
         />
         <span>{t("允许直属成员登录")}</span>
@@ -309,7 +313,7 @@ function DepartmentRuleForm({ department }: { department: DepartmentNode }) {
             const nextRole = event.target.value as Role;
             if (nextRole) applyTemplate(nextRole);
           }}
-          disabled={!enabled}
+          disabled={!enabled || readOnly}
         >
           {!enabled ? <option value="" disabled>{t("未配置")}</option> : null}
           {(Object.keys(roleLabels) as Role[]).map((roleOption) => (
@@ -321,17 +325,27 @@ function DepartmentRuleForm({ department }: { department: DepartmentNode }) {
         role={role}
         permissions={permissions}
         source={source}
-        disabled={!enabled}
+        disabled={!enabled || readOnly}
         onTemplateChange={applyTemplate}
         onToggle={togglePermission}
       />
-      <p className="wecom-form-hint">{t("保存后会重新计算直属成员权限，并刷新已登录会话。")}</p>
-      <button className="primary" type="submit">{t("保存部门规则")}</button>
-    </form>
+      {readOnly ? <p className="wecom-form-hint">{t("只读预览")}</p> : (
+        <>
+          <p className="wecom-form-hint">{t("保存后会重新计算直属成员权限，并刷新已登录会话。")}</p>
+          <button className="primary" type="submit">{t("保存部门规则")}</button>
+        </>
+      )}
+    </>
+  );
+
+  return readOnly ? (
+    <div className="wecom-inspector-form" aria-readonly="true">{fields}</div>
+  ) : (
+    <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">{fields}</form>
   );
 }
 
-function MemberAccessForm({ member }: { member: Member }) {
+function MemberAccessForm({ member, readOnly = false }: { member: Member; readOnly?: boolean }) {
   const t = useT();
   const [mode, setMode] = useState<AccessMode>(member.accessMode);
   const [role, setRole] = useState<Role>(member.accessRole ?? member.role ?? "ADVISOR");
@@ -356,10 +370,10 @@ function MemberAccessForm({ member }: { member: Member }) {
     });
   };
 
-  const editable = mode === "ROLE";
+  const editable = mode === "ROLE" && !readOnly;
 
-  return (
-    <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">
+  const fields = (
+    <>
       <input type="hidden" name="intent" value="update-user-access" />
       <input type="hidden" name="userId" value={member.id} />
       <label>
@@ -367,6 +381,7 @@ function MemberAccessForm({ member }: { member: Member }) {
         <select
           name="accessMode"
           value={mode}
+          disabled={readOnly}
           onChange={(event) => {
             const nextMode = event.target.value as AccessMode;
             setMode(nextMode);
@@ -406,24 +421,39 @@ function MemberAccessForm({ member }: { member: Member }) {
         onTemplateChange={applyTemplate}
         onToggle={togglePermission}
       />
-      <p className="wecom-form-hint">{t("跟随部门会恢复部门默认；单独禁止会立即阻止登录。")}</p>
-      <button className="primary" type="submit">{t("保存成员权限")}</button>
-    </form>
+      {readOnly ? <p className="wecom-form-hint">{t("只读预览")}</p> : (
+        <>
+          <p className="wecom-form-hint">{t("跟随部门会恢复部门默认；单独禁止会立即阻止登录。")}</p>
+          <button className="primary" type="submit">{t("保存成员权限")}</button>
+        </>
+      )}
+    </>
+  );
+
+  return readOnly ? (
+    <div className="wecom-inspector-form" aria-readonly="true">{fields}</div>
+  ) : (
+    <form action="/api/admin/wecom" method="post" className="wecom-inspector-form">{fields}</form>
   );
 }
 
 export function WeComAccessWorkspace({
   departments,
   members,
+  preview = false,
 }: {
   departments: Department[];
   members: Member[];
+  preview?: boolean;
 }) {
   const t = useT();
   const tv = useTv();
   const { roots, nodes } = useMemo(() => buildTree(departments, members), [departments, members]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(roots[0]?.id ?? null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [showDepartmentRules, setShowDepartmentRules] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"ALL" | "LOGINABLE" | "BLOCKED" | "EXCEPTIONS">("ALL");
   const [expandedIds, setExpandedIds] = useState<Set<number>>(
@@ -450,18 +480,57 @@ export function WeComAccessWorkspace({
   const loginableCount = members.filter((member) => member.canLogin).length;
   const blockedCount = members.length - loginableCount;
   const exceptionCount = members.filter((member) => member.accessMode !== "INHERIT").length;
+  const isInspectorOpen = Boolean(selectedMember || showDepartmentRules);
+
+  useEffect(() => {
+    if (!isInspectorOpen) {
+      returnFocusRef.current?.focus();
+      returnFocusRef.current = null;
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedMemberId(null);
+        setShowDepartmentRules(false);
+      }
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isInspectorOpen]);
 
   const selectDepartment = (departmentId: number) => {
     setSelectedDepartmentId(departmentId);
     setSelectedMemberId(null);
+    setShowDepartmentRules(false);
   };
   const toggleNode = (departmentId: number) => {
+    const isCollapsing = expandedIds.has(departmentId);
+    const collapsingNode = nodes.get(departmentId);
+    const containsSelected = (node: DepartmentNode): boolean =>
+      node.id === selectedDepartmentId || node.children.some(containsSelected);
     setExpandedIds((previous) => {
       const next = new Set(previous);
-      if (next.has(departmentId)) next.delete(departmentId);
+      if (isCollapsing) next.delete(departmentId);
       else next.add(departmentId);
       return next;
     });
+    if (isCollapsing && collapsingNode && containsSelected(collapsingNode) && selectedDepartmentId !== departmentId) {
+      setSelectedDepartmentId(departmentId);
+      setSelectedMemberId(null);
+      setShowDepartmentRules(false);
+    }
+  };
+
+  const closeInspector = () => {
+    setSelectedMemberId(null);
+    setShowDepartmentRules(false);
   };
 
   const renderTree = (node: DepartmentNode) => {
@@ -546,6 +615,19 @@ export function WeComAccessWorkspace({
                   <option value="EXCEPTIONS">{t("仅个人例外")}</option>
                 </select>
               </label>
+              {selectedDepartment ? (
+                <button
+                  type="button"
+                  className="wecom-department-rule-button"
+                  onClick={() => {
+                    setSelectedMemberId(null);
+                    setShowDepartmentRules(true);
+                  }}
+                >
+                  <ShieldCheck aria-hidden="true" />
+                  {t("部门规则")}
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -594,12 +676,26 @@ export function WeComAccessWorkspace({
           </div>
         </section>
 
-        <aside className="wecom-inspector" aria-label={t("权限编辑器")}>
-          {selectedMember ? (
+        {isInspectorOpen ? (
+          <div
+            className="wecom-inspector-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeInspector();
+            }}
+          >
+            <aside className="wecom-inspector" role="dialog" aria-modal="true" aria-labelledby="wecom-inspector-title" tabIndex={-1}>
+              <div className="wecom-inspector-topline">
+                {preview ? <span className="wecom-preview-readonly">{t("只读预览")}</span> : null}
+                <button ref={closeButtonRef} type="button" className="wecom-inspector-close" onClick={closeInspector} aria-label={t("关闭面板")}>
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+              {selectedMember ? (
             <>
               <div className="wecom-inspector-heading">
                 <span className="wecom-pane-kicker">{t("成员权限")}</span>
-                <h3>{selectedMember.displayName}</h3>
+                <h3 id="wecom-inspector-title">{selectedMember.displayName}</h3>
                 <p>{t("个人设置仅在需要覆盖部门规则时使用")}</p>
               </div>
               <div className="wecom-effective-access">
@@ -623,13 +719,13 @@ export function WeComAccessWorkspace({
                   </div>
                 )) : <p className="small muted">{t("未找到部门归属，请重新同步组织架构")}</p>}
               </div>
-              <MemberAccessForm key={selectedMember.id} member={selectedMember} />
+              <MemberAccessForm key={selectedMember.id} member={selectedMember} readOnly={preview} />
             </>
-          ) : selectedDepartment ? (
+              ) : selectedDepartment ? (
             <>
               <div className="wecom-inspector-heading">
                 <span className="wecom-pane-kicker">{t("部门规则")}</span>
-                <h3>{selectedDepartment.name}</h3>
+                <h3 id="wecom-inspector-title">{selectedDepartment.name}</h3>
                 <p>{t("仅对直属成员生效，子部门不会继承")}</p>
               </div>
               <div className="wecom-department-impact">
@@ -655,10 +751,12 @@ export function WeComAccessWorkspace({
                   {selectedDepartment.permissionSource === "CUSTOM" ? t("部门自定义") : selectedDepartment.role ? t("部门模板") : t("未配置")}
                 </Badge>
               </div>
-              <DepartmentRuleForm key={selectedDepartment.id} department={selectedDepartment} />
+              <DepartmentRuleForm key={selectedDepartment.id} department={selectedDepartment} readOnly={preview} />
             </>
-          ) : null}
-        </aside>
+              ) : null}
+            </aside>
+          </div>
+        ) : null}
       </div>
     </div>
   );
