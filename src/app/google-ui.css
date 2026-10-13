@@ -3242,6 +3242,12 @@ button.school-note-edit:hover {
   padding: 14px 18px 18px;
 }
 
+.wecom-admin-header-actions { display: flex; align-items: center; gap: 8px; }
+.wecom-admin-header-actions form { margin: 0; }
+.wecom-preview-notice { display: grid; gap: 3px; margin: 0 0 14px; border: 1px solid #d8e6f7; border-left: 3px solid var(--primary); border-radius: 10px; background: #f5f9ff; padding: 12px 16px; color: var(--text); }
+.wecom-preview-notice strong { font-size: 13px; }
+.wecom-preview-notice span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
 .wecom-access-workspace {
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -3275,14 +3281,14 @@ button.school-note-edit:hover {
 .wecom-status-strip .is-good strong { color: var(--green); }
 
 .wecom-workbench {
+  position: relative;
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr) 296px;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   min-height: 560px;
 }
 
 .wecom-org-nav,
-.wecom-member-workbench,
-.wecom-inspector { min-width: 0; }
+.wecom-member-workbench { min-width: 0; }
 
 .wecom-org-nav {
   border-right: 1px solid var(--border-soft);
@@ -3291,9 +3297,71 @@ button.school-note-edit:hover {
 
 .wecom-member-workbench { background: var(--surface); }
 
+.wecom-inspector-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(19 33 52 / 34%);
+}
+
 .wecom-inspector {
+  width: min(520px, calc(100vw - 20px));
+  height: 100dvh;
+  overflow-y: auto;
   border-left: 1px solid var(--border-soft);
-  background: #fbfcfe;
+  background: var(--surface);
+  box-shadow: -18px 0 48px rgb(22 39 61 / 16%);
+  animation: wecom-drawer-in .18s ease-out;
+}
+
+.wecom-inspector-topline {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 8px 16px 0;
+  background: var(--surface);
+}
+
+.wecom-preview-readonly {
+  border: 1px solid #d7e5fb;
+  border-radius: 999px;
+  background: #f1f6ff;
+  padding: 4px 9px;
+  color: #245da8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wecom-inspector-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.wecom-inspector-close:hover { background: var(--surface-muted); color: var(--text); }
+.wecom-inspector-close:focus-visible,
+.wecom-department-rule-button:focus-visible,
+.wecom-tree-toggle:focus-visible,
+.wecom-org-select:focus-visible,
+.wecom-row-action:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.wecom-inspector-close svg { display: block; flex: 0 0 17px; width: 17px; min-width: 17px; height: 17px; }
+
+@keyframes wecom-drawer-in {
+  from { transform: translateX(18px); opacity: .85; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .wecom-pane-heading,
@@ -3377,6 +3445,25 @@ button.school-note-edit:hover {
   border-bottom: 1px solid var(--border-soft);
 }
 
+.wecom-department-rule-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 6px 10px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wecom-department-rule-button:hover { border-color: #bad1f5; background: #f5f8ff; color: #174ea6; }
+.wecom-department-rule-button svg { width: 15px; color: var(--primary); }
+
 .wecom-member-toolbar h3,
 .wecom-inspector h3 { margin: 0; color: var(--text); font-size: 17px; line-height: 1.25; }
 .wecom-member-toolbar p,
@@ -3397,10 +3484,10 @@ button.school-note-edit:hover {
 .wecom-member-table th,
 .wecom-member-table td { border-bottom: 1px solid var(--border-soft); padding: 10px 14px; text-align: left; vertical-align: middle; }
 .wecom-member-table th { background: #fbfcfe; color: var(--muted); font-size: 11px; font-weight: 600; }
-.wecom-member-table td { color: var(--text); font-size: 12px; }
-.wecom-member-table th:nth-child(1) { width: 21%; }
-.wecom-member-table th:nth-child(2) { width: 18%; }
-.wecom-member-table th:nth-child(3) { width: 18%; }
+.wecom-member-table td { color: var(--text); font-size: 13px; }
+.wecom-member-table th:nth-child(1) { width: 24%; }
+.wecom-member-table th:nth-child(2) { width: 17%; }
+.wecom-member-table th:nth-child(3) { width: 21%; }
 .wecom-member-table th:nth-child(4) { width: auto; }
 .wecom-member-table th:nth-child(5) { width: 56px; }
 .wecom-member-table tbody tr { transition: background .14s ease; }
@@ -3409,12 +3496,15 @@ button.school-note-edit:hover {
 .wecom-member-table .badge { min-height: 22px; padding: 2px 8px; font-size: 10px; }
 .wecom-source-cell { display: block; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 .wecom-row-action { min-height: 28px; border: 0; border-radius: 6px; background: transparent; padding: 4px 7px; font-size: 12px; }
+.wecom-member-table th:last-child,
+.wecom-member-table td:last-child { width: 68px; white-space: nowrap; }
+.wecom-row-action { min-width: 40px; white-space: nowrap; }
 
 .wecom-workspace-empty { display: grid; justify-items: center; gap: 5px; padding: 56px 18px; color: var(--muted); font-size: 12px; text-align: center; }
 .wecom-workspace-empty svg { width: 22px; color: var(--subtle); }
 .wecom-workspace-empty strong { color: var(--text); }
 
-.wecom-inspector-heading { padding-bottom: 12px; }
+.wecom-inspector-heading { padding-top: 8px; padding-bottom: 12px; }
 .wecom-inspector-heading .wecom-pane-kicker { display: block; margin-bottom: 4px; }
 
 .wecom-effective-access {
@@ -3450,6 +3540,8 @@ button.school-note-edit:hover {
 .wecom-permission-group { border: 1px solid var(--border-soft); border-radius: 9px; overflow: hidden; }
 .wecom-permission-group-head { display: flex; align-items: center; gap: 4px; background: #fbfcfe; padding-right: 6px; }
 .wecom-permission-group-toggle { display: flex; flex: 1; align-items: center; gap: 8px; min-height: 34px; border: 0; background: transparent; padding: 0 4px 0 10px; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; text-align: left; }
+.wecom-permission-chevron { width: 14px; height: 14px; margin-left: auto; color: var(--subtle); transition: transform .14s ease; }
+.wecom-permission-chevron.is-collapsed { transform: rotate(-90deg); }
 .wecom-permission-count { color: var(--subtle); font-weight: 600; }
 .wecom-permission-count.is-full { color: var(--green); }
 .wecom-permission-group-actions { display: flex; flex: 0 0 auto; gap: 2px; }
@@ -3473,13 +3565,6 @@ button.school-note-edit:hover {
 
 @media (max-width: 1180px) {
   .wecom-workbench { grid-template-columns: 206px minmax(0, 1fr); }
-  .wecom-inspector { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr minmax(250px, .8fr); border-top: 1px solid var(--border-soft); border-left: 0; }
-  .wecom-inspector-heading { grid-column: 1; }
-  .wecom-effective-access,
-  .wecom-department-impact { grid-column: 1; }
-  .wecom-inspector-section,
-  .wecom-inspector-form { grid-column: 2; grid-row: 1 / span 3; align-self: start; margin-top: 16px; }
-  .wecom-inspector-form { padding-top: 0; }
 }
 
 @media (max-width: 760px) {
@@ -3496,13 +3581,24 @@ button.school-note-edit:hover {
   .wecom-search-field { flex: 1; }
   .wecom-search-field input { width: 100%; }
   .wecom-filter-field select { width: 112px; }
-  .wecom-member-table th:nth-child(3),
-  .wecom-member-table td:nth-child(3),
-  .wecom-member-table th:nth-child(4),
-  .wecom-member-table td:nth-child(4) { display: none; }
-  .wecom-member-table th,
-  .wecom-member-table td { padding: 10px; }
-  .wecom-inspector { display: block; border-top: 1px solid var(--border-soft); }
-  .wecom-inspector-section,
-  .wecom-inspector-form { margin-top: 0; }
+  .wecom-member-table,
+  .wecom-member-table tbody { display: block; }
+  .wecom-member-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .wecom-member-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; margin: 0 10px; border-bottom: 1px solid var(--border-soft); padding: 12px 3px; }
+  .wecom-member-table tbody td { display: block; border: 0; padding: 0; }
+  .wecom-member-table tbody td:nth-child(1) { grid-column: 1; grid-row: 1; min-width: 0; }
+  .wecom-member-table tbody td:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .wecom-member-table tbody td:nth-child(3),
+  .wecom-member-table tbody td:nth-child(4) { display: none; }
+  .wecom-member-table tbody td:nth-child(5) { grid-column: 2; grid-row: 1 / span 2; justify-self: end; }
+  .wecom-inspector { width: 100%; border-left: 0; }
+  .wecom-inspector-topline { padding-right: 12px; padding-left: 12px; }
+  .wecom-member-table td { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wecom-inspector { animation: none; }
+  .wecom-permission-chevron { transition: none; }
+}
+
 }
