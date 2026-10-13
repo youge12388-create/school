@@ -220,14 +220,17 @@ export async function ScreeningResultCard({
         </div>
       </div>
       {!marketManagerView ? (
-        <div className="evidence-strip">
-          {result.evidence.map((item) => (
-            <div className={`evidence ${item.level.toLowerCase()}`} key={`${program.id}-${item.label}`}>
-              <strong>{t(item.label)}</strong>
-              <span className="small">{item.detail}</span>
-            </div>
-          ))}
-        </div>
+        <details className="result-evidence">
+          <summary>{t("查看匹配依据")}</summary>
+          <div className="evidence-strip">
+            {result.evidence.map((item) => (
+              <div className={`evidence ${item.level.toLowerCase()}`} key={`${program.id}-${item.label}`}>
+                <strong>{t(item.label)}</strong>
+                <span className="small">{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </details>
       ) : null}
     </article>
   );

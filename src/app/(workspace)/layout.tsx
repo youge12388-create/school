@@ -48,7 +48,6 @@ export default async function WorkspaceLayout({
               <div className="topbar-actions">
                 <GlobalSearch />
                 <LocaleToggle locale={locale} />
-                <span className="topbar-note">{t("本地数据 · 登录后访问 · 操作留痕")}</span>
               </div>
             </header>
             <div className="mobile-search-bar mobile-only">

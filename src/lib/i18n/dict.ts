@@ -81,10 +81,6 @@ export const EN_DICT: Record<string, string> = {
   "最近操作": "Recent activity",
   "暂无操作记录": "No recent activity",
   "查看全部": "View all",
-  "本地数据": "Local data",
-  "登录后访问": "private access",
-  "操作留痕": "full audit trail",
-  "本地数据 · 登录后访问 · 操作留痕": "Local data · private · audited",
   "退出登录": "Sign out",
   "展开侧边栏": "Expand sidebar",
   "收起侧边栏": "Collapse sidebar",
@@ -92,7 +88,6 @@ export const EN_DICT: Record<string, string> = {
   "主导航抽屉": "Main navigation",
   "底部导航": "Bottom navigation",
   "全局搜索": "Search everywhere",
-  "搜索学校、项目...": "Search schools, programs...",
   "打开导航": "Open navigation",
   "关闭导航": "Close navigation",
   "更多功能": "More",
@@ -105,7 +100,6 @@ export const EN_DICT: Record<string, string> = {
   "数据导入": "Data Import",
   "操作审计": "Audit Log",
   "账号管理": "Accounts",
-  "安全说明": "Security",
   "我的": "Account",
   /* ------------------------------------------------------------- roles */
   "高级管理员": "Administrator",
@@ -212,42 +206,6 @@ export const EN_DICT: Record<string, string> = {
   "中文": "Chinese",
   "英文": "English",
   "法文": "French",
-  /* ----------------------------------------------------------- security */
-  "安全与数据说明": "Security & Data Policy",
-  "本系统处理护照、成绩单等敏感个人资料，真实使用前必须完成主机与备份安全检查。":
-    "This system handles sensitive personal data (passports, transcripts). Complete host and backup security checks before real use.",
-  "系统已实施": "Implemented in the system",
-  "密码使用 scrypt 加盐哈希，不保存明文。":
-    "Passwords are hashed with salted scrypt; plaintext is never stored.",
-  "会话 Cookie 为 HttpOnly、SameSite Strict。":
-    "Session cookies are HttpOnly with SameSite=Strict.",
-  "材料使用 AES-256-GCM 逐文件加密并校验完整性。":
-    "Documents are encrypted file-by-file with AES-256-GCM and integrity-checked.",
-  "文件下载必须登录，上传和下载均记录审计。":
-    "Downloads require sign-in; both uploads and downloads are audited.",
-  "限制文件类型和单文件大小，存储目录不对网页公开。":
-    "File types and sizes are restricted; the storage directory is not web-accessible.",
-  "客户和材料采用归档，不给普通用户永久删除入口。":
-    "Customers and documents are archived, not permanently deletable by regular users.",
-  "主机必须配置": "Required on the host",
-  "启用 Windows BitLocker，并设置独立管理员账号。":
-    "Enable Windows BitLocker and use a separate administrator account.",
-  "仅允许可信人员登录主机，离职当天停用系统账号。":
-    "Only trusted staff may sign in to the host; disable accounts on the day someone leaves.",
-  "数据库、附件和加密密钥必须同时备份，但分开保管。":
-    "Back up the database, attachments and encryption keys together, but store them separately.",
-  "备份介质也需要加密，并定期执行恢复演练。":
-    "Encrypt backup media as well, and rehearse recovery regularly.",
-  "如开放局域网访问，应配置 HTTPS 和防火墙白名单。":
-    "If LAN access is enabled, configure HTTPS and a firewall allowlist.",
-  "客户材料超过业务保留期限后，应由管理员制定删除流程。":
-    "Admins should define a deletion process for customer materials past the retention period.",
-  "备份范围": "Backup scope",
-  "业务数据库。": "Business database.",
-  "加密后的客户材料。": "Encrypted customer documents.",
-  "解密密钥，丢失后材料无法恢复。": "Decryption key — if lost, documents cannot be recovered.",
-  "不要只备份数据库，也不要把密钥放入 Git、聊天软件或普通网盘。":
-    "Never back up only the database, and never put keys in Git, chat apps or ordinary cloud drives.",
   /* ------------------------------------------------- account & users */
   "个人账号": "My account",
   "账号设置": "Account settings",
@@ -437,9 +395,12 @@ export const EN_DICT: Record<string, string> = {
   "数据录入": "Data Entry",
   "支持 Excel 批量导入或手动录入一条。人工确认的数据不会被后续批量导入自动覆盖。":
     "Import from Excel in bulk or enter one record manually. Confirmed data is never overwritten by later bulk imports.",
+  "导入学校与项目数据，确认预览后写入知识库。":
+    "Import school and program data after reviewing the preview.",
   "下载维护模板": "Download maintenance template",
   "导出完整数据": "Export all data",
   "导入历史": "Import history",
+  "暂无导入记录": "No import history yet",
   "已确认": "Confirmed",
   "仅预览": "Preview only",
   "摘要": "Summary",
@@ -452,6 +413,9 @@ export const EN_DICT: Record<string, string> = {
   "导入完成，学校库和学校筛查数据已更新。":
     "Import complete. School library and screening data are updated.",
   "选择 Excel 文件": "Choose Excel file",
+  "高校项目 Excel 文件": "School and program Excel file",
+  "支持维护模板格式，确认预览前不会写入数据。":
+    "Use the maintenance template format. No data is written until you confirm the preview.",
   "高校项目汇总（支持单表\u201C高校项目\u201D，或双表\u201C高校汇总\u201D+\u201C高校项目\u201D）":
     "School & program summary (single sheet \u201C高校项目\u201D, or two sheets \u201C高校汇总\u201D + \u201C高校项目\u201D)",
   "与导出的格式一致即可直接维护；确认前不会更改知识库。":
@@ -462,11 +426,27 @@ export const EN_DICT: Record<string, string> = {
   "选择高校汇总并生成预览": "Choose a summary file and generate a preview",
   "新增 {n} · 修改 {m}": "New {n} · Modified {m}",
   "重复 {n} · 冲突 {m}": "Duplicates {n} · Conflicts {m}",
-  "源文件完全重复行：{n}；待人工复核项目：{r}":
-    "Fully duplicate rows in source: {n}; programs needing review: {r}",
-  "；文件内同名冲突行：{n}（保留首个值）":
-    "; in-file name conflicts: {n} (first value kept)",
-  "；缺关键信息跳过行：{n}": "; rows skipped for missing key info: {n}",
+  "新增": "New",
+  "修改": "Modified",
+  "重复": "Duplicate",
+  "冲突": "Conflict",
+  "新增 {n}": "New {n}",
+  "修改 {n}": "Modified {n}",
+  "重复 {n}": "Duplicates {n}",
+  "冲突 {n}": "Conflicts {n}",
+  "无变更": "No changes",
+  "{label} {n}": "{label} {n}",
+  "源文件重复 {n} 条": "{n} duplicate rows in source",
+  "待复核 {n} 条": "{n} programs need review",
+  "文件内冲突 {n} 条": "{n} conflicts within file",
+  "缺少必填信息跳过 {n} 条": "{n} rows skipped for missing required information",
+  "源文件重复 {n} 条 · 待复核 {r} 条":
+    "{n} duplicate source rows · {r} programs need review",
+  " · 文件内冲突 {n} 条": " · {n} conflicts within file",
+  " · 缺少必填信息跳过 {n} 条": " · {n} rows skipped for missing required information",
+  "摘要不可用": "Summary unavailable",
+  "预览数据不可用，请重新选择文件。": "Preview unavailable. Please choose the file again.",
+  "没有可预览的记录": "No records to preview",
   "记录": "Row",
   "确认写入知识库": "Confirm into knowledge base",
   "导入院校信息更新台账": "Import school update log",
@@ -847,12 +827,20 @@ export const EN_DICT: Record<string, string> = {
   "暂无状态变更记录": "No status changes yet",
   /* ------------------------------------------------ screening filters */
   "学校项目筛查": "School Program Screening",
-  "明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。":
-    "Matching, needs-action, unknown and not-matched results are shown separately. Click a school name for the full record.",
+  "按客户条件查找项目，展开匹配依据后可查看判断细节并保存方案。":
+    "Find programs using customer criteria. Expand the matching details to review why and save a plan.",
   "客户筛选条件": "Customer screening criteria",
   "空缺信息不参与判断，可按需展开更多条件。":
     "Blank criteria are ignored. Expand more sections as needed.",
-  "搜索学校名称...": "Search school names...",
+  "筛选学校名称...": "Filter by school name...",
+  "更多条件": "More filters",
+  "查看匹配依据": "View matching details",
+  "共找到 {n} 个项目": "{n} programs found",
+  "可直接申请 {n}": "Ready to apply {n}",
+  "需要补充 {n}": "Need more information {n}",
+  "信息待核实 {n}": "Need verification {n}",
+  "明确不符合 {n}": "Not eligible {n}",
+  "已截止 {n}": "Closed {n}",
   "不限": "Any",
   "目标专业": "Target major",
   "输入或选择专业...": "Type or select a major...",

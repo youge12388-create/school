@@ -24,7 +24,7 @@ export function GlobalSearch() {
       <input
         ref={inputRef}
         name="global-q"
-        placeholder={t("搜索学校、项目...")}
+        placeholder={t("搜索学校、省份或城市")}
         aria-label={t("全局搜索")}
       />
     </form>
