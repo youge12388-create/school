@@ -1,9 +1,9 @@
 .page {
-  --ink: #101a38;
-  --muted: #65718d;
-  --line: #dbe3f2;
-  --blue: #315eea;
-  --blue-deep: #183ba5;
+  --ink: #202124;
+  --muted: #5f6368;
+  --line: #dfe5ec;
+  --blue: #1a73e8;
+  --blue-deep: #1558d6;
   --mist: #eef3ff;
   position: relative;
   isolation: isolate;
@@ -95,7 +95,7 @@
   width: 2.75rem;
   height: 2.75rem;
   place-items: center;
-  border-radius: 0.8rem;
+  border-radius: 10px;
   background: var(--blue);
   box-shadow: 0 10px 24px rgba(49, 94, 234, 0.23);
   color: white;
@@ -121,7 +121,7 @@
 
 .hero h1 {
   margin-top: 1.15rem;
-  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: inherit;
   font-size: clamp(2.85rem, 4.7vw, 5.1rem);
   font-weight: 760;
   letter-spacing: -0.085em;
@@ -267,7 +267,7 @@
 .field input {
   min-height: 3.25rem;
   border: 1px solid var(--line);
-  border-radius: 0.78rem;
+  border-radius: 9px;
   background: #fbfcff;
   padding: 0.7rem 0.9rem;
   color: var(--ink);
@@ -293,7 +293,7 @@
   gap: 0.65rem;
   margin-top: 0.45rem;
   border: 0;
-  border-radius: 0.8rem;
+  border-radius: 10px;
   background: var(--blue);
   box-shadow: 0 12px 22px rgba(49, 94, 234, 0.22);
   color: white;
@@ -352,7 +352,7 @@
   justify-content: center;
   gap: 0.65rem;
   border: 1px solid #b8dcca;
-  border-radius: 0.8rem;
+  border-radius: 10px;
   background: #f4fbf6;
   color: #16724d;
   font-size: 0.92rem;

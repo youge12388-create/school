@@ -6,7 +6,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   SearchCheck,
-  ShieldCheck,
   StickyNote,
   UserRoundCog,
   X,
@@ -25,7 +24,6 @@ const drawerItems = [
   { href: "/imports", label: "数据导入", icon: Database },
   { href: "/audit", label: "操作审计", icon: FileClock },
   { href: "/admin/users", label: "账号管理", icon: UserRoundCog },
-  { href: "/security", label: "安全说明", icon: ShieldCheck },
 ];
 
 const MobileDrawerContext = createContext<{
@@ -85,7 +83,6 @@ function MobileDrawer({
       return permissions.includes("DATA_IMPORT");
     }
     if (item.href === "/audit") return permissions.includes("AUDIT_VIEW");
-    if (item.href === "/security") return role !== "MARKET_MANAGER";
     return true;
   });
 

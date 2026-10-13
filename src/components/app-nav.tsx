@@ -67,6 +67,8 @@ export function AppNav({
               className={`nav-link${active ? " active" : ""}`}
               href={item.href}
               key={item.href}
+              aria-label={collapsed ? t(item.label) : undefined}
+              title={collapsed ? t(item.label) : undefined}
             >
               <Icon aria-hidden="true" />
               {!collapsed && t(item.label)}
@@ -74,7 +76,12 @@ export function AppNav({
           );
         })}
       {role !== "MARKET_MANAGER" ? (
-        <Link className="nav-link" href="/security">
+        <Link
+          className={`nav-link${pathname === "/security" ? " active" : ""}`}
+          href="/security"
+          aria-label={collapsed ? t("安全说明") : undefined}
+          title={collapsed ? t("安全说明") : undefined}
+        >
           <ShieldCheck aria-hidden="true" />
           {!collapsed && t("安全说明")}
         </Link>

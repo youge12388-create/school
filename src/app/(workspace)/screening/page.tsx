@@ -142,22 +142,23 @@ const preferenceFilterKeys = [
   "accommodation",
   "enrollmentRegion",
 ] as const;
+const additionalFilterKeys = [
+  "csca",
+  "schoolTier",
+  "supervisorAcceptance",
+  "deadlineFrom",
+  "deadlineTo",
+  ...academicFilterKeys,
+  ...softFilterKeys,
+  ...preferenceFilterKeys,
+] as const;
 const fitSection: Record<
   Exclude<FitLevel, "NOT_MATCHED">,
-  { title: string; description: string }
+  { title: string }
 > = {
-  MATCHED: {
-    title: "可直接申请",
-    description: "当前结构化条件均符合。提交前仍建议核对学校最新通知。",
-  },
-  NEEDS_ACTION: {
-    title: "需要补充条件",
-    description: "项目方向可考虑，但客户还需要补成绩、CSCA 或其他材料。",
-  },
-  UNKNOWN: {
-    title: "信息待核实",
-    description: "数据库缺少关键条件，不能擅自判断为符合。",
-  },
+  MATCHED: { title: "可直接申请" },
+  NEEDS_ACTION: { title: "需要补充条件" },
+  UNKNOWN: { title: "信息待核实" },
 };
 
 function ResultSection({
@@ -184,7 +185,6 @@ function ResultSection({
       <div className="screening-section-heading">
         <div>
           <h3>{t(section.title)}</h3>
-          <p>{t(section.description)}</p>
         </div>
         <span>{tv("{n} 个项目", { n: results.length })}</span>
       </div>
@@ -217,6 +217,9 @@ export default async function ScreeningPage({
   const showAcademicFilters = hasAnyParam(params, academicFilterKeys);
   const showSoftFilters = hasAnyParam(params, softFilterKeys);
   const showPreferenceFilters = hasAnyParam(params, preferenceFilterKeys);
+  const showAdditionalFilters =
+    hasAnyParam(params, additionalFilterKeys) ||
+    Boolean(params.deadlineMode && params.deadlineMode !== "all");
   const [programs, customers, majorCatalog] = await Promise.all([
     hasSearch ? getProgramsForScreening() : Promise.resolve([]),
     listCustomerOptions(),
@@ -240,19 +243,16 @@ export default async function ScreeningPage({
     <>
       <PageHeading
         title={t("学校项目筛查")}
-        description={t("明确符合、需要补充、信息未知和不符合会分开显示；点击学校名称可查看完整学校与项目资料。")}
+        description={t("按客户条件查找项目，展开匹配依据后可查看判断细节并保存方案。")}
       />
       <form className="card screening-filter-card" method="get">
         <div className="card-header">
-          <div>
-            <h3>{t("客户筛选条件")}</h3>
-            <p className="small muted">{t("空缺信息不参与判断，可按需展开更多条件。")}</p>
-          </div>
+          <h3>{t("客户筛选条件")}</h3>
           <div className="header-search">
             <input
               name="q"
               defaultValue={params.q}
-              placeholder={t("搜索学校名称...")}
+              placeholder={t("筛选学校名称...")}
               aria-label={t("搜索学校")}
             />
           </div>
@@ -289,15 +289,7 @@ export default async function ScreeningPage({
                     placeholder={t("输入或选择专业...")}
                   />
                 </label>
-                <label>
-                  CSCA
-                  <select name="csca" defaultValue={params.csca}>
-                    <option value="">{t("不限")}</option>
-                    <option value="REQUIRED">{t("院校需要")}</option>
-                    <option value="NOT_REQUIRED">{t("院校不需要")}</option>
-                    <option value="UNKNOWN">{t("信息未标明")}</option>
-                  </select>
-                </label>
+                <label>{t("国籍")}<input name="nationality" defaultValue={params.nationality} placeholder={t("例如：泰国")} /></label>
                 <label>
                   {t("年龄")}
                   <input name="age" type="number" min="1" max="100" defaultValue={params.age} placeholder={t("周岁")} />
@@ -312,33 +304,42 @@ export default async function ScreeningPage({
                   </select>
                 </label>
               </div>
-              <div className="form-grid screening-primary-secondary">
-                <label>
-                  {t("院校层次")}
-                  <select name="schoolTier" defaultValue={criteria.schoolTier || ""}>
-                    <option value="">{t("不限")}</option>
-                    <option value="985">985</option>
-                    <option value="211">211</option>
-                    <option value="double_first_class_only">{t("仅双一流")}</option>
-                    <option value="double_non">{t("双非普通院校")}</option>
-                  </select>
-                </label>
-                <label>{t("国籍")}<input name="nationality" defaultValue={params.nationality} placeholder={t("例如：泰国")} /></label>
-                <label>
-                  {t("导师接收函要求")}
-                  <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
-                    <option value="">{t("不限")}</option>
-                    <option value="required">{t("明确或部分要求")}</option>
-                    <option value="unknown">{t("未标明")}</option>
-                  </select>
-                </label>
-              </div>
             </div>
           </section>
 
-          <section className="screening-filter-section screening-filter-deadline">
-            <h4>{t("申请时间")}</h4>
-            <div className="form-grid">
+          <details className="screening-filter-section screening-filter-advanced screening-filter-more" open={showAdditionalFilters}>
+            <summary>
+              <span><strong>{t("更多条件")}</strong></span>
+              <span className="screening-advanced-toggle">{t("展开")}</span>
+            </summary>
+            <div className="screening-more-fields form-grid">
+              <label>
+                CSCA
+                <select name="csca" defaultValue={params.csca}>
+                  <option value="">{t("不限")}</option>
+                  <option value="REQUIRED">{t("院校需要")}</option>
+                  <option value="NOT_REQUIRED">{t("院校不需要")}</option>
+                  <option value="UNKNOWN">{t("信息未标明")}</option>
+                </select>
+              </label>
+              <label>
+                {t("院校层次")}
+                <select name="schoolTier" defaultValue={criteria.schoolTier || ""}>
+                  <option value="">{t("不限")}</option>
+                  <option value="985">985</option>
+                  <option value="211">211</option>
+                  <option value="double_first_class_only">{t("仅双一流")}</option>
+                  <option value="double_non">{t("双非普通院校")}</option>
+                </select>
+              </label>
+              <label>
+                {t("导师接收函要求")}
+                <select name="supervisorAcceptance" defaultValue={params.supervisorAcceptance}>
+                  <option value="">{t("不限")}</option>
+                  <option value="required">{t("明确或部分要求")}</option>
+                  <option value="unknown">{t("未标明")}</option>
+                </select>
+              </label>
               <label>
                 {t("申请截止状态")}
                 <select name="deadlineMode" defaultValue={params.deadlineMode || "all"}>
@@ -351,7 +352,6 @@ export default async function ScreeningPage({
               <label>{t("截止日期从")}<input name="deadlineFrom" type="date" defaultValue={params.deadlineFrom} /></label>
               <label>{t("截止日期到")}<input name="deadlineTo" type="date" defaultValue={params.deadlineTo} /></label>
             </div>
-          </section>
 
           <details className="screening-filter-section screening-filter-advanced screening-filter-academic" open={showAcademicFilters}>
             <summary>
@@ -430,6 +430,7 @@ export default async function ScreeningPage({
               </label>
             </div>
           </details>
+          </details>
           <div className="form-actions screening-filter-actions">
             <button className="primary" type="submit">{t("开始筛查")}</button>
             <ClearScreeningFilters />
@@ -464,12 +465,12 @@ export default async function ScreeningPage({
             </div>
 
             <div className="screening-summary screening-summary-prominent">
-              <strong>{tv("📊 共找到 {n} 个项目", { n: results.length })}</strong>
-              <span className="summary-matched">{tv("✅ 可直接申请 {n}", { n: grouped.MATCHED.length })}</span>
-              <span className="summary-need">{tv("⚠️ 需要补充 {n}", { n: grouped.NEEDS_ACTION.length })}</span>
-              <span className="summary-unknown">{tv("❓ 信息待核实 {n}", { n: grouped.UNKNOWN.length })}</span>
-              <span>{tv("⛔ 明确不符合 {n}", { n: notMatchedResults.length })}</span>
-              <span>{tv("⏰ 已截止 {n}", { n: expiredResults.length })}</span>
+              <strong>{tv("共找到 {n} 个项目", { n: results.length })}</strong>
+              <span className="summary-matched">{tv("可直接申请 {n}", { n: grouped.MATCHED.length })}</span>
+              <span className="summary-need">{tv("需要补充 {n}", { n: grouped.NEEDS_ACTION.length })}</span>
+              <span className="summary-unknown">{tv("信息待核实 {n}", { n: grouped.UNKNOWN.length })}</span>
+              <span>{tv("明确不符合 {n}", { n: notMatchedResults.length })}</span>
+              <span>{tv("已截止 {n}", { n: expiredResults.length })}</span>
             </div>
 
             <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
