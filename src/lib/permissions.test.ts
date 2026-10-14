@@ -9,6 +9,7 @@ import {
   canManageImports,
   canManageSchoolUpdates,
   canViewConfidentialSchoolFields,
+  canViewAudit,
   canViewSchoolUpdateSecret,
   isMarketManager,
   stripConfidentialSchoolData,
@@ -33,9 +34,10 @@ describe("permissions", () => {
       expect(new Set(permissions).size).toBe(permissions.length);
     }
     expect(defaultPermissionsForRole("ADMIN")).toEqual([...PERMISSION_KEYS]);
-    expect(defaultPermissionsForRole("ADVISOR")).toContain("AUDIT_VIEW");
-    expect(defaultPermissionsForRole("CHANNEL_RESOURCE")).toContain("AUDIT_VIEW");
-    expect(defaultPermissionsForRole("MARKET_MANAGER")).not.toContain("AUDIT_VIEW");
+    for (const role of ROLES) {
+      expect(defaultPermissionsForRole(role).includes("AUDIT_VIEW")).toBe(role === "ADMIN");
+      expect(canViewAudit(role)).toBe(role === "ADMIN");
+    }
   });
 
   it("normalizes custom permissions and rejects unknown or non-loginable sets", () => {

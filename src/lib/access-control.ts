@@ -19,9 +19,13 @@ export function getUserPermissions(
   user: AccessUser,
   database: DatabaseSync = sqlite,
 ): PermissionKey[] {
-  return user.authProvider === "WECOM"
+  const permissions = user.authProvider === "WECOM"
     ? getWeComEffectivePermissions(user.id, database)
     : defaultPermissionsForRole(user.role);
+  // 审计包含全员操作与登录记录，仅管理员可查看，历史自定义授权也不能绕过。
+  return user.role === "ADMIN"
+    ? permissions
+    : permissions.filter((permission) => permission !== "AUDIT_VIEW");
 }
 
 export function userHasPermission(

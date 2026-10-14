@@ -291,6 +291,37 @@ describe("requireRole", () => {
   });
 });
 
+describe("audit page permission", () => {
+  it.each(["ADMIN", "ADVISOR", "DATA_MANAGER", "CHANNEL_RESOURCE", "MARKET_MANAGER"])(
+    "only allows ADMIN sessions to access audit (%s)",
+    async (role) => {
+      const [{ requirePermission }, { sqlite }] = await Promise.all([
+        import("@/lib/auth"),
+        import("@/lib/db"),
+      ]);
+      const token = "audit-access-token";
+      sqlite.prepare(
+        `INSERT INTO users (id, username, display_name, password_hash, role, active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run("audit-user", "audituser", "Audit User", "unused", role, 1, now, now);
+      sqlite.prepare(
+        `INSERT INTO sessions (id, user_id, token_hash, expires_at, last_seen_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run("audit-session", "audit-user", hashToken(token), future, now, now);
+      cookieStore.get.mockReturnValue({ value: token });
+
+      if (role === "ADMIN") {
+        await expect(requirePermission("AUDIT_VIEW")).resolves.toMatchObject({ role: "ADMIN" });
+        expect(mockRedirect).not.toHaveBeenCalled();
+      } else {
+        await expect(requirePermission("AUDIT_VIEW")).rejects.toThrow("NEXT_REDIRECT");
+        expect(mockRedirect).toHaveBeenCalledWith("/");
+      }
+      sqlite.close();
+    },
+  );
+});
+
 describe("auditLoginFailure", () => {
   it("writes an audit log entry for failed login", async () => {
     const [{ auditLoginFailure }, { sqlite }] = await Promise.all([
