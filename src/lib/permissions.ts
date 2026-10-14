@@ -72,10 +72,6 @@ export const PERMISSION_GROUPS: Array<{
       "DOCUMENT_DOWNLOAD",
     ],
   },
-  {
-    label: "系统记录",
-    keys: ["AUDIT_VIEW"],
-  },
 ];
 
 const COMMON_PERMISSIONS: readonly PermissionKey[] = [
@@ -102,7 +98,6 @@ export const ROLE_PERMISSION_TEMPLATES: Record<UserRole, readonly PermissionKey[
   ADVISOR: uniquePermissions([
     ...COMMON_PERMISSIONS,
     ...CUSTOMER_CASE_PERMISSIONS,
-    "AUDIT_VIEW",
   ]),
   DATA_MANAGER: uniquePermissions([
     ...COMMON_PERMISSIONS,
@@ -111,13 +106,11 @@ export const ROLE_PERMISSION_TEMPLATES: Record<UserRole, readonly PermissionKey[
     "SCHOOL_VIEW_CONFIDENTIAL",
     "DATA_IMPORT",
     "SCHOOL_UPDATE_MANAGE",
-    "AUDIT_VIEW",
   ]),
   CHANNEL_RESOURCE: uniquePermissions([
     ...COMMON_PERMISSIONS,
     "SCHOOL_EDIT_PUBLIC",
     "DATA_IMPORT",
-    "AUDIT_VIEW",
   ]),
   MARKET_MANAGER: uniquePermissions(COMMON_PERMISSIONS),
   ADMIN: [...PERMISSION_KEYS],
@@ -180,9 +173,6 @@ export const IMPORT_ROLES: readonly UserRole[] = [
 
 export const AUDIT_ROLES: readonly UserRole[] = [
   "ADMIN",
-  "ADVISOR",
-  "DATA_MANAGER",
-  "CHANNEL_RESOURCE",
 ];
 
 // 客户域敏感操作（材料上传/下载、跟进、改派、归档、申请状态、推荐方案）：

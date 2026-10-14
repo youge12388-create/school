@@ -6,7 +6,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   SearchCheck,
-  ShieldCheck,
   StickyNote,
   UserRoundCog,
 } from "lucide-react";
@@ -75,17 +74,6 @@ export function AppNav({
             </Link>
           );
         })}
-      {role !== "MARKET_MANAGER" ? (
-        <Link
-          className={`nav-link${pathname === "/security" ? " active" : ""}`}
-          href="/security"
-          aria-label={collapsed ? t("安全说明") : undefined}
-          title={collapsed ? t("安全说明") : undefined}
-        >
-          <ShieldCheck aria-hidden="true" />
-          {!collapsed && t("安全说明")}
-        </Link>
-      ) : null}
     </nav>
   );
 }
