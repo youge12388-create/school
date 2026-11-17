@@ -7,6 +7,11 @@ function requestHost(request: Request) {
   return host && SAFE_HOST_PATTERN.test(host) ? host : null;
 }
 
+function forwardedHost(request: Request) {
+  const host = firstHeaderValue(request, "x-forwarded-host");
+  return host && SAFE_HOST_PATTERN.test(host) ? host : null;
+}
+
 export function appUrl(request: Request, path: string) {
   const url = new URL(request.url);
   const host = requestHost(request);
@@ -19,4 +24,41 @@ export function appUrl(request: Request, path: string) {
   target.host = url.host;
   target.protocol = url.protocol;
   return target;
+}
+
+export function isSameOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  let originUrl: URL;
+  try {
+    originUrl = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") return false;
+
+  const requestUrl = new URL(request.url);
+  const protocol = forwardedProtocol(request);
+  const host = requestHost(request) ?? requestUrl.host;
+  const proxyHost = forwardedHost(request) ?? host;
+  const candidates = new Set<string>([requestUrl.origin]);
+
+  const addCandidate = (value: string) => {
+    try {
+      candidates.add(new URL(value).origin);
+    } catch {
+      // Ignore malformed proxy headers rather than trusting a partially parsed origin.
+    }
+  };
+
+  addCandidate(`${requestUrl.protocol}//${host}`);
+  if (protocol) {
+    addCandidate(`${protocol}://${host}`);
+    addCandidate(`${protocol}://${proxyHost}`);
+  } else {
+    addCandidate(`${requestUrl.protocol}//${proxyHost}`);
+  }
+
+  return candidates.has(originUrl.origin);
 }

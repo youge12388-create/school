@@ -5,6 +5,7 @@ import {
   FileClock,
   GraduationCap,
   LayoutDashboard,
+  MessageCircle,
   SearchCheck,
   StickyNote,
   UserRoundCog,

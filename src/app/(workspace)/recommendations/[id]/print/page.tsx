@@ -1,6 +1,9 @@
 import { eq } from "drizzle-orm";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { createApplicationFromRecommendationAction } from "@/app/ai-recommendation-actions";
+import { PrintButton } from "@/components/print-button";
 import { Badge, PageHeading } from "@/components/ui";
 import {
   LANGUAGE_LABELS,
@@ -16,6 +19,8 @@ import {
 } from "@/lib/db/schema";
 import { safeJson, formatDate, formatMoney } from "@/lib/utils";
 import type { MatchEvidence } from "@/lib/matcher";
+import type { ChatCriteria } from "@/lib/ai-screening";
+import { displayProgramName } from "@/lib/ai-screening-presentation";
 
 export default async function RecommendationPrintPage({
   params,
@@ -26,6 +31,8 @@ export default async function RecommendationPrintPage({
   const [header] = await db
     .select({
       title: recommendations.title,
+      customerId: customers.id,
+      criteriaJson: recommendations.criteriaJson,
       notes: recommendations.notes,
       createdAt: recommendations.createdAt,
       customerName: customers.name,
@@ -42,6 +49,7 @@ export default async function RecommendationPrintPage({
   const items = await db
     .select({
       id: recommendationItems.id,
+      programId: recommendationItems.programId,
       rank: recommendationItems.rank,
       fitLevel: recommendationItems.fitLevel,
       reason: recommendationItems.reason,
@@ -50,6 +58,7 @@ export default async function RecommendationPrintPage({
       province: schools.province,
       city: schools.city,
       programType: programs.programType,
+      programName: programs.name,
       language: programs.teachingLanguage,
       majorText: programs.majorText,
       tuitionText: programs.tuitionText,
@@ -61,25 +70,29 @@ export default async function RecommendationPrintPage({
     .innerJoin(schools, eq(schools.id, programs.schoolId))
     .where(eq(recommendationItems.recommendationId, id))
     .orderBy(recommendationItems.rank);
+  const snapshot = safeJson<{ mode?: string; criteria?: ChatCriteria; source?: string }>(header.criteriaJson, {});
+  const aiPlan = snapshot.mode === "AI_SCREENING";
+  const criteria = aiPlan ? snapshot.criteria : undefined;
   return (
     <>
       <div className="no-print">
         <PageHeading
           title={header.title}
           description="使用浏览器打印功能可保存为 PDF。"
-          action={<button onClick={undefined}>请使用 Ctrl+P 打印</button>}
         />
+        <div className="form-actions" style={{ marginBottom: 16 }}><Link className="button" href={`/customers/${header.customerId}`}>客户档案</Link><PrintButton /></div>
       </div>
       <div className="print-only">
         <h1>{header.title}</h1>
         <p>{header.customerName} · {header.customerNo} · {formatDate(header.createdAt)}</p>
       </div>
       <section className="card">
-        <div className="card-header"><h3>客户目标</h3></div>
+        <div className="card-header"><h3>{aiPlan ? "本次选校条件" : "客户目标"}</h3></div>
         <div className="card-body">
-          <p>申请学历：{PROGRAM_TYPE_LABELS[header.targetDegree || ""] || "未确定"}</p>
-          <p>目标专业：{header.targetMajor || "未确定"}</p>
-          <p>首年预算：{formatMoney(header.budget)}</p>
+          <p>申请学历：{PROGRAM_TYPE_LABELS[(aiPlan ? criteria?.programType : header.targetDegree) || ""] || "未确定"}</p>
+          <p>目标专业：{(aiPlan ? criteria?.targetMajor : header.targetMajor) || "未确定"}</p>
+          <p>首年预算：{formatMoney(aiPlan ? criteria?.budget : header.budget)}</p>
+          {aiPlan && <p>方案记录的是保存时的匹配依据，招生条件和合作情况请再次核实。已有相同项目申请时会打开原记录。</p>}
           {header.notes ? <p>方案备注：{header.notes}</p> : null}
         </div>
       </section>
@@ -92,16 +105,17 @@ export default async function RecommendationPrintPage({
                 <div className="stat-number" style={{ fontSize: 28 }}>{item.rank}</div>
                 <div>
                   <div className="result-title">{item.schoolName}</div>
+                  {aiPlan && <p>{displayProgramName(item.schoolName, item.programName)}</p>}
                   <div className="result-meta">
                     <span>{[item.province, item.city].filter(Boolean).join(" · ")}</span>
-                    <span>{PROGRAM_TYPE_LABELS[item.programType]}</span>
-                    <span>{LANGUAGE_LABELS[item.language]}</span>
-                    <span>首年上限：{formatMoney(item.firstYearCostMax)}</span>
-                    <span>截止：{formatDate(item.deadlineDate)}</span>
+                    {!aiPlan && <span>{PROGRAM_TYPE_LABELS[item.programType]}</span>}
+                    {!aiPlan && <span>{LANGUAGE_LABELS[item.language]}</span>}
+                    {!aiPlan && <span>首年上限：{formatMoney(item.firstYearCostMax)}</span>}
+                    {!aiPlan && <span>截止：{formatDate(item.deadlineDate)}</span>}
                   </div>
-                  <p style={{ whiteSpace: "pre-wrap", marginTop: 10 }}>
+                  {!aiPlan && <p style={{ whiteSpace: "pre-wrap", marginTop: 10 }}>
                     {item.majorText || "数据库未有相关专业信息"}
-                  </p>
+                  </p>}
                   {item.reason ? <p style={{ marginTop: 10 }}><strong>推荐理由：</strong>{item.reason}</p> : null}
                 </div>
                 <Badge tone={item.fitLevel === "MATCHED" ? "green" : item.fitLevel === "NOT_MATCHED" ? "red" : "amber"}>
@@ -116,7 +130,12 @@ export default async function RecommendationPrintPage({
                   </div>
                 ))}
               </div>
-              <div className="card-body"><span className="small muted">原始学费说明：</span>{item.tuitionText}</div>
+              {!aiPlan && <div className="card-body"><span className="small muted">原始学费说明：</span>{item.tuitionText}</div>}
+              {aiPlan && <form className="card-body no-print" action={createApplicationFromRecommendationAction}>
+                <input type="hidden" name="recommendationId" value={id} />
+                <input type="hidden" name="programId" value={item.programId} />
+                <button type="submit">创建申请</button>
+              </form>}
             </article>
           );
         })}

@@ -18,13 +18,14 @@ vi.mock("@/lib/user-service", () => ({
 
 import { POST } from "./route";
 
-function request(formData?: FormData, origin = "https://app.example.com") {
+function request(formData?: FormData, origin = "https://app.example.com", headers: Record<string, string> = {}) {
   return new Request("https://internal.example/api/admin/users", {
     method: "POST",
     headers: {
       host: "app.example.com",
       origin,
       "x-forwarded-proto": "https",
+      ...headers,
     },
     body: formData,
   });
@@ -103,6 +104,28 @@ describe("POST /api/admin/users", () => {
     expect(response.headers.get("location")).toBe(
       "https://app.example.com/admin/users?roleUpdated=1",
     );
+  });
+
+  it("allows a same-origin request forwarded by a reverse proxy", async () => {
+    const response = await POST(request(new FormData(), "https://school.example.com", {
+      host: "127.0.0.1:3000",
+      "x-forwarded-host": "school.example.com",
+    }));
+
+    expect(response.status).toBe(303);
+    expect(createUser).toHaveBeenCalledOnce();
+  });
+
+  it("rejects requests without an origin header", async () => {
+    const body = new FormData();
+    const response = await POST(new Request("https://internal.example/api/admin/users", {
+      method: "POST",
+      headers: { host: "app.example.com", "x-forwarded-proto": "https" },
+      body,
+    }));
+
+    expect(response.status).toBe(403);
+    expect(createUser).not.toHaveBeenCalled();
   });
 
   it("redirects unauthenticated requests to login", async () => {

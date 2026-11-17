@@ -193,6 +193,10 @@ export default async function SchoolDetailsPage({
     reviewStatus: school.reviewStatus,
     infoNote: school.infoNote,
   };
+  if (!canEdit) {
+    redactFields(schoolKnowledge, ["学校简介", "合作项目"]);
+    redactFields(cooperationKnowledge, COOPERATION_FIELD_GROUPS.flatMap((group) => [...group.fields]));
+  }
 
   return (
     <EditModeProvider>
@@ -317,7 +321,7 @@ export default async function SchoolDetailsPage({
         </div>
 
         {visiblePrograms.length ? (
-          visiblePrograms.map((program, index) => {
+          visiblePrograms.map((program) => {
             const raw = safeJson<Record<string, unknown>>(program.rawJson, {});
             // rawJson 是原始 Excel 行，可能含与归一化字段同名的键（如手工录入错位值）。
             // 归一化字段（program.programType 等已通过 normalizeProgramType 校验）必须优先于 raw，
@@ -371,6 +375,7 @@ export default async function SchoolDetailsPage({
               scholarshipContent: program.scholarshipContent,
               reviewStatus: program.reviewStatus,
             };
+            if (!canEdit) redactFields(programKnowledge, [...PROGRAM_CORE_FIELDS, PROGRAM_MATERIAL_FIELD, ...PROGRAM_LONG_FIELDS]);
             return (
               <SchoolProgramCard
                 key={program.id}

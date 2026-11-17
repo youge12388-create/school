@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 
 import { updateApplicationStatusAction } from "@/app/actions";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
+import { redactSensitiveSource } from "@/lib/ai-screening";
+import { requireUser } from "@/lib/auth";
 import {
   APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
