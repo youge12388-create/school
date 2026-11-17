@@ -14,11 +14,24 @@ import { getCurrentUser } from "@/lib/auth";
 import { getProgramsForScreening } from "@/lib/queries";
 import type { MatchProgram } from "@/lib/matcher";
 
-const makeRequest = (message = "想申请硕士") => new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, criteria: {} }) });
+const makeRequest = (message = "想申请硕士") => new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message, criteria: {} }) });
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("AI 选校接口", () => {
+  it("拒绝跨站调用，避免借用登录会话触发模型请求", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/ai-screening", {
+        method: "POST",
+        headers: {
+          Origin: "https://evil.example",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: "想申请硕士" }),
+      }),
+    );
+    expect(response.status).toBe(403);
+  });
   it("未配置模型时返回清楚错误，不生成结果", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "");
     const response = await POST(makeRequest());
@@ -40,7 +53,7 @@ describe("AI 选校接口", () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ criteria: {}, intent: "chat", reply: "我是选校助手，可以帮您继续比较。" }) } }] }));
     vi.stubGlobal("fetch", fetchMock);
-    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "你是谁", criteria: { programType: "MASTER" }, hasPrevious: true, focusSchool: "仅服务端使用的大学", previousOtherRequested: true, history: [{ role: "user", content: "你好" }, { role: "assistant", content: "您好。" }] }) });
+    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "你是谁", criteria: { programType: "MASTER" }, hasPrevious: true, focusSchool: "仅服务端使用的大学", previousOtherRequested: true, history: [{ role: "user", content: "你好" }, { role: "assistant", content: "您好。" }] }) });
     const response = await POST(request);
     const data = await response.json();
     expect(data).toMatchObject({ criteria: { programType: "MASTER" }, focusSchool: "仅服务端使用的大学", otherRequested: true, conversation: true });
@@ -61,7 +74,7 @@ describe("AI 选校接口", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     for (const content of ["学校不招某国籍", "电话：13812345678"]) {
-      const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "继续", history: [{ role: "user", content }] }) });
+      const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "继续", history: [{ role: "user", content }] }) });
       expect((await POST(request)).status).toBe(400);
     }
     expect(fetchMock).not.toHaveBeenCalled();
@@ -86,7 +99,7 @@ describe("AI 选校接口", () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "继续查询", criteria: { targetMajor: "学校不招某国籍" } }) });
+    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "继续查询", criteria: { targetMajor: "学校不招某国籍" } }) });
     const response = await POST(request);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(response.status).toBe(400);
@@ -96,7 +109,7 @@ describe("AI 选校接口", () => {
     vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", "Z:/nonexistent-test-workbook.xlsx");
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"programType":"MASTER"}}' } }] }));
     vi.stubGlobal("fetch", fetchMock);
-    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "这所学校学费多少？", criteria: {}, hasPrevious: true, focusSchool: "不发送的上轮学校" }) });
+    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "这所学校学费多少？", criteria: {}, hasPrevious: true, focusSchool: "不发送的上轮学校" }) });
     await POST(request);
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0][1]?.body)).not.toContain("不发送的上轮学校");
@@ -149,7 +162,7 @@ describe("AI 选校接口", () => {
       vi.stubGlobal("fetch", fetchMock);
       const response = await POST(new Request("http://localhost/api/ai-screening", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Origin: "http://localhost", "Content-Type": "application/json" },
         body: JSON.stringify({
           message: "按已更新的申请条件重新筛选。",
           criteria: { programType: "MASTER", budget: 90000 },
@@ -176,7 +189,7 @@ describe("AI 选校接口", () => {
       vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", path);
       vi.stubEnv("AI_SCREENING_PARTNERS_PATH", "");
       vi.stubGlobal("fetch", vi.fn(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"programType":"MASTER"}}' } }] })));
-      const req = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message: "巴基斯坦学生想申请硕士", criteria: {} }) });
+      const req = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message: "巴基斯坦学生想申请硕士", criteria: {} }) });
       const response = await POST(req);
       const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
       expect(events[0]).toMatchObject({ type: "progress", step: { id: "understand", status: "active" } });
@@ -188,7 +201,7 @@ describe("AI 选校接口", () => {
   });
   it("流式请求在模型失败时返回错误事件，保留已发生的进度", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "");
-    const req = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message: "想申请硕士", criteria: {} }) });
+    const req = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message: "想申请硕士", criteria: {} }) });
     const events = (await (await POST(req)).text()).trim().split("\n").map((line) => JSON.parse(line));
     expect(events[0]).toMatchObject({ type: "progress", step: { id: "understand", status: "active" } });
     expect(events.at(-1)).toMatchObject({ type: "error", message: expect.stringContaining("尚未配置") });
@@ -203,7 +216,7 @@ describe("AI 选校接口", () => {
       vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", path);
       vi.stubEnv("AI_SCREENING_SHARED_DIR", join(tmpdir(), `school-ai-empty-${randomUUID()}`));
       vi.stubGlobal("fetch", vi.fn(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ criteria: { programType: "MASTER" }, intent: "search", showOther: true }) } }] })));
-      const request = (message: string) => new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, criteria: { programType: "MASTER" }, hasPrevious: true }) });
+      const request = (message: string) => new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message, criteria: { programType: "MASTER" }, hasPrevious: true }) });
       const excluding = await (await POST(request("不要看其他院校"))).json();
       expect(excluding.otherRequested).toBe(false);
       vi.stubGlobal("fetch", vi.fn(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ criteria: { programType: "MASTER" }, intent: "chat", showOther: false, reply: "好的。" }) } }] })));
@@ -235,9 +248,9 @@ describe("AI 选校接口", () => {
           : '{"criteria":{"programType":"MASTER","targetMajor":"计算机"},"intent":"search"}';
         return Response.json({ choices: [{ finish_reason: "stop", message: { content } }] });
       }));
-      const initial = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "想申请计算机硕士", criteria: {} }) }))).json();
+      const initial = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "想申请计算机硕士", criteria: {} }) }))).json();
       expect(initial.shown.schoolNames.sort()).toEqual(["乙大学", "甲大学"].sort());
-      const more = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "还有其他的吗", criteria: initial.criteria, hasPrevious: true, seenProgramIds: initial.shown.programIds, seenSchoolNames: initial.shown.schoolNames }) }))).json();
+      const more = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "还有其他的吗", criteria: initial.criteria, hasPrevious: true, seenProgramIds: initial.shown.programIds, seenSchoolNames: initial.shown.schoolNames }) }))).json();
       expect(more.results.confirmed).toHaveLength(0);
       expect(more.results.pending).toHaveLength(0);
       expect(more.results.other.map((card: { name: string }) => card.name)).toEqual(["丙大学"]);
@@ -276,7 +289,7 @@ describe("AI 选校接口", () => {
       for (const privateText of ["私有测试大学", "私有测试项目", "某国籍", "37000", "计算机"]) expect(anonymousBody).not.toContain(privateText);
       vi.mocked(getProgramsForScreening).mockResolvedValueOnce([{ ...program, ieltsMin: 6 }]);
       fetchMock.mockResolvedValueOnce(Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"ielts":5},"intent":"school_fact","topic":"LANGUAGE"}' } }] }));
-      const follow = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "私有测试大学雅思 5 分够吗？", criteria: { programType: "MASTER", targetMajor: "计算机", ielts: 6.5 }, hasPrevious: true, focusSchool: "私有测试大学" }) });
+      const follow = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "私有测试大学雅思 5 分够吗？", criteria: { programType: "MASTER", targetMajor: "计算机", ielts: 6.5 }, hasPrevious: true, focusSchool: "私有测试大学" }) });
       const followResponse = await POST(follow);
       expect(followResponse.status).toBe(200);
       const followData = await followResponse.json();

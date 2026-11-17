@@ -1,17 +1,10 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { appUrl } from "@/lib/http";
+import { isSameOrigin } from "@/lib/http";
 import { currentWorkbookInfo, MAX_WORKBOOK_BYTES, previewWorkbook, replaceWorkbook, restorePreviousWorkbook, WorkbookError } from "@/lib/ai-screening-workbook";
 
 export const runtime = "nodejs";
 const versionSchema = z.string().uuid();
-
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try { return new URL(origin).origin === appUrl(request, "/").origin; }
-  catch { return false; }
-}
 
 async function readLimited(request: Request, limit: number): Promise<ArrayBuffer> {
   const declared = Number(request.headers.get("content-length") || 0);
@@ -46,7 +39,7 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "请先登录" }, { status: 401 });
   if (user.role !== "ADMIN") return Response.json({ error: "只有管理员可以更新合作名单。" }, { status: 403 });
-  if (!sameOrigin(request)) return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  if (!isSameOrigin(request)) return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
   try {
     const type = request.headers.get("content-type") ?? "";
     if (type.startsWith("application/json")) {

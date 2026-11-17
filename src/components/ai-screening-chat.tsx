@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowUp, Check, ChevronDown, LoaderCircle, MessageCircle, PencilLine, RotateCcw, ShieldAlert } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, LoaderCircle, MessageCircle, PencilLine, RotateCcw, ShieldAlert, UserRound } from "lucide-react";
 import { criteriaSchema, schoolIdentityKey, type ChatCriteria, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse, SearchEvent, SearchStep } from "@/lib/ai-screening-events";
 import type { WorkbookInfo, WorkbookPreview } from "@/lib/ai-screening-workbook";
@@ -59,7 +59,16 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
     gpaScale: draftValue(criteria.gpaScale),
     ielts: draftValue(criteria.ielts),
     toefl: draftValue(criteria.toefl),
+    duolingo: draftValue(criteria.duolingo),
     hskLevel: draftValue(criteria.hskLevel),
+    hskScore: draftValue(criteria.hskScore),
+    hasCsca: draftValue(criteria.hasCsca),
+    cscaRequirement: draftValue(criteria.cscaRequirement),
+    scholarshipType: draftValue(criteria.scholarshipType),
+    accommodationRequired: draftValue(criteria.accommodationRequired),
+    age: draftValue(criteria.age),
+    province: draftValue(criteria.province),
+    city: draftValue(criteria.city),
   };
 
   function openEditor() {
@@ -78,6 +87,12 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
     return Number.isFinite(value) ? value : null;
   }
 
+  function booleanOrNull(key: keyof typeof fields) {
+    const raw = draft[key]?.trim();
+    if (!raw) return null;
+    return raw === "true";
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
     const next: ChatCriteria = {
@@ -92,7 +107,16 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
       gpaScale: numberOrNull("gpaScale"),
       ielts: numberOrNull("ielts"),
       toefl: numberOrNull("toefl"),
+      duolingo: numberOrNull("duolingo"),
       hskLevel: numberOrNull("hskLevel") == null ? null : Math.trunc(numberOrNull("hskLevel")!),
+      hskScore: numberOrNull("hskScore"),
+      hasCsca: booleanOrNull("hasCsca"),
+      cscaRequirement: draft.cscaRequirement ? draft.cscaRequirement as ChatCriteria["cscaRequirement"] : null,
+      scholarshipType: draft.scholarshipType ? draft.scholarshipType as ChatCriteria["scholarshipType"] : null,
+      accommodationRequired: booleanOrNull("accommodationRequired"),
+      age: numberOrNull("age") == null ? null : Math.trunc(numberOrNull("age")!),
+      province: draft.province?.trim() || null,
+      city: draft.city?.trim() || null,
     };
     if (!Object.values(next).some((value) => value != null && value !== "")) return;
     setEditing(false);
@@ -116,10 +140,168 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
       <label>GPA 满分<input type="number" min="0" step="0.01" value={draft.gpaScale} onChange={(event) => change("gpaScale", event.target.value)} placeholder="如 4" /></label>
       <label>雅思<input type="number" min="0" max="9" step="0.5" value={draft.ielts} onChange={(event) => change("ielts", event.target.value)} placeholder="如 6.5" /></label>
       <label>托福<input type="number" min="0" max="120" value={draft.toefl} onChange={(event) => change("toefl", event.target.value)} placeholder="如 90" /></label>
+      <label>多邻国<input type="number" min="0" max="160" value={draft.duolingo} onChange={(event) => change("duolingo", event.target.value)} placeholder="如 120" /></label>
       <label>HSK 等级<input type="number" min="1" max="9" value={draft.hskLevel} onChange={(event) => change("hskLevel", event.target.value)} placeholder="如 5" /></label>
-      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />按这些条件重新筛选</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>取消</button><small>条件只保存在当前浏览器。</small></div>
+      <label>HSK 分数<input type="number" min="0" max="300" value={draft.hskScore} onChange={(event) => change("hskScore", event.target.value)} placeholder="如 250" /></label>
+      <label>CSCA 状态<select value={draft.hasCsca} onChange={(event) => change("hasCsca", event.target.value)}><option value="">未确认</option><option value="true">已有 CSCA</option><option value="false">暂无 CSCA</option></select></label>
+      <label>学校 CSCA 要求<select value={draft.cscaRequirement} onChange={(event) => change("cscaRequirement", event.target.value)}><option value="">不限</option><option value="NOT_REQUIRED">只看不要求</option><option value="REQUIRED">只看要求</option></select></label>
+      <label>奖学金<select value={draft.scholarshipType} onChange={(event) => change("scholarshipType", event.target.value)}><option value="">不限</option><option value="full">需要全额奖学金</option><option value="any">需要奖学金</option></select></label>
+      <label>住宿<select value={draft.accommodationRequired} onChange={(event) => change("accommodationRequired", event.target.value)}><option value="">不限</option><option value="true">需要学校住宿</option><option value="false">不需要住宿</option></select></label>
+      <label>年龄<input type="number" min="1" max="120" value={draft.age} onChange={(event) => change("age", event.target.value)} placeholder="如 22" /></label>
+      <label>省份<input value={draft.province} maxLength={30} onChange={(event) => change("province", event.target.value)} placeholder="如 北京" /></label>
+      <label>城市<input value={draft.city} maxLength={30} onChange={(event) => change("city", event.target.value)} placeholder="如 上海" /></label>
+      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />按这些条件重新筛选</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>取消</button><small>条件会自动保存在当前浏览器，也可关联客户档案。</small></div>
     </form>}
   </section>;
+}
+
+type CustomerProfile = {
+  id: string;
+  name: string;
+  customerNo: string;
+  criteria: ChatCriteria;
+};
+
+function ProfileLinker({
+  criteria,
+  busy,
+  onLoad,
+}: {
+  criteria: ChatCriteria;
+  busy: boolean;
+  onLoad: (criteria: ChatCriteria) => void;
+}) {
+  const [customers, setCustomers] = useState<CustomerProfile[] | null>(null);
+  const [customerId, setCustomerId] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const hasCriteria = Object.values(criteria).some(
+    (value) => value != null && value !== "",
+  );
+
+  async function loadCustomers() {
+    if (customers) return;
+    try {
+      const response = await fetch("/api/ai-screening/profile", {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "读取客户画像失败。");
+      setCustomers(data.customers as CustomerProfile[]);
+      setMessage("");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "读取客户画像失败。",
+      );
+    }
+  }
+
+  function applyCustomerProfile() {
+    const customer = customers?.find((item) => item.id === customerId);
+    if (!customer) return;
+    onLoad(customer.criteria);
+    const loaded = criteriaLabels(customer.criteria);
+    setMessage(
+      loaded.length
+        ? `已载入 ${customer.name} 的 ${loaded.length} 项条件；点击“调整条件”可继续修改。`
+        : `${customer.name} 的档案还没有可用的申请条件。`,
+    );
+  }
+
+  async function saveProfile() {
+    if (!customerId || !hasCriteria || saving) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/ai-screening/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId, criteria }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "画像未保存。");
+      const customer = customers?.find((item) => item.id === customerId);
+      setCustomers((old) =>
+        old?.map((item) =>
+          item.id === customerId ? { ...item, criteria } : item,
+        ) ?? old,
+      );
+      setMessage(
+        `已保存到 ${customer?.name ?? "客户档案"}。${
+          data.unsupportedFields?.length
+            ? ` ${data.unsupportedFields.join("、")}仍只保存在当前浏览器。`
+            : ""
+        }`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "画像未保存。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <details
+      className="agent-profile-link"
+      onToggle={(event) => {
+        if (event.currentTarget.open) void loadCustomers();
+      }}
+    >
+      <summary>
+        <UserRound size={14} aria-hidden="true" />
+        关联客户画像
+        <ChevronDown size={14} aria-hidden="true" />
+      </summary>
+      <div className="agent-profile-link-body">
+        <p>
+          可把当前条件保存到客户档案，或从已有客户载入。客户档案未覆盖的字段仍只保存在当前浏览器。
+        </p>
+        <div className="agent-profile-link-actions">
+          <label>
+            客户
+            <select
+              value={customerId}
+              onChange={(event) => {
+                setCustomerId(event.target.value);
+                setMessage("");
+              }}
+              disabled={saving || busy || customers === null}
+            >
+              <option value="">
+                {customers === null ? "正在读取客户…" : "请选择客户"}
+              </option>
+              {customers?.map((customer) => (
+                <option value={customer.id} key={customer.id}>
+                  {customer.name} · {customer.customerNo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={applyCustomerProfile}
+            disabled={!customerId || busy || saving}
+          >
+            载入条件
+          </button>
+          <button
+            type="button"
+            onClick={() => void saveProfile()}
+            disabled={!customerId || !hasCriteria || busy || saving}
+          >
+            {saving ? "正在保存…" : "保存当前条件"}
+          </button>
+        </div>
+        {customers?.length === 0 && (
+          <p>
+            还没有客户，可先
+            <Link href="/customers/new">新建客户</Link>。
+          </p>
+        )}
+        {message && <p role="status">{message}</p>}
+      </div>
+    </details>
+  );
 }
 
 function SearchTrace({ steps, busy }: { steps: SearchStep[]; busy: boolean }) {
@@ -567,6 +749,7 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
     <div className="agent-privacy">请使用脱敏信息，勿输入姓名、联系方式或证件信息；当前及近期对话会发送至 AI 服务。</div>
     <WorkbookManager canManage={canManageWorkbook} refreshKey={latest?.result ? latest.id : 0} />
     <CriteriaBar criteria={criteria} busy={busy} onApply={(next) => { setCriteria(next); void run("按已更新的申请条件重新筛选。", criteria, false, sensitiveContext, focusSchool, next); }} />
+    <ProfileLinker criteria={criteria} busy={busy} onLoad={setCriteria} />
     {turns.length === 0 && <div className="agent-empty"><h2>告诉我学生想申请什么</h2><p>输入学历、专业、预算等，条件不全也可以先查。我会先查合作院校，必要时再查其他院校。</p><button type="button" onClick={() => { setInput("想申请英文授课的计算机硕士，雅思 6.5，首年预算 8 万，2027 年春季入学。"); inputRef.current?.focus(); }}>填入示例需求</button></div>}
     <div className="agent-conversation" aria-live="polite">{turns.map((turn, index) => <div id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}><p className="agent-user">{turn.question}</p><div className="agent-response"><SearchTrace steps={turn.steps} busy={busy && index === turns.length - 1} />{turn.error && <div className="agent-error" role="alert"><strong>这次没有完成</strong><p>{turn.error}</p><div className="agent-error-actions">{!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore, turn.providedCriteria ?? null)} disabled={busy}>重新试一次</button>}<button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>修改输入</button></div></div>}{turn.result && <Answer result={turn.result} busy={busy || index < turns.length - 1} onOthers={() => void run("请查看其他院校", turn.result!.criteria, true, turn.result!.sensitiveContext)} />}{turn.result && <div className="agent-answer-footer"><SearchHistory steps={turn.steps} source={turn.result.source} />{index === turns.length - 1 && <PlanBuilder result={turn.result} disabled={busy} />}</div>}{!turn.result && turn.error && <SearchHistory steps={turn.steps} source={undefined} />}</div></div>)}</div>
     <form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">输入学生申请需求</label><span className="sr-only" id="agent-input-help">按 Enter 发送，按 Shift 加 Enter 换行。</span><textarea ref={inputRef} id="agent-input" aria-describedby="agent-input-help" value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入学生的申请需求…" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><button type="submit" disabled={busy || !input.trim()} aria-label="发送"><ArrowUp size={19} /></button></form>

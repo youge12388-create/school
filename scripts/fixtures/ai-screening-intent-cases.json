@@ -1,0 +1,299 @@
+[
+  {
+    "id": "greeting",
+    "message": "你好",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "chat",
+      "criteria": {},
+      "replyMustMention": []
+    }
+  },
+  {
+    "id": "identity",
+    "message": "你是谁，能做什么？",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "chat",
+      "criteria": {},
+      "replyMustMention": ["选校"]
+    }
+  },
+  {
+    "id": "full-profile",
+    "message": "想申请英文授课的计算机硕士，首年预算 8 万，2027 年春季入学。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER",
+        "teachingLanguage": "ENGLISH",
+        "targetMajor": "计算机",
+        "budget": 80000,
+        "intakeYear": 2027,
+        "intakeSeason": "SPRING"
+      }
+    }
+  },
+  {
+    "id": "raise-budget",
+    "message": "预算提高到 10 万。",
+    "previousCriteria": {
+      "programType": "MASTER",
+      "targetMajor": "计算机",
+      "budget": 80000,
+      "intakeYear": 2027,
+      "intakeSeason": "SPRING"
+    },
+    "history": [
+      { "role": "assistant", "content": "已按 8 万预算筛选。" }
+    ],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "计算机",
+        "budget": 100000,
+        "intakeYear": 2027,
+        "intakeSeason": "SPRING"
+      }
+    }
+  },
+  {
+    "id": "clear-major",
+    "message": "专业不限了，先看学校。",
+    "previousCriteria": {
+      "programType": "MASTER",
+      "targetMajor": "计算机",
+      "budget": 80000
+    },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": null,
+        "budget": 80000
+      }
+    }
+  },
+  {
+    "id": "month-without-season",
+    "message": "想申请 2027 年 9 月入学的硕士。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER",
+        "intakeYear": 2027,
+        "intakeSeason": null
+      }
+    }
+  },
+  {
+    "id": "no-csca",
+    "message": "我目前还没有 CSCA。",
+    "previousCriteria": { "programType": "UG" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "UG",
+        "hasCsca": false
+      }
+    }
+  },
+  {
+    "id": "csca-not-required",
+    "message": "只看明确不要求 CSCA 的本科院校。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "UG",
+        "cscaRequirement": "NOT_REQUIRED"
+      }
+    }
+  },
+  {
+    "id": "city-language-degree",
+    "message": "想去北京读中文授课的本科。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "UG",
+        "teachingLanguage": "CHINESE",
+        "city": "北京"
+      }
+    }
+  },
+  {
+    "id": "score-profile",
+    "message": "雅思 6.5，托福 90，GPA 3.5/4，HSK 5 级。",
+    "previousCriteria": { "programType": "MASTER", "targetMajor": "商科" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "商科",
+        "ielts": 6.5,
+        "toefl": 90,
+        "gpa": 3.5,
+        "gpaScale": 4,
+        "hskLevel": 5
+      }
+    }
+  },
+  {
+    "id": "more-schools",
+    "message": "还有其他的吗？",
+    "previousCriteria": { "programType": "MASTER", "targetMajor": "计算机" },
+    "history": [
+      { "role": "assistant", "content": "先列出三所合作候选。" }
+    ],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "showOther": true,
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "计算机"
+      }
+    }
+  },
+  {
+    "id": "exclude-other",
+    "message": "不要看其他院校。",
+    "previousCriteria": { "programType": "MASTER" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "showOther": false,
+      "criteria": { "programType": "MASTER" }
+    }
+  },
+  {
+    "id": "compare-cost",
+    "message": "这几所里哪所最便宜？",
+    "previousCriteria": { "programType": "MASTER", "targetMajor": "计算机" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "compare_cost",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "计算机"
+      }
+    }
+  },
+  {
+    "id": "explain-first",
+    "message": "为什么推荐第一所？",
+    "previousCriteria": { "programType": "MASTER", "targetMajor": "计算机" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "explain",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "计算机"
+      }
+    }
+  },
+  {
+    "id": "ask-tuition",
+    "message": "这所学校学费多少？",
+    "previousCriteria": { "programType": "MASTER", "targetMajor": "计算机" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "school_fact",
+      "topic": "TUITION",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "计算机"
+      }
+    }
+  },
+  {
+    "id": "ask-deadline",
+    "message": "申请截止日期是什么时候？",
+    "previousCriteria": { "programType": "MASTER", "targetMajor": "计算机" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "school_fact",
+      "topic": "DEADLINE",
+      "criteria": {
+        "programType": "MASTER",
+        "targetMajor": "计算机"
+      }
+    }
+  },
+  {
+    "id": "full-scholarship",
+    "message": "想申请可以拿全奖的本科项目。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "UG",
+        "scholarshipType": "full"
+      }
+    }
+  },
+  {
+    "id": "need-accommodation",
+    "message": "需要学校提供住宿。",
+    "previousCriteria": { "programType": "PHD", "targetMajor": "工程" },
+    "history": [],
+    "hasPrevious": true,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "PHD",
+        "targetMajor": "工程",
+        "accommodationRequired": true
+      }
+    }
+  },
+  {
+    "id": "prefer-shanghai",
+    "message": "优先看上海的硕士项目。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER",
+        "city": "上海"
+      }
+    }
+  },
+  {
+    "id": "partial-request",
+    "message": "先帮我找硕士项目。",
+    "history": [],
+    "hasPrevious": false,
+    "expected": {
+      "intent": "search",
+      "criteria": {
+        "programType": "MASTER"
+      }
+    }
+  }
+]

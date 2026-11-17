@@ -7,7 +7,7 @@ import { loadScreeningData } from "@/lib/ai-screening-data";
 import { containsPersonalContact, containsSensitiveRestriction } from "@/lib/ai-screening-input";
 import { candidateRevision, isCandidate } from "@/lib/ai-screening-presentation";
 import { sqlite } from "@/lib/db";
-import { appUrl } from "@/lib/http";
+import { isSameOrigin } from "@/lib/http";
 import { listCustomerOptions } from "@/lib/queries";
 import { newId } from "@/lib/utils";
 
@@ -17,12 +17,6 @@ const saveSchema = z.object({
   criteria: criteriaSchema, source: z.string().min(1).max(120), showOther: z.boolean(),
   items: z.array(z.object({ programId: z.string().min(1).max(120), revision: z.string().max(12000) }).strict()).min(1).max(30),
 }).strict();
-
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  try { return Boolean(origin && new URL(origin).origin === appUrl(request, "/").origin); }
-  catch { return false; }
-}
 
 async function readLimited(request: Request, limit: number) {
   if (!request.body || Number(request.headers.get("content-length") || 0) > limit) throw new Error("request too large");
@@ -61,7 +55,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "请先登录。" }, { status: 401 });
-  if (!sameOrigin(request)) return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  if (!isSameOrigin(request)) return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
   let parsed: ReturnType<typeof saveSchema.safeParse>;
   try {
     const text = await readLimited(request, 256_000);
