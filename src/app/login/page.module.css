@@ -454,7 +454,8 @@
 @media (max-width: 940px) {
   .page {
     grid-template-columns: 1fr;
-    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .page::before {
