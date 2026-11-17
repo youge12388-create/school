@@ -2,12 +2,17 @@ import { getTrustedForwardedProtocol } from "@/lib/request-security";
 
 const SAFE_HOST_PATTERN = /^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d+)?$/;
 
+function firstHeaderValue(request: Request, name: string) {
+  return request.headers.get(name)?.split(",")[0]?.trim() || null;
+}
+
 function requestHost(request: Request) {
   const host = request.headers.get("host")?.trim();
   return host && SAFE_HOST_PATTERN.test(host) ? host : null;
 }
 
 function forwardedHost(request: Request) {
+  if (process.env.TRUST_PROXY !== "true") return null;
   const host = firstHeaderValue(request, "x-forwarded-host");
   return host && SAFE_HOST_PATTERN.test(host) ? host : null;
 }
@@ -39,7 +44,7 @@ export function isSameOrigin(request: Request) {
   if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") return false;
 
   const requestUrl = new URL(request.url);
-  const protocol = forwardedProtocol(request);
+  const protocol = getTrustedForwardedProtocol(request);
   const host = requestHost(request) ?? requestUrl.host;
   const proxyHost = forwardedHost(request) ?? host;
   const candidates = new Set<string>([requestUrl.origin]);

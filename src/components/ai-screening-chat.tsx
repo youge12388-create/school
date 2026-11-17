@@ -40,7 +40,7 @@ function criteriaLabels(criteria: ChatCriteria) {
   ].filter((item): item is string => Boolean(item));
 }
 
-function draftValue(value: string | number | null | undefined) {
+function draftValue(value: string | number | boolean | null | undefined) {
   return value == null ? "" : String(value);
 }
 

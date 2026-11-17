@@ -153,7 +153,7 @@ describe("AI 选校客户画像", () => {
         action: "CUSTOMER_SCREENING_PROFILE_UPDATED",
         entityId: "customer-1",
       }),
-      mocks.db,
+      expect.anything(),
     );
     expect(
       mocks.db!

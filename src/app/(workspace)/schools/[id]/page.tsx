@@ -11,6 +11,7 @@ import { SchoolConfidentialCard } from "@/components/school-confidential-card";
 import { SchoolProgramCard, type ProgramCardData } from "@/components/school-program-card";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { userHasPermission } from "@/lib/access-control";
+import { redactPreferenceSource, redactSensitiveSource } from "@/lib/ai-screening";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { requirePermission } from "@/lib/auth";
 import { makeT, makeTv, translate, type UiLocale } from "@/lib/i18n/dict";
@@ -194,10 +195,20 @@ export default async function SchoolDetailsPage({
     infoNote: school.infoNote,
   };
   if (!canEdit) {
-    redactFields(schoolKnowledge, ["学校简介", "合作项目"]);
-    redactFields(cooperationKnowledge, COOPERATION_FIELD_GROUPS.flatMap((group) => [...group.fields]));
+    basicCardSchool.description = school.description
+      ? redactSensitiveSource(school.description)
+      : school.description;
+    basicCardSchool.cooperationPrograms = school.cooperationPrograms
+      ? redactSensitiveSource(school.cooperationPrograms)
+      : school.cooperationPrograms;
+    for (const [field, value] of Object.entries(cooperationKnowledge)) {
+      if (typeof value !== "string") continue;
+      cooperationKnowledge[field] =
+        field === "招生偏向"
+          ? redactPreferenceSource(value)
+          : redactSensitiveSource(value);
+    }
   }
-
   return (
     <EditModeProvider>
       <PageHeading
@@ -321,7 +332,7 @@ export default async function SchoolDetailsPage({
         </div>
 
         {visiblePrograms.length ? (
-          visiblePrograms.map((program) => {
+          visiblePrograms.map((program, index) => {
             const raw = safeJson<Record<string, unknown>>(program.rawJson, {});
             // rawJson 是原始 Excel 行，可能含与归一化字段同名的键（如手工录入错位值）。
             // 归一化字段（program.programType 等已通过 normalizeProgramType 校验）必须优先于 raw，
@@ -375,7 +386,22 @@ export default async function SchoolDetailsPage({
               scholarshipContent: program.scholarshipContent,
               reviewStatus: program.reviewStatus,
             };
-            if (!canEdit) redactFields(programKnowledge, [...PROGRAM_CORE_FIELDS, PROGRAM_MATERIAL_FIELD, ...PROGRAM_LONG_FIELDS]);
+            if (!canEdit) {
+              for (const [field, value] of Object.entries(programKnowledge)) {
+                if (typeof value === "string") {
+                  programKnowledge[field] = redactSensitiveSource(value);
+                }
+              }
+              programCard.requirementsText = program.requirementsText
+                ? redactSensitiveSource(program.requirementsText)
+                : program.requirementsText;
+              programCard.introduction = program.introduction
+                ? redactSensitiveSource(program.introduction)
+                : program.introduction;
+              programCard.scholarshipContent = program.scholarshipContent
+                ? redactSensitiveSource(program.scholarshipContent)
+                : program.scholarshipContent;
+            }
             return (
               <SchoolProgramCard
                 key={program.id}

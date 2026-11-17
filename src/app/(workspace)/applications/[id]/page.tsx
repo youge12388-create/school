@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { updateApplicationStatusAction } from "@/app/actions";
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { redactSensitiveSource } from "@/lib/ai-screening";
-import { requireUser } from "@/lib/auth";
 import {
   APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
@@ -31,7 +30,15 @@ export default async function ApplicationDetailPage({
   if (!data) notFound();
   const application = data.application;
   const statusLabel = t(APPLICATION_STATUS_LABELS[application.status as ApplicationStatus] ?? application.status);
-  const requirements = t(application.requirementsText || "数据库未有相关信息");
+  const canReadSensitiveSource =
+    user.role === "ADMIN" || user.role === "DATA_MANAGER";
+  const requirementsSource =
+    application.requirementsText || "数据库未有相关信息";
+  const requirements = t(
+    canReadSensitiveSource
+      ? requirementsSource
+      : redactSensitiveSource(requirementsSource),
+  );
   return (
     <>
       <PageHeading

@@ -7,6 +7,7 @@ const {
   db,
   getClientIp,
   getLoginAttemptLimit,
+  isSameOrigin,
   recordFailedLogin,
   shouldUseSecureSessionCookie,
   verifyPassword,
@@ -18,6 +19,7 @@ const {
   db: { select: vi.fn(), update: vi.fn() },
   getClientIp: vi.fn(),
   getLoginAttemptLimit: vi.fn(),
+  isSameOrigin: vi.fn(),
   recordFailedLogin: vi.fn(),
   shouldUseSecureSessionCookie: vi.fn(),
   verifyPassword: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/db/schema", () => ({ users: {} }));
 vi.mock("@/lib/http", () => ({
   appUrl: (_request: Request, path: string) => new URL(path, "https://app.example.com"),
+  isSameOrigin,
 }));
 vi.mock("@/lib/login-rate-limit", () => ({
   clearFailedLogins,
@@ -63,6 +66,7 @@ describe("POST /api/auth/login", () => {
     vi.clearAllMocks();
     getClientIp.mockReturnValue(null);
     getLoginAttemptLimit.mockReturnValue(null);
+    isSameOrigin.mockReturnValue(true);
     shouldUseSecureSessionCookie.mockReturnValue(true);
     db.update.mockReturnValue({ set: () => ({ where: () => Promise.resolve() }) });
   });
@@ -75,6 +79,15 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(303);
     expect(location.searchParams.get("error")).toBe("登录尝试次数过多，请稍后再试");
+    expect(db.select).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cross-origin login request", async () => {
+    isSameOrigin.mockReturnValue(false);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
     expect(db.select).not.toHaveBeenCalled();
   });
 

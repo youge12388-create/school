@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appUrl, isSameOrigin } from "./http";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("appUrl", () => {
   it("preserves the browser host when Next normalizes request.url", () => {
@@ -52,6 +56,7 @@ describe("isSameOrigin", () => {
   });
 
   it("accepts a reverse-proxy forwarded host", () => {
+    vi.stubEnv("TRUST_PROXY", "true");
     const request = new Request("http://127.0.0.1:3000/api/customers", {
       method: "POST",
       headers: {

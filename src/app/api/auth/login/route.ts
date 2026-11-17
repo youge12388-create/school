@@ -5,7 +5,7 @@ import { auditLoginFailure, createSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { appUrl } from "@/lib/http";
+import { appUrl, isSameOrigin } from "@/lib/http";
 import {
   clearFailedLogins,
   getLoginAttemptLimit,

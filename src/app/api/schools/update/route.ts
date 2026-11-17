@@ -8,7 +8,7 @@ import { userHasPermission } from "@/lib/access-control";
 import { sqlite } from "@/lib/db";
 import { stripConfidentialSchoolUpdates } from "@/lib/permissions";
 import { saveProgramFields } from "@/lib/program-editor";
-import { appUrl } from "@/lib/http";
+import { appUrl, isSameOrigin } from "@/lib/http";
 import { asText } from "@/lib/utils";
 
 function optionalFormText(formData: FormData, key: string) {

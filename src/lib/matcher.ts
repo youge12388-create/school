@@ -23,6 +23,7 @@ export type ScreeningCriteria = {
   intakeYear?: number | null;
   budget?: number | null;
   cscaStatus?: RuleStatus | null;
+  hasCsca?: boolean | null;
   gpa?: number | null;
   gpaScale?: number | null;
   hskLevel?: number | null;
@@ -560,6 +561,18 @@ export function evaluateProgram(
         : program.cscaStatus === "NOT_REQUIRED"
           ? { label: "CSCA", level: "PASS", detail: "院校不需要" }
           : { label: "CSCA", level: "UNKNOWN", detail: "信息未标明" },
+    );
+  }
+
+  if (program.programType === "UG" && criteria.hasCsca != null) {
+    evidence.push(
+      criteria.hasCsca
+        ? { label: "CSCA", level: "PASS", detail: "客户已有 CSCA" }
+        : program.cscaStatus === "NOT_REQUIRED"
+          ? { label: "CSCA", level: "PASS", detail: "项目明确不要求" }
+          : program.cscaStatus === "REQUIRED"
+            ? { label: "CSCA", level: "NEED", detail: "需要补充 CSCA" }
+            : { label: "CSCA", level: "UNKNOWN", detail: "数据库未有相关信息" },
     );
   }
 

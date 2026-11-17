@@ -13,6 +13,9 @@ import { appUrl, isSameOrigin } from "@/lib/http";
 import { asText, newId } from "@/lib/utils";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("DOCUMENT_UPLOAD");
   const formData = await request.formData();
   const file = formData.get("file");

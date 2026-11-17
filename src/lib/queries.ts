@@ -14,6 +14,7 @@ import { deriveAdmissionStatus } from "@/lib/customer-status";
 import { categorizeMajors, splitMajorText } from "@/lib/major-categories";
 import { parseCscaStatus, parseDeadline } from "@/lib/program-parser";
 import type { AdmissionStatus, ContractStatus } from "@/lib/constants";
+import type { MatchProgram } from "@/lib/matcher";
 import type {
   SchoolUpdateAttachment,
   SchoolUpdateRow,

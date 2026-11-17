@@ -20,6 +20,7 @@ import type { PermissionKey } from "@/lib/permissions";
 const drawerItems = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { href: "/screening", label: "学校筛查", icon: SearchCheck },
+  { href: "/ai-screening", label: "AI 选校", icon: MessageCircle },
   { href: "/schools", label: "学校库", icon: GraduationCap },
   { href: "/schools/noted", label: "特别备注院校", icon: StickyNote },
   { href: "/imports", label: "数据导入", icon: Database },
@@ -76,6 +77,7 @@ function MobileDrawer({
   const items = drawerItems.filter((item) => {
     if (item.href === "/dashboard") return permissions.includes("WORKSPACE_VIEW");
     if (item.href === "/screening") return permissions.includes("SCREENING_VIEW");
+    if (item.href === "/ai-screening") return permissions.includes("SCREENING_VIEW");
     if (item.href === "/schools" || item.href === "/schools/noted") {
       return permissions.includes("SCHOOL_VIEW_PUBLIC");
     }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createUser, updateUserRole, getCurrentUser, sqlite, UserManagementError } = vi.hoisted(() => ({
   createUser: vi.fn(),
@@ -32,6 +32,10 @@ function request(formData?: FormData, origin = "https://app.example.com", header
 }
 
 describe("POST /api/admin/users", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     getCurrentUser.mockResolvedValue({ id: "admin-id", role: "ADMIN" });
@@ -72,7 +76,7 @@ describe("POST /api/admin/users", () => {
     expect(location.pathname).toBe("/admin/users");
     expect(location.searchParams.get("error")).toBe("用户名已存在");
   });
-  it("does not block an authenticated cross-origin request", async () => {
+  it("rejects an authenticated cross-origin request", async () => {
     const formData = new FormData();
     formData.set("username", "advisor");
     formData.set("displayName", "顾问账号");
@@ -83,8 +87,8 @@ describe("POST /api/admin/users", () => {
       request(formData, "https://evil.example"),
     );
 
-    expect(response.status).toBe(303);
-    expect(createUser).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(403);
+    expect(createUser).not.toHaveBeenCalled();
   });
 
   it("updates an existing account role and redirects with a success marker", async () => {
@@ -107,6 +111,7 @@ describe("POST /api/admin/users", () => {
   });
 
   it("allows a same-origin request forwarded by a reverse proxy", async () => {
+    vi.stubEnv("TRUST_PROXY", "true");
     const response = await POST(request(new FormData(), "https://school.example.com", {
       host: "127.0.0.1:3000",
       "x-forwarded-host": "school.example.com",

@@ -317,7 +317,7 @@ describe("AI 选校接口", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
       for (const role of ["ADMIN", "DATA_MANAGER", "ADVISOR"] as const) {
-        vi.mocked(getCurrentUser).mockResolvedValueOnce({ id: role, username: "fixture", displayName: "测试", role, active: true, sessionId: "fixture-session" });
+        vi.mocked(getCurrentUser).mockResolvedValueOnce({ id: role, username: "fixture", displayName: "测试", role, authProvider: "LOCAL", active: true, sessionId: "fixture-session" });
         vi.mocked(getProgramsForScreening).mockResolvedValueOnce([program]);
         const response = await POST(makeRequest("想申请计算机硕士"));
         expect(response.status).toBe(200);
