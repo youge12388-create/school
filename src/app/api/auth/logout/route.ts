@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 
 import { writeAudit } from "@/lib/audit";
 import { destroySession, getCurrentUser } from "@/lib/auth";
-import { appUrl } from "@/lib/http";
+import { appUrl, isSameOrigin } from "@/lib/http";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await getCurrentUser();
 
   if (user) {

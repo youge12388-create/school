@@ -2,16 +2,17 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowUp, ChevronDown, LoaderCircle, MessageCircle, RotateCcw, ShieldAlert } from "lucide-react";
-import { schoolIdentityKey, type ChatCriteria, type ResultCard } from "@/lib/ai-screening";
+import { ArrowUp, Check, ChevronDown, LoaderCircle, MessageCircle, PencilLine, RotateCcw, ShieldAlert } from "lucide-react";
+import { criteriaSchema, schoolIdentityKey, type ChatCriteria, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse, SearchEvent, SearchStep } from "@/lib/ai-screening-events";
 import type { WorkbookInfo, WorkbookPreview } from "@/lib/ai-screening-workbook";
 import { admissionGroupLabel, admissionListLabel, candidateRevision, displayProgramName, isCandidate, outcomeSummary, summarizePoints } from "@/lib/ai-screening-presentation";
 import "./ai-screening.css";
 
-type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; steps: SearchStep[]; result?: ScreeningResponse; error?: string };
+type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; providedCriteria?: ChatCriteria; steps: SearchStep[]; result?: ScreeningResponse; error?: string };
 type ConversationSnapshot = { input: string; criteria: ChatCriteria; sensitiveContext: boolean; focusSchool: string | null; turns: Turn[] };
 let conversationSnapshot: ConversationSnapshot | null = null;
+const PROFILE_STORAGE_KEY = "school-syt.ai-screening-profile.v1";
 
 const degrees: Record<string, string> = { UG: "本科", MASTER: "硕士", PHD: "博士", LONG_TERM: "长期进修", SHORT_TERM: "短期项目" };
 const seasons: Record<string, string> = { SPRING: "春季", SUMMER: "夏季", AUTUMN: "秋季", WINTER: "冬季" };
@@ -39,6 +40,88 @@ function criteriaLabels(criteria: ChatCriteria) {
   ].filter((item): item is string => Boolean(item));
 }
 
+function draftValue(value: string | number | null | undefined) {
+  return value == null ? "" : String(value);
+}
+
+function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy: boolean; onApply: (criteria: ChatCriteria) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const labels = criteriaLabels(criteria);
+  const fields = {
+    programType: draftValue(criteria.programType),
+    teachingLanguage: draftValue(criteria.teachingLanguage),
+    targetMajor: draftValue(criteria.targetMajor),
+    budget: draftValue(criteria.budget),
+    intakeYear: draftValue(criteria.intakeYear),
+    intakeSeason: draftValue(criteria.intakeSeason),
+    gpa: draftValue(criteria.gpa),
+    gpaScale: draftValue(criteria.gpaScale),
+    ielts: draftValue(criteria.ielts),
+    toefl: draftValue(criteria.toefl),
+    hskLevel: draftValue(criteria.hskLevel),
+  };
+
+  function openEditor() {
+    setDraft(fields);
+    setEditing(true);
+  }
+
+  function change(key: keyof typeof fields, value: string) {
+    setDraft((old) => ({ ...old, [key]: value }));
+  }
+
+  function numberOrNull(key: keyof typeof fields) {
+    const raw = draft[key]?.trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const next: ChatCriteria = {
+      ...criteria,
+      programType: draft.programType ? draft.programType as ChatCriteria["programType"] : null,
+      teachingLanguage: draft.teachingLanguage ? draft.teachingLanguage as ChatCriteria["teachingLanguage"] : null,
+      targetMajor: draft.targetMajor?.trim() || null,
+      budget: numberOrNull("budget"),
+      intakeYear: numberOrNull("intakeYear") == null ? null : Math.trunc(numberOrNull("intakeYear")!),
+      intakeSeason: draft.intakeSeason ? draft.intakeSeason as ChatCriteria["intakeSeason"] : null,
+      gpa: numberOrNull("gpa"),
+      gpaScale: numberOrNull("gpaScale"),
+      ielts: numberOrNull("ielts"),
+      toefl: numberOrNull("toefl"),
+      hskLevel: numberOrNull("hskLevel") == null ? null : Math.trunc(numberOrNull("hskLevel")!),
+    };
+    if (!Object.values(next).some((value) => value != null && value !== "")) return;
+    setEditing(false);
+    onApply(next);
+  }
+
+  if (!labels.length && !editing) return null;
+  return <section className="agent-profile" aria-label="当前申请条件">
+    <div className="agent-profile-summary">
+      <div><strong>当前申请条件</strong>{labels.length > 0 && <div className="agent-criteria">{labels.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}</div>
+      <button type="button" onClick={openEditor} disabled={busy}><PencilLine size={14} aria-hidden="true" />调整条件</button>
+    </div>
+    {editing && <form className="agent-profile-form" onSubmit={submit}>
+      <label>申请学历<select value={draft.programType} onChange={(event) => change("programType", event.target.value)}><option value="">不限</option><option value="UG">本科</option><option value="MASTER">硕士</option><option value="PHD">博士</option><option value="LONG_TERM">长期进修</option><option value="SHORT_TERM">短期项目</option></select></label>
+      <label>目标专业<input value={draft.targetMajor} maxLength={100} onChange={(event) => change("targetMajor", event.target.value)} placeholder="如计算机" /></label>
+      <label>授课语言<select value={draft.teachingLanguage} onChange={(event) => change("teachingLanguage", event.target.value)}><option value="">不限</option><option value="ENGLISH">英文</option><option value="CHINESE">中文</option></select></label>
+      <label>首年预算（元）<input type="number" min="0" value={draft.budget} onChange={(event) => change("budget", event.target.value)} placeholder="如 80000" /></label>
+      <label>入学年份<input type="number" min="2020" max="2100" value={draft.intakeYear} onChange={(event) => change("intakeYear", event.target.value)} placeholder="如 2027" /></label>
+      <label>入学季<select value={draft.intakeSeason} onChange={(event) => change("intakeSeason", event.target.value)}><option value="">不限</option><option value="SPRING">春季</option><option value="SUMMER">夏季</option><option value="AUTUMN">秋季</option><option value="WINTER">冬季</option></select></label>
+      <label>GPA<input type="number" min="0" step="0.01" value={draft.gpa} onChange={(event) => change("gpa", event.target.value)} placeholder="如 3.5" /></label>
+      <label>GPA 满分<input type="number" min="0" step="0.01" value={draft.gpaScale} onChange={(event) => change("gpaScale", event.target.value)} placeholder="如 4" /></label>
+      <label>雅思<input type="number" min="0" max="9" step="0.5" value={draft.ielts} onChange={(event) => change("ielts", event.target.value)} placeholder="如 6.5" /></label>
+      <label>托福<input type="number" min="0" max="120" value={draft.toefl} onChange={(event) => change("toefl", event.target.value)} placeholder="如 90" /></label>
+      <label>HSK 等级<input type="number" min="1" max="9" value={draft.hskLevel} onChange={(event) => change("hskLevel", event.target.value)} placeholder="如 5" /></label>
+      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />按这些条件重新筛选</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>取消</button><small>条件只保存在当前浏览器。</small></div>
+    </form>}
+  </section>;
+}
+
 function SearchTrace({ steps, busy }: { steps: SearchStep[]; busy: boolean }) {
   if (!busy) return null;
   const current = [...steps].reverse().find((step) => step.status === "active");
@@ -59,6 +142,7 @@ function CandidateDetails({ card }: { card: ResultCard }) {
   const tableNotes = card.evidence.filter((item) => item.startsWith("名单第"));
   return <div className="agent-candidate-body">
     <p className="agent-program">{displayProgramName(card.name, card.program)}</p>
+    <p className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{card.verified ? "项目资料已人工核实" : "项目资料待人工核实"}</p>
     {isCandidate(card) && highlights.length > 0 && <p className="agent-reason"><strong>匹配：</strong>{highlights.map((point) => point.text).join("；")}</p>}
     {card.kind === "project" && (!isCandidate(card) || !highlights.length) && <p className="agent-reason">核心条件资料不足，暂时无法推荐。</p>}
     {firstConcern && <p className="agent-unresolved"><strong>待确认：</strong>{firstConcern.text}{concerns.length > 1 && `；另 ${concerns.length - 1} 项`}</p>}
@@ -74,6 +158,70 @@ function CandidateDetails({ card }: { card: ResultCard }) {
       </div>
     </details>
   </div>;
+}
+
+function comparisonCost(card: ResultCard) {
+  const facts = card.facts;
+  if (facts?.tuitionStatus === "known" && facts.tuition != null) return `学费 ${facts.tuition.toLocaleString("zh-CN")} 元/年，批次待核`;
+  if (card.comparableCost != null) {
+    const freshness = facts?.feeFreshness === "historical" ? "旧年资料，" : facts?.feeFreshness === "unknown" ? "未注明年份，" : "";
+    return `首年约 ${card.comparableCost.toLocaleString("zh-CN")} 元（${freshness}待核）`;
+  }
+  return "费用资料不足";
+}
+
+function comparisonLanguage(card: ResultCard) {
+  const facts = card.facts;
+  if (!facts) return "待核实";
+  const language = facts.teachingLanguage === "ENGLISH" ? "英文授课" : facts.teachingLanguage === "CHINESE" ? "中文授课" : "授课语言待确认";
+  const scores = [
+    facts.ielts != null && `雅思 ${facts.ielts}`,
+    facts.toefl != null && `托福 ${facts.toefl}`,
+    facts.hskLevel != null && `HSK ${facts.hskLevel} 级`,
+  ].filter((item): item is string => Boolean(item));
+  return scores.length ? `${language}；${scores.join(" / ")}` : language;
+}
+
+function comparisonPoint(card: ResultCard, labels: string[]) {
+  for (const label of labels) {
+    const point = card.points.find((item) => item.label === label);
+    if (point) return point.text.replace(/[。；;]+$/u, "");
+  }
+  return "待核实";
+}
+
+function CandidateComparison({ result }: { result: ScreeningResponse }) {
+  const { confirmed, pending, other } = result.results;
+  const ordered = result.otherRequested ? [...other, ...confirmed, ...pending] : [...confirmed, ...pending, ...other];
+  const seen = new Set<string>();
+  const cards = ordered.filter(isCandidate).filter((card) => {
+    const key = schoolIdentityKey(card.name);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 4);
+  if (cards.length < 2) return null;
+  return <details className="agent-compare">
+    <summary><span>并排对比当前 {cards.length} 所候选</span><ChevronDown size={15} aria-hidden="true" /></summary>
+    <div className="agent-compare-grid">
+      {cards.map((card) => {
+        const concern = summarizePoints(card.points).firstConcern;
+        return <article className="agent-compare-card" key={card.programId ?? card.name}>
+          <div className="agent-compare-heading"><h4>{card.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{card.name}</Link> : card.name}</h4><span className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{card.verified ? "已人工核实" : "待人工核实"}</span></div>
+          <p className="agent-program">{displayProgramName(card.name, card.program)}</p>
+          <dl>
+            <div><dt>首年费用</dt><dd>{comparisonCost(card)}</dd></div>
+            <div><dt>申请截止</dt><dd>{comparisonPoint(card, ["申请截止"])}</dd></div>
+            <div><dt>入学批次</dt><dd>{comparisonPoint(card, ["入学季", "入学年份"])}</dd></div>
+            <div><dt>语言要求</dt><dd>{comparisonLanguage(card)}</dd></div>
+            <div><dt>主要待确认</dt><dd>{concern?.text ?? "资料尚未发现明确冲突"}</dd></div>
+            <div><dt>合作状态</dt><dd>{card.cooperation === "project_confirmed" ? "项目合作已记录" : card.cooperation === "listed" ? "学校在合作名单" : card.cooperation === "not_cooperating" ? "名单标注不合作" : "合作状态待核"}</dd></div>
+          </dl>
+        </article>;
+      })}
+    </div>
+    <p className="agent-compare-note">对比只使用当前可核验资料；费用、截止日期和开班批次仍需按目标招生季确认。</p>
+  </details>;
 }
 
 function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { title: string; cards: ResultCard[]; repeatedStatus?: string; hideHeading?: boolean }) {
@@ -139,6 +287,7 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
     <div className="agent-answer-intro"><p className="agent-outcome">{result.narrative.lead}</p>
       {result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}
     </div>
+    <CandidateComparison result={result} />
     <NarrativeSchoolGroups result={result} />
     {result.narrative.next && <p className="agent-narrative-next">{result.narrative.next}</p>}
     {(confirmed.length > 0 || pending.length > 0 || other.length > 0) && <details className="agent-narrative-results"><summary>查看全部依据 <ChevronDown size={15} aria-hidden="true" /></summary>
@@ -152,6 +301,7 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
       {conditions.length > 3 ? <details className="agent-conditions"><summary aria-label={`查看全部 ${conditions.length} 项匹配条件`}>{conditions.slice(0, 3).join(" · ")} 等 {conditions.length} 项条件 <ChevronDown size={14} aria-hidden="true" /></summary><div className="agent-criteria" aria-label="已识别的申请条件">{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div></details> : conditions.length > 0 && <p className="agent-conditions-line">{conditions.join(" · ")}</p>}
       {result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}
     </div>
+    <CandidateComparison result={result} />
     {result.otherRequested && otherResults}
     <ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} />
     <ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" />
@@ -312,6 +462,7 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
   const latest = turns[turns.length - 1];
   const snapshotRef = useRef<ConversationSnapshot>({ input, criteria, sensitiveContext, focusSchool, turns });
   const restoring = useRef(false);
+  const profileRestored = useRef(false);
 
   useEffect(() => {
     if (conversationSnapshot) {
@@ -323,7 +474,16 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
         sequence.current = Math.max(0, ...saved.turns.map((turn) => turn.id));
         restoring.current = false;
       });
+    } else {
+      try {
+        const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+        const parsed = raw ? criteriaSchema.safeParse(JSON.parse(raw)) : null;
+        if (parsed?.success) queueMicrotask(() => setCriteria(parsed.data));
+      } catch {
+        window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+      }
     }
+    profileRestored.current = true;
     return () => { conversationSnapshot = snapshotRef.current; };
   }, []);
 
@@ -332,30 +492,41 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
   }, [input, criteria, sensitiveContext, focusSchool, turns]);
 
   useEffect(() => {
+    if (!profileRestored.current) return;
+    try {
+      if (Object.values(criteria).some((value) => value != null && value !== "")) {
+        window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(criteria));
+      }
+    } catch {
+      // Storage can be unavailable in private or restricted browser contexts.
+    }
+  }, [criteria]);
+
+  useEffect(() => {
     if ((!latest?.result && !latest?.error) || latest.id === lastScrolled.current) return;
     lastScrolled.current = latest.id;
     document.getElementById(`agent-turn-${latest.id}`)?.scrollIntoView({ block: "start", behavior: "auto" });
   }, [latest]);
 
-  async function run(message: string, previous: ChatCriteria, showOther = false, previousSensitive = sensitiveContext, previousFocus = focusSchool) {
+  async function run(message: string, previous: ChatCriteria, showOther = false, previousSensitive = sensitiveContext, previousFocus = focusSchool, providedCriteria: ChatCriteria | null = null) {
     if (!message.trim() || running.current) return;
     running.current = true;
     const id = ++sequence.current;
     setBusy(true);
-    setTurns((old) => [...old, { id, question: message, criteriaBefore: previous, sensitiveBefore: previousSensitive, focusBefore: previousFocus, showOther, steps: [] }]);
+    setTurns((old) => [...old, { id, question: message, criteriaBefore: previous, sensitiveBefore: previousSensitive, focusBefore: previousFocus, showOther, providedCriteria: providedCriteria ?? undefined, steps: [] }]);
     const update = (fn: (turn: Turn) => Turn) => setTurns((old) => old.map((turn) => turn.id === id ? fn(turn) : turn));
     let receivedResult = false;
     try {
       const lastResult = [...turns].reverse().find((turn) => turn.result?.source)?.result;
       const lastNarrative = [...turns].reverse().find((turn) => turn.result?.narrative)?.result?.narrative;
-      const previousProgramIds = lastNarrative?.highlights.flatMap((item) => item.programId ? [item.programId] : []) ?? [];
-      const seenProgramIds = [...new Set(turns.flatMap((turn) => turn.result?.shown?.programIds ?? []))].slice(-200);
-      const seenSchoolNames = [...new Set(turns.flatMap((turn) => turn.result?.shown?.schoolNames ?? []))].slice(-200);
-      const history = turns.filter((turn) => turn.result).flatMap((turn) => [
+      const previousProgramIds = providedCriteria ? [] : lastNarrative?.highlights.flatMap((item) => item.programId ? [item.programId] : []) ?? [];
+      const seenProgramIds = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => turn.result?.shown?.programIds ?? []))].slice(-200);
+      const seenSchoolNames = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => turn.result?.shown?.schoolNames ?? []))].slice(-200);
+      const history = providedCriteria ? [] : turns.filter((turn) => turn.result).flatMap((turn) => [
         { role: "user" as const, content: turn.question.slice(0, 500) },
         ...(turn.result?.conversation && turn.result.answer?.lead ? [{ role: "assistant" as const, content: turn.result.answer.lead.slice(0, 500) }] : []),
       ]).slice(-8);
-      const response = await fetch("/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message, criteria: previous, showOther, sensitiveContext: previousSensitive, hasPrevious: Boolean(lastResult), previousOtherRequested: lastResult?.otherRequested ?? false, focusSchool: previousFocus, previousProgramIds, seenProgramIds, seenSchoolNames, history }) });
+      const response = await fetch("/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message, criteria: providedCriteria ?? previous, ...(providedCriteria ? { criteriaOverride: providedCriteria } : {}), showOther: providedCriteria ? false : showOther, sensitiveContext: previousSensitive, hasPrevious: providedCriteria ? false : Boolean(lastResult), previousOtherRequested: providedCriteria ? false : lastResult?.otherRequested ?? false, focusSchool: providedCriteria ? null : previousFocus, previousProgramIds, seenProgramIds, seenSchoolNames, history }) });
       if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || "请求没有完成，请重试。"); }
       if (!response.body) throw new Error("没有收到完整的检索结果，请重试。");
       const reader = response.body.getReader();
@@ -392,11 +563,12 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
   }
 
   return <div className="agent-page">
-    <div className="agent-heading"><div className="agent-title-row"><MessageCircle aria-hidden="true" /><h1>AI 选校</h1><span>演示版</span></div><button type="button" className="agent-reset" onClick={() => { setTurns([]); setCriteria({}); setSensitiveContext(false); setFocusSchool(null); setInput(""); inputRef.current?.focus(); }} disabled={busy}><RotateCcw size={15} aria-hidden="true" />新对话</button></div>
+    <div className="agent-heading"><div className="agent-title-row"><MessageCircle aria-hidden="true" /><h1>AI 选校</h1></div><button type="button" className="agent-reset" onClick={() => { setTurns([]); setCriteria({}); setSensitiveContext(false); setFocusSchool(null); setInput(""); try { window.localStorage.removeItem(PROFILE_STORAGE_KEY); } catch {} inputRef.current?.focus(); }} disabled={busy}><RotateCcw size={15} aria-hidden="true" />新对话</button></div>
     <div className="agent-privacy">请使用脱敏信息，勿输入姓名、联系方式或证件信息；当前及近期对话会发送至 AI 服务。</div>
     <WorkbookManager canManage={canManageWorkbook} refreshKey={latest?.result ? latest.id : 0} />
-    {turns.length === 0 && <div className="agent-empty"><h2>告诉我学生想申请什么</h2><p>输入学历、专业、预算等，条件不全也可以先查。我会先查合作院校，必要时再查其他院校。</p><button type="button" onClick={() => { setInput("想申请英文授课的计算机硕士，雅思 6.5，首年预算 8 万，2027 年春季入学。"); inputRef.current?.focus(); }}>试试一个虚构案例</button></div>}
-    <div className="agent-conversation" aria-live="polite">{turns.map((turn, index) => <div id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}><p className="agent-user">{turn.question}</p><div className="agent-response"><SearchTrace steps={turn.steps} busy={busy && index === turns.length - 1} />{turn.error && <div className="agent-error" role="alert"><strong>这次没有完成</strong><p>{turn.error}</p><div className="agent-error-actions">{!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore)} disabled={busy}>重新试一次</button>}<button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>修改输入</button></div></div>}{turn.result && <Answer result={turn.result} busy={busy || index < turns.length - 1} onOthers={() => void run("请查看其他院校", turn.result!.criteria, true, turn.result!.sensitiveContext)} />}{turn.result && <div className="agent-answer-footer"><SearchHistory steps={turn.steps} source={turn.result.source} />{index === turns.length - 1 && <PlanBuilder result={turn.result} disabled={busy} />}</div>}{!turn.result && turn.error && <SearchHistory steps={turn.steps} source={undefined} />}</div></div>)}</div>
+    <CriteriaBar criteria={criteria} busy={busy} onApply={(next) => { setCriteria(next); void run("按已更新的申请条件重新筛选。", criteria, false, sensitiveContext, focusSchool, next); }} />
+    {turns.length === 0 && <div className="agent-empty"><h2>告诉我学生想申请什么</h2><p>输入学历、专业、预算等，条件不全也可以先查。我会先查合作院校，必要时再查其他院校。</p><button type="button" onClick={() => { setInput("想申请英文授课的计算机硕士，雅思 6.5，首年预算 8 万，2027 年春季入学。"); inputRef.current?.focus(); }}>填入示例需求</button></div>}
+    <div className="agent-conversation" aria-live="polite">{turns.map((turn, index) => <div id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}><p className="agent-user">{turn.question}</p><div className="agent-response"><SearchTrace steps={turn.steps} busy={busy && index === turns.length - 1} />{turn.error && <div className="agent-error" role="alert"><strong>这次没有完成</strong><p>{turn.error}</p><div className="agent-error-actions">{!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore, turn.providedCriteria ?? null)} disabled={busy}>重新试一次</button>}<button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>修改输入</button></div></div>}{turn.result && <Answer result={turn.result} busy={busy || index < turns.length - 1} onOthers={() => void run("请查看其他院校", turn.result!.criteria, true, turn.result!.sensitiveContext)} />}{turn.result && <div className="agent-answer-footer"><SearchHistory steps={turn.steps} source={turn.result.source} />{index === turns.length - 1 && <PlanBuilder result={turn.result} disabled={busy} />}</div>}{!turn.result && turn.error && <SearchHistory steps={turn.steps} source={undefined} />}</div></div>)}</div>
     <form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">输入学生申请需求</label><span className="sr-only" id="agent-input-help">按 Enter 发送，按 Shift 加 Enter 换行。</span><textarea ref={inputRef} id="agent-input" aria-describedby="agent-input-help" value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入学生的申请需求…" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><button type="submit" disabled={busy || !input.trim()} aria-label="发送"><ArrowUp size={19} /></button></form>
   </div>;
 }

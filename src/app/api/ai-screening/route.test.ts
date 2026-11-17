@@ -133,6 +133,39 @@ describe("AI 选校接口", () => {
     expect(result.error).toContain("找不到合作院校名单");
     expect(result.results).toBeUndefined();
   });
+  it("按已编辑条件重筛时使用服务端条件，不依赖模型重新解析", async () => {
+    const path = join(tmpdir(), `school-ai-direct-${randomUUID()}.xlsx`);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ["直连测试大学"]]), "Sheet1");
+    await writeFile(path, XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
+    const program: MatchProgram = { id: "direct-program", schoolId: "direct-school", schoolName: "直连测试大学", schoolTags: null, programName: "计算机硕士", programType: "MASTER", teachingLanguage: "ENGLISH", majorText: "计算机", requirementsText: null, sourceText: null, semesterText: "2027年春季入学", applicationTimeText: null, accommodationText: null, firstYearCostMax: 37000, costIncomplete: false, cscaStatus: "UNKNOWN", gpaMin: null, gpaScale: null, hskLevelMin: null, hskScoreMin: null, ieltsMin: null, toeflMin: null, duolingoMin: null, minAge: null, maxAge: null, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN", scholarshipCategory: null, province: null, city: null, partnershipRating: 0, qsRanking: null, reviewStatus: "VERIFIED", manuallyVerified: true };
+    try {
+      vi.stubEnv("DEEPSEEK_API_KEY", "");
+      vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", path);
+      vi.stubEnv("AI_SCREENING_SHARED_DIR", join(tmpdir(), `school-ai-direct-empty-${randomUUID()}`));
+      vi.stubEnv("AI_SCREENING_PARTNERS_PATH", "");
+      vi.mocked(getProgramsForScreening).mockResolvedValueOnce([program]);
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+      const response = await POST(new Request("http://localhost/api/ai-screening", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "按已更新的申请条件重新筛选。",
+          criteria: { programType: "MASTER", budget: 90000 },
+          criteriaOverride: { programType: "MASTER", targetMajor: "计算机", budget: 60000, intakeYear: 2027, intakeSeason: "SPRING" },
+          hasPrevious: true,
+        }),
+      }));
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(data.criteria).toMatchObject({ programType: "MASTER", targetMajor: "计算机", budget: 60000, intakeYear: 2027, intakeSeason: "SPRING" });
+      expect([...data.results.confirmed, ...data.results.pending, ...data.results.other].some((card: { name: string }) => card.name === "直连测试大学")).toBe(true);
+    } finally {
+      await unlink(path);
+    }
+  });
   it("流式返回真实执行步骤，未配置台账时明确提示，最后才返回结果", async () => {
     const path = join(tmpdir(), `school-ai-test-${randomUUID()}.xlsx`);
     const workbook = XLSX.utils.book_new();

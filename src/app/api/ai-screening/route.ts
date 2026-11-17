@@ -12,7 +12,7 @@ import type { SearchEvent, ScreeningResponse } from "@/lib/ai-screening-events";
 export const runtime = "nodejs";
 const historySchema = z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().trim().min(1).max(500) }).strict()).max(8);
 const seenSchema = z.array(z.string().trim().min(1).max(160)).max(200).default([]);
-const requestSchema = z.object({ message: z.string().trim().min(1).max(1500), criteria: criteriaSchema.default({}), showOther: z.boolean().default(false), sensitiveContext: z.boolean().default(false), hasPrevious: z.boolean().default(false), previousOtherRequested: z.boolean().default(false), focusSchool: z.string().max(120).nullable().default(null), previousProgramIds: z.array(z.string().min(1).max(120)).max(3).default([]), seenProgramIds: seenSchema, seenSchoolNames: seenSchema, history: historySchema.default([]) }).strict();
+const requestSchema = z.object({ message: z.string().trim().min(1).max(1500), criteria: criteriaSchema.default({}), criteriaOverride: criteriaSchema.nullable().default(null), showOther: z.boolean().default(false), sensitiveContext: z.boolean().default(false), hasPrevious: z.boolean().default(false), previousOtherRequested: z.boolean().default(false), focusSchool: z.string().max(120).nullable().default(null), previousProgramIds: z.array(z.string().min(1).max(120)).max(3).default([]), seenProgramIds: seenSchema, seenSchoolNames: seenSchema, history: historySchema.default([]) }).strict();
 
 async function extractCriteria(message: string, criteria: z.infer<typeof criteriaSchema>, history: z.infer<typeof historySchema>, hasPrevious: boolean, signal: AbortSignal) {
   const key = process.env.DEEPSEEK_API_KEY;
@@ -59,7 +59,9 @@ function errorMessage(error: unknown) {
 async function search(data: z.infer<typeof requestSchema>, role: string, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
   const step = (id: "understand" | "cooperation" | "alternatives" | "summary", status: "active" | "done" | "warning" | "skipped", message: string) => emit({ type: "progress", step: { id, status, message } });
   step("understand", "active", "正在理解学生的申请需求");
-  const extracted = await extractCriteria(data.message, data.criteria, data.history, data.hasPrevious, signal);
+  const extracted = data.criteriaOverride
+    ? { criteria: data.criteriaOverride, showOther: false, intent: "search" as const, topic: null, reply: null }
+    : await extractCriteria(data.message, data.criteria, data.history, data.hasPrevious, signal);
   step("understand", "done", "已整理本次申请条件");
   const otherPreference = otherSchoolsPreference(data.message);
   if (extracted.intent === "chat" && !data.showOther && otherPreference !== true) {

@@ -85,6 +85,7 @@ export type MatchProgram = {
   partnershipRating: number;
   qsRanking: number | null;
   reviewStatus: string;
+  manuallyVerified?: boolean;
 };
 
 type EvidenceLevel = "PASS" | "NEED" | "UNKNOWN" | "FAIL";

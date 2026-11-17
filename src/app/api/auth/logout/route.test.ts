@@ -24,6 +24,7 @@ describe("POST /api/auth/logout", () => {
         method: "POST",
         headers: {
           host: "app.example.com",
+          origin: "https://app.example.com",
           "x-forwarded-proto": "https",
         },
       }),
@@ -44,12 +45,27 @@ describe("POST /api/auth/logout", () => {
     getCurrentUser.mockResolvedValue(null);
 
     const response = await POST(
-      new Request("http://127.0.0.1:3000/api/auth/logout", { method: "POST" }),
+      new Request("http://127.0.0.1:3000/api/auth/logout", {
+        method: "POST",
+        headers: { origin: "http://127.0.0.1:3000" },
+      }),
     );
 
     expect(writeAudit).not.toHaveBeenCalled();
     expect(destroySession).toHaveBeenCalledOnce();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("http://127.0.0.1:3000/login");
+  });
+
+  it("rejects cross-origin logout requests without destroying the session", async () => {
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/auth/logout", {
+        method: "POST",
+        headers: { origin: "https://evil.example" },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(destroySession).not.toHaveBeenCalled();
   });
 });

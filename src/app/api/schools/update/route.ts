@@ -71,6 +71,9 @@ function changedFields(
 // 整页编辑（schools/[id]/edit）：学校行 + 全部项目在单个事务内提交，
 // 任一步失败整体回滚，避免“学校已保存、项目半保存”的半成品。
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const formData = await request.formData();
   const id = asText(formData.get("id"));
   if (!id) {

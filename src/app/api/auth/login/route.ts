@@ -16,6 +16,9 @@ import { getClientIp, shouldUseSecureSessionCookie } from "@/lib/request-securit
 import { asText } from "@/lib/utils";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const formData = await request.formData();
   const username = asText(formData.get("username")).toLowerCase();
   const password = asText(formData.get("password"));

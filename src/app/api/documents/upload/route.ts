@@ -9,7 +9,7 @@ import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documents } from "@/lib/db/schema";
 import { encryptBuffer } from "@/lib/file-crypto";
-import { appUrl } from "@/lib/http";
+import { appUrl, isSameOrigin } from "@/lib/http";
 import { asText, newId } from "@/lib/utils";
 
 export async function POST(request: Request) {

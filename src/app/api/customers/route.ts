@@ -4,10 +4,13 @@ import { writeAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { CONTRACT_STATUSES, type ContractStatus } from "@/lib/constants";
 import { sqlite } from "@/lib/db";
-import { appUrl } from "@/lib/http";
+import { appUrl, isSameOrigin } from "@/lib/http";
 import { asNumber, asText, newId, parseDateInput } from "@/lib/utils";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   try {
     const user = await requirePermission("CUSTOMER_EDIT");
     const formData = await request.formData();

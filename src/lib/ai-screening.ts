@@ -31,7 +31,7 @@ export type SchoolInfo = { id: string; name: string; preference: string | null; 
 export type EvidencePoint = { label: string; level: "PASS" | "NEED" | "UNKNOWN"; text: string };
 export type DataFreshness = "current" | "historical" | "unknown";
 export type ProjectFacts = { tuition: number | null; tuitionStatus: "known" | "unknown" | "conflict"; teachingLanguage: "CHINESE" | "ENGLISH" | "UNKNOWN"; ielts: number | null; toefl: number | null; duolingo: number | null; hskLevel: number | null; hskScore: number | null; scholarship: "full" | "available" | "unknown"; sourceYear?: number | null; feeFreshness?: DataFreshness };
-export type ResultCard = { name: string; schoolKey?: string; schoolId?: string; programId?: string; program: string; fit: string; quality?: "candidate" | "insufficient"; cooperation: "listed" | "project_confirmed" | "not_cooperating" | "unknown"; evidence: string[]; points: EvidencePoint[]; kind: "project" | "school"; sources: string[]; warning: string[]; yellow: boolean; image: boolean; comparableCost?: number | null; facts?: ProjectFacts };
+export type ResultCard = { name: string; schoolKey?: string; schoolId?: string; programId?: string; program: string; fit: string; quality?: "candidate" | "insufficient"; cooperation: "listed" | "project_confirmed" | "not_cooperating" | "unknown"; evidence: string[]; points: EvidencePoint[]; kind: "project" | "school"; sources: string[]; warning: string[]; yellow: boolean; image: boolean; comparableCost?: number | null; facts?: ProjectFacts; verified?: boolean };
 type SearchProgress = { onPartnerSearchComplete?: (state: { confirmed: number; pending: number; searchingOthers: boolean }) => void };
 type SearchProgram = MatchProgram & { attentionText?: string | null };
 export type ResultExclusions = { schoolKeys?: Iterable<string>; programIds?: Iterable<string> };
@@ -324,11 +324,11 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
       const points = validEvidence.map((e) => evidencePoint(e, p, criteria));
       const quality = candidateQuality(points, criteria);
       const relevance = candidateRelevance(points, quality);
-      return { ...base, kind: "project", programId: p.id, quality, points, relevance, comparableCost, facts, warning: makeWarnings(list, school, partner, p), program: p.programName, cooperation: blocked ? "not_cooperating" : isConfirmed && partner?.programIds?.includes(p.id) ? "project_confirmed" : "listed", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: [...result.evidence.map(displayEvidence), ...listEvidence(p.programType as keyof typeof columns)] };
+      return { ...base, kind: "project", programId: p.id, quality, points, relevance, comparableCost, facts, verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), warning: makeWarnings(list, school, partner, p), program: p.programName, cooperation: blocked ? "not_cooperating" : isConfirmed && partner?.programIds?.includes(p.id) ? "project_confirmed" : "listed", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: [...result.evidence.map(displayEvidence), ...listEvidence(p.programType as keyof typeof columns)] };
     });
     if (!cards.length) {
       const detail = ps.length ? "知识库未找到符合本次条件的项目，是否有其他合适项目需核实" : "知识库未找到同名项目，学历、费用和申请条件需核实";
-      cards.push({ ...base, kind: "school", points: [{ label: "项目", level: "UNKNOWN", text: detail }], relevance: -1000, program: "招生名单院校", cooperation: blocked ? "not_cooperating" : "listed", fit: "资料不足", evidence: [detail, ...listEvidence(criteria.programType), "申请时间需核实"] });
+      cards.push({ ...base, kind: "school", verified: false, points: [{ label: "项目", level: "UNKNOWN", text: detail }], relevance: -1000, program: "招生名单院校", cooperation: blocked ? "not_cooperating" : "listed", fit: "资料不足", evidence: [detail, ...listEvidence(criteria.programType), "申请时间需核实"] });
     }
     for (const card of cards) {
       const complete = card.fit === "已知条件符合";
@@ -364,11 +364,11 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
       const points = validEvidence.map((e) => evidencePoint(e, p, criteria));
       const quality = candidateQuality(points, criteria);
       const relevance = candidateRelevance(points, quality);
-      other.push({ name: p.schoolName, schoolKey: key, schoolId: p.schoolId, programId: p.id, kind: "project", quality, points, relevance, comparableCost: p.costIncomplete ? null : p.firstYearCostMax, facts: projectFacts(p, null, "unknown", feeFreshness), program: p.programName, cooperation: "unknown", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: result.evidence.map((e) => `${e.label}：${privileged ? safeText(e.detail) : ({ PASS: "符合已知条件", NEED: "需要补充或核实", UNKNOWN: "信息未知，需核实", FAIL: "不符合" }[e.level])}`), sources: ["知识库项目"], warning: makeWarnings([], school, partnerByName.get(key), p), yellow: false, image: false });
+      other.push({ name: p.schoolName, schoolKey: key, schoolId: p.schoolId, programId: p.id, kind: "project", quality, points, relevance, comparableCost: p.costIncomplete ? null : p.firstYearCostMax, facts: projectFacts(p, null, "unknown", feeFreshness), verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), program: p.programName, cooperation: "unknown", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: result.evidence.map((e) => `${e.label}：${privileged ? safeText(e.detail) : ({ PASS: "符合已知条件", NEED: "需要补充或核实", UNKNOWN: "信息未知，需核实", FAIL: "不符合" }[e.level])}`), sources: ["知识库项目"], warning: makeWarnings([], school, partnerByName.get(key), p), yellow: false, image: false });
     }
   }
   const sortByRelevance = (a: ScoredCard, b: ScoredCard) => b.relevance - a.relevance || a.name.localeCompare(b.name, "zh-CN");
   confirmed.sort(sortByRelevance); pending.sort(sortByRelevance); other.sort(sortByRelevance);
-  const clean = (cards: ScoredCard[]): ResultCard[] => cards.map(({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts }) => ({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts }));
+  const clean = (cards: ScoredCard[]): ResultCard[] => cards.map(({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified }) => ({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified }));
   return { confirmed: clean(confirmed), pending: clean(pending), other: searchingOthers ? clean(other) : [], otherHidden: !searchingOthers, excludedSchoolCount: excludedKeys.size };
 }

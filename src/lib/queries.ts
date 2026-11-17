@@ -415,7 +415,7 @@ export async function getMajorCatalog() {
   majorCatalogCache = categorizeMajors(rows.flatMap((row) => splitMajorText(row.majorText)));
   return majorCatalogCache;
 }
-export async function getProgramsForScreening() {
+export async function getProgramsForScreening(): Promise<MatchProgram[]> {
   const rows = sqlite
     .prepare(
       `SELECT
@@ -466,7 +466,8 @@ export async function getProgramsForScreening() {
         s.city AS city,
         s.partnership_rating AS partnershipRating,
         s.qs_ranking AS qsRanking,
-        p.review_status AS reviewStatus
+        p.review_status AS reviewStatus,
+        p.manually_verified AS manuallyVerified
       FROM programs p
       INNER JOIN schools s ON s.id = p.school_id
       WHERE p.archived = 0 AND s.archived = 0`,
@@ -511,6 +512,7 @@ export async function getProgramsForScreening() {
       partnershipRating: number;
       qsRanking: number | null;
       reviewStatus: string;
+      manuallyVerified: number;
     }>;
 
   return rows.map((row) => {
@@ -533,6 +535,7 @@ export async function getProgramsForScreening() {
       ...row,
       cscaStatus: parseCscaStatus(row.requirementsText, row.programType),
       costIncomplete: Boolean(row.costIncomplete),
+      manuallyVerified: Boolean(row.manuallyVerified),
       deadlineDate,
       deadlineStatus,
     };

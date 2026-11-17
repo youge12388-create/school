@@ -7,6 +7,13 @@ const row = (name: string, number: number, text = ""): ListRow => ({ name, row: 
 const schools = [{ id: "s", name: "示例大学", preference: "不招孟加拉" }];
 
 describe("AI 选校结果组装", () => {
+  it("只有已完成人工核实的项目才显示核验标识", () => {
+    const verified = { ...program, id: "verified", reviewStatus: "VERIFIED", manuallyVerified: true };
+    const imported = { ...program, id: "imported", schoolId: "s2", schoolName: "自动解析大学", reviewStatus: "VERIFIED", manuallyVerified: false };
+    const result = buildResults([], [verified, imported], schools, [], { programType: "MASTER" }, false, false);
+    expect(result.other.find((card) => card.programId === "verified")?.verified).toBe(true);
+    expect(result.other.find((card) => card.programId === "imported")?.verified).toBe(false);
+  });
   it("合并同名表格行并保留来源，校区名称不合并", () => {
     expect(schoolKey("示例 大学")).toBe(schoolKey("示例大学"));
     const result = buildResults([row("示例大学", 3), row("示例大学", 4), row("示例大学（分校）", 5)], [], schools, [], {}, true, false);
