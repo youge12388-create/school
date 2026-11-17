@@ -97,6 +97,7 @@ describe("AI 选校客户画像", () => {
         toefl: 90,
         duolingo: 120,
         hasCsca: false,
+        scholarshipType: "any",
         accommodationRequired: true,
         province: "北京",
         city: "北京",

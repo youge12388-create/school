@@ -126,6 +126,7 @@ export default async function SchoolDetailsPage({
   const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
   const canManageUpdates = userHasPermission(user, "SCHOOL_UPDATE_MANAGE");
   const canEdit = userHasPermission(user, "SCHOOL_EDIT_PUBLIC");
+  const canVerify = user.role === "ADMIN" || user.role === "DATA_MANAGER";
   const marketManagerView = isMarketManager(user.role);
   const schoolFields = marketManagerView
     ? MARKET_MANAGER_SCHOOL_FIELDS
@@ -385,6 +386,7 @@ export default async function SchoolDetailsPage({
               introduction: program.introduction,
               scholarshipContent: program.scholarshipContent,
               reviewStatus: program.reviewStatus,
+              manuallyVerified: Boolean(program.manuallyVerified),
             };
             if (!canEdit) {
               for (const [field, value] of Object.entries(programKnowledge)) {
@@ -411,6 +413,7 @@ export default async function SchoolDetailsPage({
                 marketManagerView={marketManagerView}
                 coreFields={programCoreFields}
                 longFields={programLongFields}
+                canVerify={canVerify}
                 open={program.id === targetProgramId ? true : undefined}
               />
             );

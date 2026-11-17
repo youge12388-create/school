@@ -222,7 +222,7 @@ function evidencePoint(item: { label: string; level: "PASS" | "NEED" | "UNKNOWN"
   return { label, level, text: safeText(item.detail) };
 }
 
-export function buildResults(rows: ListRow[], programs: SearchProgram[], schools: SchoolInfo[], partners: PartnerEntry[], criteria: ChatCriteria, privileged: boolean, showOther: boolean, progress?: SearchProgress, exclusions?: ResultExclusions) {
+export function buildResults(rows: ListRow[], programs: SearchProgram[], schools: SchoolInfo[], partners: PartnerEntry[], criteria: ChatCriteria, privileged: boolean, showOther: boolean, progress?: SearchProgress, exclusions?: ResultExclusions, feedbackScores?: ReadonlyMap<string, number>) {
   const rowGroups = new Map<string, ListRow[]>();
   for (const row of rows) rowGroups.set(schoolIdentityKey(row.name), [...(rowGroups.get(schoolIdentityKey(row.name)) ?? []), row]);
   const schoolByName = new Map(schools.map((school) => [schoolIdentityKey(school.name), school]));
@@ -367,7 +367,8 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
       other.push({ name: p.schoolName, schoolKey: key, schoolId: p.schoolId, programId: p.id, kind: "project", quality, points, relevance, comparableCost: p.costIncomplete ? null : p.firstYearCostMax, facts: projectFacts(p, null, "unknown", feeFreshness), verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), program: p.programName, cooperation: "unknown", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: result.evidence.map((e) => `${e.label}：${privileged ? safeText(e.detail) : ({ PASS: "符合已知条件", NEED: "需要补充或核实", UNKNOWN: "信息未知，需核实", FAIL: "不符合" }[e.level])}`), sources: ["知识库项目"], warning: makeWarnings([], school, partnerByName.get(key), p), yellow: false, image: false });
     }
   }
-  const sortByRelevance = (a: ScoredCard, b: ScoredCard) => b.relevance - a.relevance || a.name.localeCompare(b.name, "zh-CN");
+  const feedbackScore = (card: ScoredCard) => card.programId ? (feedbackScores?.get(card.programId) ?? 0) * 15 : 0;
+  const sortByRelevance = (a: ScoredCard, b: ScoredCard) => (b.relevance + feedbackScore(b)) - (a.relevance + feedbackScore(a)) || a.name.localeCompare(b.name, "zh-CN");
   confirmed.sort(sortByRelevance); pending.sort(sortByRelevance); other.sort(sortByRelevance);
   const clean = (cards: ScoredCard[]): ResultCard[] => cards.map(({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified }) => ({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified }));
   return { confirmed: clean(confirmed), pending: clean(pending), other: searchingOthers ? clean(other) : [], otherHidden: !searchingOthers, excludedSchoolCount: excludedKeys.size };

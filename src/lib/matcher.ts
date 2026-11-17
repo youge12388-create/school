@@ -55,6 +55,7 @@ export type MatchProgram = {
   programType: string;
   teachingLanguage: string;
   majorText: string | null;
+  directionText?: string | null;
   requirementsText: string | null;
   sourceText: string | null;
   semesterText: string | null;
@@ -194,9 +195,60 @@ function locationMatches(expected: string, actual: string | null) {
 
 export type MajorMatchResult = {
   matched: boolean;
-  matchType: "exact" | "synonym" | "none";
+  matchType: "exact" | "synonym" | "semantic" | "none";
   synonymKeyword?: string;
+  semanticKeyword?: string;
 };
+
+const SEMANTIC_MAJOR_HINTS: Record<string, string[]> = {
+  人工智能: ["智能", "机器学习", "深度学习", "算法", "AI"],
+  计算机: ["电脑", "编程", "信息技术", "软件", "数据"],
+  新能源: ["能源", "储能", "光伏", "电气"],
+  环境: ["生态", "资源", "可持续"],
+  传媒: ["新闻", "传播", "广告"],
+  国际贸易: ["商贸", "贸易", "商务", "经济"],
+  教育: ["教学", "教师", "课程"],
+};
+
+function bigramDice(left: string, right: string) {
+  const grams = (value: string) =>
+    new Set(Array.from({ length: Math.max(0, value.length - 1) }, (_, index) => value.slice(index, index + 2)));
+  const leftGrams = grams(left);
+  const rightGrams = grams(right);
+  if (!leftGrams.size || !rightGrams.size) return 0;
+  let overlap = 0;
+  for (const gram of leftGrams) if (rightGrams.has(gram)) overlap += 1;
+  return (2 * overlap) / (leftGrams.size + rightGrams.size);
+}
+
+function semanticMajorMatch(query: string, text: string) {
+  const normalizedQuery = normalizeKeyword(query);
+  const normalizedText = normalizeKeyword(text);
+  const terms = new Set([normalizedQuery]);
+  for (const [topic, aliases] of Object.entries(SEMANTIC_MAJOR_HINTS)) {
+    const vocabulary = [topic, ...aliases].map(normalizeKeyword);
+    if (vocabulary.some((term) => normalizedQuery.includes(term) || term.includes(normalizedQuery))) {
+      for (const term of vocabulary) terms.add(term);
+    }
+  }
+  const candidates = text
+    .split(/[，,、；;/\n\r（）()]+/u)
+    .map(normalizeKeyword)
+    .filter((value) => value.length >= 2);
+  for (const term of terms) {
+    if (term.length < 2) continue;
+    if (normalizedText.includes(term)) return { keyword: term, score: 1 };
+    for (const candidate of candidates) {
+      if (term.includes(candidate) && candidate.length >= Math.max(2, term.length * 0.5)) {
+        return { keyword: candidate, score: candidate.length / term.length };
+      }
+      if (bigramDice(term, candidate) >= 0.5) {
+        return { keyword: candidate, score: bigramDice(term, candidate) };
+      }
+    }
+  }
+  return null;
+}
 
 export function majorMatches(
   query: string,
@@ -218,6 +270,14 @@ export function majorMatches(
         return { matched: true, matchType: "synonym", synonymKeyword: textHit };
       }
     }
+  }
+  const semantic = semanticMajorMatch(query, majorText);
+  if (semantic) {
+    return {
+      matched: true,
+      matchType: "semantic",
+      semanticKeyword: semantic.keyword,
+    };
   }
   return { matched: false, matchType: "none" };
 }
@@ -526,11 +586,18 @@ export function evaluateProgram(
   if (teachingLanguage) evidence.push(teachingLanguage);
 
   if (criteria.targetMajor) {
-    const match = majorMatches(criteria.targetMajor, program.majorText);
+    const match = majorMatches(
+      criteria.targetMajor,
+      [program.majorText, program.directionText]
+        .filter(Boolean)
+        .join(" "),
+    );
     if (match.matchType === "exact") {
       evidence.push({ label: "专业", level: "PASS", detail: "有匹配的专业" });
     } else if (match.matchType === "synonym") {
       evidence.push({ label: "专业", level: "NEED", detail: "可能同类的专业" + (match.synonymKeyword ? "（命中\"" + match.synonymKeyword + "\"）" : "") });
+    } else if (match.matchType === "semantic") {
+      evidence.push({ label: "专业", level: "NEED", detail: "可能与目标专业相关" + (match.semanticKeyword ? "（语义召回\"" + match.semanticKeyword + "\"）" : "") + "，需核实" });
     } else if (program.majorText) {
       evidence.push({ label: "专业", level: "FAIL", detail: "未找到相关专业" });
     } else {

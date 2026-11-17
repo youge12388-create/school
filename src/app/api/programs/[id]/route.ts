@@ -40,6 +40,18 @@ export async function PATCH(
       { status: 400 },
     );
   }
+  const canVerify =
+    user.role === "ADMIN" || user.role === "DATA_MANAGER";
+  if (body.manuallyVerified !== undefined && !canVerify) {
+    return Response.json(
+      { error: "当前账号无权调整项目核实状态" },
+      { status: 403 },
+    );
+  }
+  const manuallyVerified =
+    typeof body.manuallyVerified === "boolean"
+      ? body.manuallyVerified
+      : undefined;
   try {
     await saveProgramFields(user.id, id, {
       name,
@@ -55,6 +67,7 @@ export async function PATCH(
       duration: optionalText(body.duration),
       introduction: optionalText(body.introduction),
       scholarshipContent: optionalText(body.scholarshipContent),
+      manuallyVerified,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "保存失败";

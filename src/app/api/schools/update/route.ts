@@ -9,6 +9,10 @@ import { sqlite } from "@/lib/db";
 import { stripConfidentialSchoolUpdates } from "@/lib/permissions";
 import { saveProgramFields } from "@/lib/program-editor";
 import { appUrl, isSameOrigin } from "@/lib/http";
+import {
+  isManualVerificationChecked,
+  manualReviewState,
+} from "@/lib/manual-verification";
 import { asText } from "@/lib/utils";
 
 function optionalFormText(formData: FormData, key: string) {
@@ -85,6 +89,9 @@ export async function POST(request: Request) {
 
   try {
     const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
+    const canVerify =
+      user.role === "ADMIN" || user.role === "DATA_MANAGER";
+    const updatedAt = Date.now();
 
     const nameZh = asText(formData.get("nameZh"));
     if (!nameZh) throw new Error("学校中文名不能为空");
@@ -98,7 +105,7 @@ export async function POST(request: Request) {
       throw new Error("合作星级必须在 0 到 5 之间");
     }
 
-    const updates = {
+    const updates: Record<string, unknown> = {
       nameZh,
       name: optionalFormText(formData, "name") || nameZh,
       category: optionalFormText(formData, "category"),
@@ -126,9 +133,13 @@ export async function POST(request: Request) {
       specialCaseNote: optionalFormText(formData, "specialCaseNote"),
       applicationUpdateFrequency: optionalFormText(formData, "applicationUpdateFrequency"),
       cooperationFeeText: optionalFormText(formData, "cooperationFeeText"),
-      reviewStatus: "VERIFIED" as const,
-      updatedAt: Date.now(),
     };
+    if (canVerify) {
+      updates.reviewStatus = manualReviewState(
+        formData,
+        "schoolVerified",
+      ).reviewStatus;
+    }
     const permittedUpdates = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")
       ? updates
       : stripConfidentialSchoolUpdates(updates);
@@ -158,7 +169,7 @@ export async function POST(request: Request) {
            updated_at = ?
            WHERE id = ?`,
         )
-        .run(...writeValues, updates.updatedAt, id);
+        .run(...writeValues, updatedAt, id);
       writeAudit({
         userId: user.id,
         action: "SCHOOL_UPDATED",
@@ -206,6 +217,12 @@ export async function POST(request: Request) {
               optionalFormText(formData, `program_${i}_introduction`),
             scholarshipContent:
               optionalFormText(formData, `program_${i}_scholarshipContent`),
+            manuallyVerified: canVerify
+              ? isManualVerificationChecked(
+                  formData,
+                  `program_${i}_verified`,
+                )
+              : undefined,
           },
           true,
         );

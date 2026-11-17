@@ -66,7 +66,7 @@ function criteriaFromRow(row: CustomerProfileRow): ChatCriteria {
     toefl: row.toefl,
     duolingo: row.duolingo,
     hasCsca: row.hasCsca == null ? null : Boolean(row.hasCsca),
-    scholarshipType: null,
+    scholarshipType: row.scholarshipRequired ? "any" : null,
     accommodationRequired:
       row.accommodationRequired == null
         ? null

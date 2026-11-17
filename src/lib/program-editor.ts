@@ -18,6 +18,7 @@ export type ProgramEditFields = {
   duration: string | null;
   introduction: string | null;
   scholarshipContent: string | null;
+  manuallyVerified?: boolean;
 };
 
 // 审计只跟踪用户在表单里可编辑的字段，派生/隐式字段（updatedAt、parsedJson、
@@ -45,7 +46,8 @@ const OLD_PROGRAM_COLUMNS = `
   application_time_text AS applicationTimeText, tuition_text AS tuitionText,
   accommodation_text AS accommodationText,
   first_year_cost_max AS firstYearCostMax, deadline_date AS deadlineDate,
-  duration, introduction, scholarship_content AS scholarshipContent
+  duration, introduction, scholarship_content AS scholarshipContent,
+  review_status AS reviewStatus, manually_verified AS manuallyVerified
 `;
 
 type OldProgramRow = {
@@ -64,6 +66,8 @@ type OldProgramRow = {
   duration: string | null;
   introduction: string | null;
   scholarshipContent: string | null;
+  reviewStatus: string;
+  manuallyVerified: number;
 };
 
 function changedFields(oldProgram: OldProgramRow, updates: Record<string, unknown>) {
@@ -108,6 +112,18 @@ export function saveProgramFields(
       ? deadlineDate
       : null;
   const now = Date.now();
+  const oldProgram = sqlite
+    .prepare(`SELECT ${OLD_PROGRAM_COLUMNS} FROM programs WHERE id = ?`)
+    .get(programId) as OldProgramRow | undefined;
+  if (!oldProgram) throw new Error(`项目 ${fields.name} 不存在`);
+  const manuallyVerified =
+    fields.manuallyVerified ?? Boolean(oldProgram.manuallyVerified);
+  const reviewStatus =
+    fields.manuallyVerified == null
+      ? oldProgram.reviewStatus
+      : manuallyVerified
+        ? "VERIFIED"
+        : "NEEDS_REVIEW";
 
   const updates = {
     name: fields.name,
@@ -144,14 +160,9 @@ export function saveProgramFields(
     applicationTimeText: fields.applicationTimeText || null,
     scholarshipContent: fields.scholarshipContent || null,
     parsedJson: JSON.stringify(parsed),
-    reviewStatus: "VERIFIED",
-    manuallyVerified: 1,
+    reviewStatus,
+    manuallyVerified: manuallyVerified ? 1 : 0,
   };
-
-  const oldProgram = sqlite
-    .prepare(`SELECT ${OLD_PROGRAM_COLUMNS} FROM programs WHERE id = ?`)
-    .get(programId) as OldProgramRow | undefined;
-  if (!oldProgram) throw new Error(`项目 ${fields.name} 不存在`);
 
   if (!inTransaction) sqlite.exec("BEGIN IMMEDIATE");
   try {

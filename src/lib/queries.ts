@@ -428,6 +428,7 @@ export async function getProgramsForScreening(): Promise<MatchProgram[]> {
         p.program_type AS programType,
         p.teaching_language AS teachingLanguage,
         p.major_text AS majorText,
+        p.direction_text AS directionText,
         p.requirements_text AS requirementsText,
         TRIM(
           COALESCE(p.requirements_text, '') || ' ' ||
@@ -482,6 +483,7 @@ export async function getProgramsForScreening(): Promise<MatchProgram[]> {
       programType: string;
       teachingLanguage: string;
       majorText: string | null;
+      directionText: string | null;
       requirementsText: string | null;
       sourceText: string | null;
       semesterText: string | null;

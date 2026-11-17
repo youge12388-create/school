@@ -2,8 +2,9 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { buildResults, criteriaSchema } from "@/lib/ai-screening";
 import { loadScreeningData } from "@/lib/ai-screening-data";
+import { loadScreeningFeedbackScores } from "@/lib/ai-screening-feedback";
 import { containsPersonalContact, containsSensitiveRestriction } from "@/lib/ai-screening-input";
-import { extractScreeningIntent, screeningHistorySchema } from "@/lib/ai-screening-intent";
+import { extractScreeningIntent, otherSchoolsPreference, screeningHistorySchema } from "@/lib/ai-screening-intent";
 import { isCandidate } from "@/lib/ai-screening-presentation";
 import { WorkbookError } from "@/lib/ai-screening-workbook";
 import { advisorFollowUpAnswer, factQuestion, followUpIntent, schoolFactAnswer } from "@/lib/ai-screening-follow-up";
@@ -20,19 +21,11 @@ function safeConversationReply(reply: string | null | undefined) {
   return reply;
 }
 
-function otherSchoolsPreference(message: string): boolean | null {
-  if (/(?:不要|不用|无需|不想|不看|排除|只看|仅看).{0,10}(?:其他|非合作)/u.test(message)) return false;
-  if (/(?:其他(?:的)?|非合作(?:的)?)(?:院校|学校|大学)|合作(?:院校|学校|名单).{0,8}(?:以外|之外)/u.test(message)) return true;
-  if (/(?:专业|学费|费用|截止|语言|成绩|奖学金|住宿).{0,8}(?:还有|其他|别的)/u.test(message) && !/(?:院校|学校|大学)/u.test(message)) return false;
-  if (/(?:还有|再|另外|换|多).{0,6}(?:其他|别的|院校|学校|大学|选择|推荐)|(?:其他|别的)(?:的)?(?:吗|嘛|呢|么)/u.test(message)) return true;
-  return null;
-}
-
 function errorMessage(error: unknown) {
   return error instanceof WorkbookError || error instanceof Error && (error.message.startsWith("模型") || error.message.startsWith("DeepSeek") || error.message.startsWith("尚未") || error.message.startsWith("招生表")) ? error.message : "读取数据或模型请求失败，请检查配置后重试。";
 }
 
-async function search(data: z.infer<typeof requestSchema>, role: string, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
+async function search(data: z.infer<typeof requestSchema>, user: { id: string; role: string }, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
   const step = (id: "understand" | "cooperation" | "alternatives" | "summary", status: "active" | "done" | "warning" | "skipped", message: string) => emit({ type: "progress", step: { id, status, message } });
   step("understand", "active", "正在理解学生的申请需求");
   const extracted = data.criteriaOverride
@@ -60,7 +53,7 @@ async function search(data: z.infer<typeof requestSchema>, role: string, signal:
   const otherRequested = data.showOther || (otherPreference !== false && (otherPreference === true || Boolean(extracted.showOther) || (intent !== "search" && data.previousOtherRequested)));
   const evaluationCriteria = intent === "school_fact" ? data.criteria : extracted.criteria;
   const exclusions = otherRequested && intent === "search" ? { schoolKeys: data.seenSchoolNames, programIds: data.seenProgramIds } : undefined;
-  const results = buildResults(list.rows, searchPrograms, schools, partners, evaluationCriteria, role === "ADMIN" || role === "DATA_MANAGER", otherRequested, {
+  const results = buildResults(list.rows, searchPrograms, schools, partners, evaluationCriteria, user.role === "ADMIN" || user.role === "DATA_MANAGER", otherRequested, {
     onPartnerSearchComplete(state) {
       searchingOthers = state.searchingOthers;
       if (state.confirmed) step("cooperation", "done", `已检索合作院校名单，找到 ${state.confirmed} 个已知条件符合的项目；项目合作范围需核实`);
@@ -68,7 +61,7 @@ async function search(data: z.infer<typeof requestSchema>, role: string, signal:
       if (state.searchingOthers) step("alternatives", "active", "正在核对学校知识库");
       else step("alternatives", "skipped", "已找到合作候选；如需更多选择，可以继续查看其他院校");
     },
-  }, exclusions);
+  }, exclusions, loadScreeningFeedbackScores(user.id));
   if (searchingOthers) {
     const count = results.other.filter(isCandidate).length;
     step("alternatives", "done", count ? `已检索其他院校，找到 ${count} 个项目候选` : "已检索其他院校，暂未找到有足够依据的项目候选");
@@ -108,7 +101,7 @@ export async function POST(request: Request) {
   if (textInputs.some(containsSensitiveRestriction)) return Response.json({ error: "请移除聊天中的敏感招生限制，再描述申请条件；结果中会提示需要人工核实的事项。" }, { status: 400 });
   const data = body.data;
   if (!request.headers.get("accept")?.includes("application/x-ndjson")) {
-    try { return Response.json(await search(data, user.role, request.signal, () => {}), { headers: { "Cache-Control": "no-store" } }); }
+    try { return Response.json(await search(data, user, request.signal, () => {}), { headers: { "Cache-Control": "no-store" } }); }
     catch (error) { return Response.json({ error: errorMessage(error) }, { status: 503 }); }
   }
   const encoder = new TextEncoder();
@@ -116,7 +109,7 @@ export async function POST(request: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (event: SearchEvent) => { if (!cancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)); };
-      try { emit({ type: "result", result: await search(data, user.role, request.signal, emit) }); }
+      try { emit({ type: "result", result: await search(data, user, request.signal, emit) }); }
       catch (error) { emit({ type: "error", message: errorMessage(error) }); }
       finally { if (!cancelled) controller.close(); }
     },

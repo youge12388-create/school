@@ -11,6 +11,57 @@ export function isCandidate(card: ResultCard) {
   return card.kind === "project" && card.quality !== "insufficient";
 }
 
+export function presentedProgramIds(result: ScreeningResponse | undefined) {
+  if (!result) return [];
+  return [
+    ...new Set(
+      [...result.results.confirmed, ...result.results.pending, ...result.results.other]
+        .flatMap((card) => (card.programId ? [card.programId] : [])),
+    ),
+  ];
+}
+
+export function presentedSchoolNames(result: ScreeningResponse | undefined) {
+  if (!result) return [];
+  return [
+    ...new Set(
+      [...result.results.confirmed, ...result.results.pending, ...result.results.other]
+        .map((card) => card.name),
+    ),
+  ];
+}
+
+export function latestSaveableResultIndex(turns: ReadonlyArray<{ result?: ScreeningResponse }>) {
+  return turns.reduce((latestIndex, turn, index) => {
+    const result = turn.result;
+    return result && [...result.results.confirmed, ...result.results.pending, ...result.results.other].some(isCandidate)
+      ? index
+      : latestIndex;
+  }, -1);
+}
+
+export function comparisonCards(result: ScreeningResponse) {
+  const { confirmed, pending, other } = result.results;
+  const available = [...confirmed, ...pending, ...other].filter(isCandidate);
+  const highlighted = result.narrative?.highlights ?? [];
+  const ordered = highlighted.length
+    ? highlighted.flatMap((item) => {
+        const card = item.programId
+          ? available.find((candidate) => candidate.programId === item.programId)
+          : undefined;
+        const schoolKey = schoolIdentityKey(item.name);
+        return card ?? available.find((candidate) => schoolIdentityKey(candidate.name) === schoolKey) ?? [];
+      })
+    : (result.otherRequested ? [...other, ...confirmed, ...pending] : [...confirmed, ...pending, ...other]).filter(isCandidate);
+  const seen = new Set<string>();
+  return ordered.filter((card) => {
+    const key = schoolIdentityKey(card.name);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 4);
+}
+
 export function displayProgramName(school: string, program: string) {
   const escaped = school.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return program.replace(new RegExp(`^${escaped}\\s*[·・-]\\s*`), "").replace(/UNKNOWN授课/g, "授课语言待确认").replace(/UNKNOWN/g, "待确认");

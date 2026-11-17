@@ -14,6 +14,25 @@ describe("AI 选校结果组装", () => {
     expect(result.other.find((card) => card.programId === "verified")?.verified).toBe(true);
     expect(result.other.find((card) => card.programId === "imported")?.verified).toBe(false);
   });
+  it("负反馈会降低同组项目排序但不会删除项目", () => {
+    const first = { ...program, id: "feedback-a", schoolId: "a", schoolName: "甲大学", programName: "甲大学硕士" };
+    const second = { ...program, id: "feedback-b", schoolId: "b", schoolName: "乙大学", programName: "乙大学硕士" };
+    const result = buildResults(
+      [row("甲大学", 3), row("乙大学", 4)],
+      [first, second],
+      [],
+      [],
+      { programType: "MASTER" },
+      true,
+      false,
+      undefined,
+      undefined,
+      new Map([["feedback-a", -1]]),
+    );
+    const ids = result.pending.map((card) => card.programId);
+    expect(ids).toContain("feedback-a");
+    expect(ids.indexOf("feedback-b")).toBeLessThan(ids.indexOf("feedback-a"));
+  });
   it("合并同名表格行并保留来源，校区名称不合并", () => {
     expect(schoolKey("示例 大学")).toBe(schoolKey("示例大学"));
     const result = buildResults([row("示例大学", 3), row("示例大学", 4), row("示例大学（分校）", 5)], [], schools, [], {}, true, false);

@@ -32,6 +32,7 @@ import {
 } from "@/lib/db/schema";
 import { parseProgram, splitMajors } from "@/lib/program-parser";
 import { invalidateMajorCatalog } from "@/lib/queries";
+import { manualReviewState } from "@/lib/manual-verification";
 import { asText, newId, normalizeKeyword, parseDateInput } from "@/lib/utils";
 
 export async function addFollowUpAction(formData: FormData) {
@@ -288,7 +289,7 @@ export async function updateSchoolAction(formData: FormData) {
       cooperationNote: optionalFormText(formData, "cooperationNote"),
       specialCaseNote: optionalFormText(formData, "specialCaseNote"),
       applicationUpdateFrequency: optionalFormText(formData, "applicationUpdateFrequency"),
-      reviewStatus: "VERIFIED" as const,
+      reviewStatus: manualReviewState(formData, "schoolVerified").reviewStatus,
       updatedAt: new Date(),
     };
     const permittedUpdates = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")
@@ -392,8 +393,7 @@ async function updateSingleProgram(userId: string, formData: FormData, index: nu
     applicationTimeText: applicationTimeText || null,
     scholarshipContent: optionalFormText(formData, `program_${index}_scholarshipContent`),
     parsedJson: JSON.stringify(parsed),
-    reviewStatus: "VERIFIED" as const,
-    manuallyVerified: true,
+    ...manualReviewState(formData, `program_${index}_verified`),
     updatedAt: new Date(),
   };
 
@@ -487,8 +487,7 @@ export async function updateProgramAction(formData: FormData) {
     applicationTimeText: applicationTimeText || null,
     scholarshipContent: optionalFormText(formData, "scholarshipContent"),
     parsedJson: JSON.stringify(parsed),
-    reviewStatus: "VERIFIED" as const,
-    manuallyVerified: true,
+    ...manualReviewState(formData, "verified"),
     updatedAt: new Date(),
   };
 
@@ -516,6 +515,46 @@ export async function updateProgramAction(formData: FormData) {
   invalidateMajorCatalog();
   revalidatePath(`/schools/${oldProgram.schoolId}`);
 }
+
+export async function setProgramVerificationAction(formData: FormData) {
+  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const programId = asText(formData.get("programId"));
+  const manuallyVerified = formData.get("verified") === "true";
+  if (!programId) throw new Error("缺少项目ID");
+  const [program] = await db
+    .select({
+      schoolId: programs.schoolId,
+      name: programs.name,
+      manuallyVerified: programs.manuallyVerified,
+    })
+    .from(programs)
+    .where(and(eq(programs.id, programId), eq(programs.archived, false)))
+    .limit(1);
+  if (!program) throw new Error("项目不存在或已归档");
+  await db
+    .update(programs)
+    .set({
+      manuallyVerified,
+      reviewStatus: manuallyVerified ? "VERIFIED" : "NEEDS_REVIEW",
+      updatedAt: new Date(),
+    })
+    .where(eq(programs.id, programId));
+  await writeAudit({
+    userId: user.id,
+    action: "PROGRAM_VERIFICATION_CHANGED",
+    entityType: "PROGRAM",
+    entityId: programId,
+    details: {
+      name: program.name,
+      from: program.manuallyVerified,
+      to: manuallyVerified,
+    },
+  });
+  revalidatePath(`/schools/${program.schoolId}`);
+  revalidatePath("/schools");
+  revalidatePath("/ai-screening");
+}
+
 export async function saveRecommendationAction(formData: FormData) {
   const user = await requirePermission("RECOMMENDATION_MANAGE");
   const customerId = asText(formData.get("customerId"));

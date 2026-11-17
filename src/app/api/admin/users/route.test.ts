@@ -91,6 +91,15 @@ describe("POST /api/admin/users", () => {
     expect(createUser).not.toHaveBeenCalled();
   });
 
+  it("unauthenticated cross-origin requests return 403 instead of a login redirect", async () => {
+    getCurrentUser.mockResolvedValue(null);
+    const response = await POST(request(new FormData(), "https://evil.example"));
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("location")).toBeNull();
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
   it("updates an existing account role and redirects with a success marker", async () => {
     const formData = new FormData();
     formData.set("intent", "update-role");

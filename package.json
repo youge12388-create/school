@@ -18,6 +18,7 @@
     "data:import": "tsx scripts/import-excel.ts",
     "data:template": "tsx scripts/export-template.ts",
     "data:audit": "tsx scripts/audit-screening-data.ts",
+    "data:audit:strict": "tsx scripts/audit-screening-data.ts --strict",
     "backup": "tsx scripts/backup.ts"
   },
   "dependencies": {

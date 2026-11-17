@@ -30,6 +30,7 @@ export default async function RootLayout({
           src="https://canhuo.site/widget.js"
           data-site-id="cmrexwgio0000by7f3izi80v5"
           data-api-host="https://canhuo.site"
+          strategy="lazyOnload"
         />
       </body>
     </html>

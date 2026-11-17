@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { setProgramVerificationAction } from "@/app/actions";
 import { useEditMode } from "@/components/edit-mode";
 import { KnowledgeFieldGrid, UNKNOWN_TEXT, displayValue, displayValueLocalized } from "@/components/knowledge-fields";
 import { Badge } from "@/components/ui";
@@ -46,6 +47,7 @@ export type ProgramCardData = {
   introduction: string | null;
   scholarshipContent: string | null;
   reviewStatus: string;
+  manuallyVerified: boolean;
 };
 
 const EDIT_KEYS = [
@@ -70,6 +72,7 @@ export function SchoolProgramCard({
   marketManagerView,
   coreFields,
   longFields,
+  canVerify,
   open: openProp,
 }: {
   program: ProgramCardData;
@@ -78,6 +81,7 @@ export function SchoolProgramCard({
   marketManagerView: boolean;
   coreFields: readonly string[];
   longFields: readonly string[];
+  canVerify: boolean;
   open?: boolean;
 }) {
   const router = useRouter();
@@ -100,6 +104,9 @@ export function SchoolProgramCard({
     const payload: Record<string, unknown> = {};
     for (const key of EDIT_KEYS) {
       payload[key] = formData.get(key) ?? "";
+    }
+    if (canVerify) {
+      payload.manuallyVerified = formData.get("manuallyVerified") === "on";
     }
     try {
       const response = await fetch(`/api/programs/${program.id}`, {
@@ -169,6 +176,42 @@ export function SchoolProgramCard({
         </div>
       </summary>
       <div className="school-program-expanded">
+        {!editingMode && canVerify ? (
+          <form
+            action={setProgramVerificationAction}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 12,
+            }}
+          >
+            <input type="hidden" name="programId" value={program.id} />
+            <input
+              type="hidden"
+              name="verified"
+              value={
+                program.manuallyVerified &&
+                program.reviewStatus === "VERIFIED"
+                  ? "false"
+                  : "true"
+              }
+            />
+            <button className="button" type="submit">
+              {program.manuallyVerified &&
+              program.reviewStatus === "VERIFIED"
+                ? t("退回待核实")
+                : t("标记已核实")}
+            </button>
+            <span className="small muted">
+              {program.manuallyVerified &&
+              program.reviewStatus === "VERIFIED"
+                ? t("项目资料已人工核实")
+                : t("项目资料待人工核实")}
+            </span>
+          </form>
+        ) : null}
         {editingMode ? (
           <form
             ref={formRef}
@@ -177,6 +220,36 @@ export function SchoolProgramCard({
             onChange={() => markDirty(cardKey, true)}
             className="inline-edit-form"
           >
+            {canVerify ? (
+              <>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 10,
+                  }}
+                >
+                  <input
+                    name="manuallyVerified"
+                    type="checkbox"
+                    defaultChecked={
+                      program.manuallyVerified &&
+                      program.reviewStatus === "VERIFIED"
+                    }
+                    style={{ width: 16, height: 16 }}
+                  />
+                  {t(
+                    "我已逐项核对该项目的学费、截止日期、招生年份、批次和语言要求",
+                  )}
+                </label>
+                <p className="small muted" style={{ margin: "0 0 10px" }}>
+                  {t(
+                    "修改关键资料后请重新确认；未勾选保存时项目会标记为待复核。",
+                  )}
+                </p>
+              </>
+            ) : null}
             <div className="form-grid">
               <label>
                 {t("项目名称")}

@@ -99,6 +99,53 @@ describe("screening matcher", () => {
     expect(majorMatches("计算机", baseProgram.majorText)).toEqual({ matched: true, matchType: "synonym", synonymKeyword: "软件" });
   });
 
+  it("同义词未命中时用本地语义召回扩展相关专业，并保留待核实状态", () => {
+    expect(majorMatches("人工智能", "智能科学与技术")).toMatchObject({
+      matched: true,
+      matchType: "semantic",
+      semanticKeyword: "智能",
+    });
+    expect(majorMatches("新能源", "能源与动力工程")).toMatchObject({
+      matched: true,
+      matchType: "semantic",
+      semanticKeyword: "能源",
+    });
+    expect(majorMatches("火星殖民", "计算机科学与技术")).toEqual({
+      matched: false,
+      matchType: "none",
+    });
+    const result = evaluateProgram(
+      makeProgram({ majorText: null, directionText: "智能科学与技术" }),
+      { targetMajor: "人工智能", programType: "UG" },
+      now,
+    );
+    expect(result.evidence).toContainEqual({
+      label: "专业",
+      level: "NEED",
+      detail: "可能与目标专业相关（语义召回\"智能\"），需核实",
+    });
+  });
+
+  it("没有 CSCA 时标记需补而非直接排除", () => {
+    const result = evaluateProgram(
+      baseProgram,
+      {
+        targetMajor: "计算机",
+        hasCsca: false,
+        teachingLanguage: "ENGLISH",
+        ielts: 6.5,
+        budget: 50000,
+      },
+      now,
+    );
+    expect(result.fitLevel).toBe("NEEDS_ACTION");
+    expect(result.evidence).toContainEqual({
+      label: "CSCA",
+      level: "NEED",
+      detail: "需要补充 CSCA",
+    });
+  });
+
   it("按院校 CSCA 状态筛选，并展示院校需要的 evidence", () => {
     const results = rankPrograms(
       [

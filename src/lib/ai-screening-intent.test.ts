@@ -44,6 +44,51 @@ describe("AI 选校意图解析", () => {
     expect(body.messages[1].content).toContain("预算提高到 10 万");
   });
 
+  it("模型误判闲聊时，只要条件变化或用户明确要求其他院校就按检索处理", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        response(
+          JSON.stringify({
+            criteria: { hasCsca: false },
+            intent: "chat",
+            reply: "好的。",
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        response(
+          JSON.stringify({
+            criteria: { programType: "MASTER" },
+            intent: "chat",
+            showOther: false,
+            reply: "好的。",
+          }),
+        ),
+      );
+    const changed = await extractScreeningIntent(
+      {
+        message: "我还没有 CSCA",
+        criteria: { programType: "UG" },
+        history: [],
+        hasPrevious: true,
+      },
+      { apiKey: "fixture-key", fetchImpl },
+    );
+    expect(changed).toMatchObject({ intent: "search", criteria: { hasCsca: false } });
+
+    const more = await extractScreeningIntent(
+      {
+        message: "还有其他的吗",
+        criteria: { programType: "MASTER" },
+        history: [],
+        hasPrevious: true,
+      },
+      { apiKey: "fixture-key", fetchImpl },
+    );
+    expect(more).toMatchObject({ intent: "search", showOther: true });
+  });
+
   it("缺少密钥、返回非 JSON 或被截断时给出可重试错误", async () => {
     await expect(
       extractScreeningIntent(

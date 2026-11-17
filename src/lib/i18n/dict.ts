@@ -990,6 +990,58 @@ export const EN_DICT: Record<string, string> = {
   "该账号已被停用，请联系管理员。": "This account has been disabled. Contact an administrator.",
   "无权访问该系统。": "You don't have access to this system.",
   "系统繁忙，请稍后重试。": "The system is busy. Please try again later.",
+  /* ------------------------------------------------ screening operations */
+  "选校分析": "Screening analytics",
+  "选校运营概览": "Screening operations overview",
+  "最近 30 天方案与反馈，以及知识库上线质量。分析只使用本地业务数据，不包含聊天正文。":
+    "Plans and feedback from the last 30 days, plus knowledge-base quality. Analytics use local business data only and exclude chat messages.",
+  "有效项目": "Active programs",
+  "人工核实覆盖率": "Manual verification coverage",
+  "30 天保存方案": "Plans saved in 30 days",
+  "逾期跟进": "Overdue follow-ups",
+  "上线质量": "Data quality",
+  "前往学校库": "Open school library",
+  "待人工核实项目": "Programs awaiting manual verification",
+  "费用缺失或口径不完整": "Missing or incomplete fees",
+  "截止已过但状态未更新": "Expired deadlines not updated",
+  "截止和批次说明均缺失": "Missing deadline and intake details",
+  "这些指标只用于定位人工核实工作量，不代表系统已经确认当前招生批次。":
+    "These figures identify manual verification work. They do not confirm current intake batches.",
+  "最近 30 天顾问反馈": "Advisor feedback in the last 30 days",
+  "有帮助": "Helpful",
+  "不合适": "Not relevant",
+  "收到“不合适”反馈的项目": "Programs marked not relevant",
+  "暂无负向反馈。": "No negative feedback yet.",
+  "最近 30 天进入方案次数最多的项目": "Most frequently added programs in the last 30 days",
+  "前往 AI 选校": "Open AI screening",
+  "进入方案次数": "Times added to plans",
+  "最近 30 天还没有保存选校方案。": "No screening plans have been saved in the last 30 days.",
+  "我已人工核对以上学校和合作信息": "I manually verified the school and partnership information above",
+  "未勾选时学校资料会标记为“待复核”。项目需要逐项核实。":
+    "If unchecked, the school will be marked for review. Programs must be verified individually.",
+  "我已逐项核对这个项目的学费、截止日期、招生年份、批次和语言要求":
+    "I verified this program's tuition, deadline, intake year, batch and language requirements",
+  "我已逐项核对该项目的学费、截止日期、招生年份、批次和语言要求":
+    "I verified this program's tuition, deadline, intake year, batch and language requirements",
+  "当前状态：": "Current status: ",
+  "已人工核实": "Manually verified",
+  "待人工核实": "Awaiting manual verification",
+  "。修改关键资料后请重新确认，否则取消勾选再保存。":
+    ". Reconfirm after changing key details; otherwise uncheck it before saving.",
+  "修改关键资料后请重新确认；未勾选保存时项目会标记为待复核。":
+    "Reconfirm after changing key details. Saving without the check marks the program for review.",
+  "退回待核实": "Mark for review",
+  "标记已核实": "Mark as verified",
+  "项目资料已人工核实": "Program information manually verified",
+  "项目资料待人工核实": "Program information awaits manual verification",
+  "登录、导入、客户、文件和名单等写入接口拒绝跨站请求。":
+    "Write endpoints for sign-in, imports, customers, files and workbooks reject cross-site requests.",
+  "AI 选校只把当前条件和近期对话发送给模型；客户画像仅在顾问主动保存时回写。":
+    "AI screening sends only current criteria and recent chat to the model. Customer profiles are written back only when an advisor saves them.",
+  "客户材料保留期和删除审批仍待业务负责人确认，确认前不自动删除。":
+    "Customer-material retention and deletion approval still require business-owner confirmation; records are not deleted automatically before then.",
+  "客户画像、方案和反馈日志仍需纳入备份范围；反馈日志不保存聊天正文。":
+    "Customer profiles, plans and feedback logs must be included in backups. Feedback logs do not contain chat messages.",
 };
 
 /**

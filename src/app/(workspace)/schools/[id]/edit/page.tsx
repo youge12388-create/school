@@ -23,6 +23,7 @@ export default async function SchoolEditPage({
   const tm = makeMessageT(locale);
   const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
   const canEditConfidential = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL");
+  const canVerify = user.role === "ADMIN" || user.role === "DATA_MANAGER";
   const { id } = await params;
   const query = await searchParams;
   const errorMessage = query.error;
@@ -123,7 +124,22 @@ export default async function SchoolEditPage({
             {t("合作项目")}
             <textarea name="cooperationPrograms" defaultValue={school.cooperationPrograms ?? ""} rows={2} placeholder={t("列出已合作的项目")} />
           </label>
-
+          {canVerify ? (
+            <>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                <input
+                  name="schoolVerified"
+                  type="checkbox"
+                  defaultChecked={school.reviewStatus === "VERIFIED"}
+                  style={{ width: 16, height: 16 }}
+                />
+                {t("我已人工核对以上学校和合作信息")}
+              </label>
+              <p className="small muted" style={{ margin: "4px 0 0" }}>
+                {t("未勾选时学校资料会标记为“待复核”。项目需要逐项核实。")}
+              </p>
+            </>
+          ) : null}
         </div>
 
         {canViewConfidential ? (
@@ -237,6 +253,26 @@ export default async function SchoolEditPage({
                 <h4 style={{ marginBottom: 12, fontWeight: 600 }}>
                   {program.name}
                 </h4>
+                {canVerify ? (
+                  <>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <input
+                        name={`program_${index}_verified`}
+                        type="checkbox"
+                        defaultChecked={Boolean(program.manuallyVerified) && program.reviewStatus === "VERIFIED"}
+                        style={{ width: 16, height: 16 }}
+                      />
+                      {t("我已逐项核对这个项目的学费、截止日期、招生年份、批次和语言要求")}
+                    </label>
+                    <p className="small muted" style={{ margin: "0 0 10px" }}>
+                      {t("当前状态：")}
+                      {program.manuallyVerified && program.reviewStatus === "VERIFIED"
+                        ? t("已人工核实")
+                        : t("待人工核实")}
+                      {t("。修改关键资料后请重新确认，否则取消勾选再保存。")}
+                    </p>
+                  </>
+                ) : null}
                 <div className="form-grid">
                   <label>
                     {t("项目名称")}

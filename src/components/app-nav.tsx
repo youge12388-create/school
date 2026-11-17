@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartNoAxesCombined,
   Database,
   FileClock,
   GraduationCap,
@@ -24,6 +25,7 @@ const items = [
   { href: "/schools/noted", label: "特别备注院校", icon: StickyNote },
   { href: "/imports", label: "数据导入", icon: Database },
   { href: "/audit", label: "操作审计", icon: FileClock },
+  { href: "/analytics", label: "选校分析", icon: ChartNoAxesCombined },
   { href: "/admin/users", label: "账号管理", icon: UserRoundCog },
 ];
 
@@ -54,6 +56,7 @@ export function AppNav({
           if (item.href === "/audit") {
             return permissions.includes("AUDIT_VIEW");
           }
+          if (item.href === "/analytics") return role === "ADMIN" || role === "DATA_MANAGER";
           return true;
         })
         .map((item) => {
