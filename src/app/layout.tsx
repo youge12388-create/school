@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 
 import { translate } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
 
 import "./globals.css";
 import "./google-ui.css";
+import "./workspace.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getUiLocale();
@@ -24,15 +24,7 @@ export default async function RootLayout({
   const locale = await getUiLocale();
   return (
     <html lang={locale === "en" ? "en" : "zh-CN"}>
-      <body>
-        {children}
-        <Script
-          src="https://canhuo.site/widget.js"
-          data-site-id="cmrexwgio0000by7f3izi80v5"
-          data-api-host="https://canhuo.site"
-          strategy="lazyOnload"
-        />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

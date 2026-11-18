@@ -31,15 +31,6 @@ export function presentedSchoolNames(result: ScreeningResponse | undefined) {
   ];
 }
 
-export function latestSaveableResultIndex(turns: ReadonlyArray<{ result?: ScreeningResponse }>) {
-  return turns.reduce((latestIndex, turn, index) => {
-    const result = turn.result;
-    return result && [...result.results.confirmed, ...result.results.pending, ...result.results.other].some(isCandidate)
-      ? index
-      : latestIndex;
-  }, -1);
-}
-
 export function comparisonCards(result: ScreeningResponse) {
   const { confirmed, pending, other } = result.results;
   const available = [...confirmed, ...pending, ...other].filter(isCandidate);

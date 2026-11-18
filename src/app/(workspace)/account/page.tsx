@@ -1,3 +1,6 @@
+import { Settings2 } from "lucide-react";
+import Link from "next/link";
+
 import { changePasswordAction } from "@/app/account-actions";
 import { PageHeading } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
@@ -16,6 +19,7 @@ export default async function AccountPage() {
       <PageHeading
         title={t("个人账号")}
         description={`${user.displayName} · ${user.username}`}
+        action={user.role === "ADMIN" ? <Link href="/settings" className="button"><Settings2 size={16} aria-hidden="true" />{t("设置")}</Link> : undefined}
       />
 
       <div className="mobile-only mobile-account-profile">

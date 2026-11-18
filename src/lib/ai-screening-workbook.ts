@@ -6,7 +6,6 @@ import { z } from "zod";
 import { schoolKey, type ListRow } from "@/lib/ai-screening";
 
 export const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024;
-const DEFAULT_FILE = "C:/Users/EDY/Documents/WXWork/1688857755951099/Cache/File/2026-11/2027春季招生院校名单（标黄）20261026.xlsx";
 const idSchema = z.string().uuid();
 const pointerSchema = z.object({ active: idSchema.nullable() }).strict();
 const versionSchema = z.object({ id: idSchema, name: z.string().min(1).max(120), uploadedAt: z.string().datetime(), rows: z.number().int().nonnegative(), schools: z.number().int().nonnegative(), previous: idSchema.nullable() }).strict();
@@ -17,7 +16,10 @@ export type WorkbookPreview = { name: string; version: string | null; rows: numb
 export class WorkbookError extends Error {}
 
 function storageDirectory() { return resolve(process.env.AI_SCREENING_SHARED_DIR || join(process.cwd(), "data", "ai-screening-workbooks")); }
-function configuredFile() { return resolve(process.env.AI_SCREENING_WORKBOOK_PATH || DEFAULT_FILE); }
+function configuredFile() {
+  const configured = process.env.AI_SCREENING_WORKBOOK_PATH;
+  return configured ? resolve(configured) : join(storageDirectory(), "initial.xlsx");
+}
 function safeName(name: string) { return name.split(/[\\/]/u).pop()?.replace(/[\u0000-\u001f]/gu, "").trim().slice(0, 120) || "合作院校名单.xlsx"; }
 function isMissing(error: unknown) { return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT"; }
 function normalizedHeader(value: unknown) { return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim(); }

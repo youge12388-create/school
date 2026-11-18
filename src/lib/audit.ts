@@ -14,6 +14,7 @@ export const AUDIT_ACTIONS = [
   "USER_DISABLED",
   "PASSWORD_CHANGED",
   "PASSWORD_RESET_CLI",
+  "AI_PROVIDER_UPDATED",
   "WECOM_ORGANIZATION_SYNCED",
   "WECOM_DEPARTMENT_ROLE_UPDATED",
   "WECOM_USER_ACCESS_UPDATED",
@@ -56,6 +57,7 @@ export const AUDIT_ENTITY_TYPES = [
   "RECOMMENDATION",
   "DOCUMENT",
   "SCHOOL_UPDATE",
+  "SETTINGS",
 ] as const;
 
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
@@ -70,6 +72,7 @@ export const ENTITY_TYPE_LABELS: Record<AuditEntityType, string> = {
   RECOMMENDATION: "推荐方案",
   DOCUMENT: "文件",
   SCHOOL_UPDATE: "院校动态",
+  SETTINGS: "设置",
 };
 
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
@@ -82,6 +85,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   USER_DISABLED: "停用账号",
   PASSWORD_CHANGED: "修改密码",
   PASSWORD_RESET_CLI: "重置密码(CLI)",
+  AI_PROVIDER_UPDATED: "更新 AI API 设置",
   WECOM_ORGANIZATION_SYNCED: "同步企业微信组织架构",
   WECOM_DEPARTMENT_ROLE_UPDATED: "更新企业微信部门角色",
   WECOM_USER_ACCESS_UPDATED: "更新企业微信成员个人权限",

@@ -1,19 +1,14 @@
+import { ArrowRight, CalendarClock, History } from "lucide-react";
 import Link from "next/link";
 
 import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { getUserPermissions } from "@/lib/access-control";
-import { AUDIT_ACTION_LABELS, ENTITY_TYPE_LABELS } from "@/lib/audit";
+import { AUDIT_ACTION_LABELS, ENTITY_TYPE_LABELS, type AuditEntityType } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { hasPermission, isMarketManager } from "@/lib/permissions";
 import { getDashboardData } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
-import {
-  Building2,
-  GraduationCap,
-  LayoutList,
-  Users,
-} from "lucide-react";
 
 export default async function DashboardPage() {
   const user = await requirePermission("WORKSPACE_VIEW");
@@ -22,209 +17,79 @@ export default async function DashboardPage() {
   const permissions = getUserPermissions(user);
   const canViewScreening = hasPermission(permissions, "SCREENING_VIEW");
   const canViewAudit = hasPermission(permissions, "AUDIT_VIEW");
-  const data = await getDashboardData({ includeAudit: canViewAudit });
+  const { counts, deadlines, recentAudit } = await getDashboardData({ includeAudit: canViewAudit });
+  const stats = [
+    { label: "学校", value: counts.schools },
+    { label: "项目", value: counts.programs },
+    ...(!marketManagerView ? [
+      { label: "有效客户", value: counts.customers },
+      { label: "待复核项目", value: counts.needsReview },
+    ] : []),
+  ];
+
   return (
     <>
       <PageHeading
         title={t("今日工作")}
-        description={
-          marketManagerView
-            ? t("查看学校项目与临近截止信息。")
-            : t("集中查看临近截止项目和数据复核任务。")
-        }
+        description={marketManagerView ? t("查看学校项目与临近截止信息。") : t("集中查看临近截止项目和数据复核任务。")}
         action={canViewScreening ? (
           <Link className="button primary" href="/screening">
-            {t("开始筛查")}
+            {t("开始筛查")} <ArrowRight size={15} aria-hidden="true" />
           </Link>
         ) : undefined}
       />
 
-      <section className="grid cols-4 desktop-only">
-        <div className="card stat">
-          <div className="stat-label">{t("学校")}</div>
-          <div className="stat-number">{data.counts.schools}</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">{t("项目")}</div>
-          <div className="stat-number">{data.counts.programs}</div>
-        </div>
-        {!marketManagerView ? (
-          <>
-            <div className="card stat">
-              <div className="stat-label">{t("有效客户")}</div>
-              <div className="stat-number">{data.counts.customers}</div>
+      <section className="dashboard-overview" aria-labelledby="dashboard-overview-title">
+        <h2 id="dashboard-overview-title">{t("资源概览")}</h2>
+        <dl className={`dashboard-metrics${marketManagerView ? " is-compact" : ""}`}>
+          {stats.map(({ label, value }) => (
+            <div key={label}>
+              <dt>{t(label)}</dt>
+              <dd>{value.toLocaleString("en-US")}</dd>
             </div>
-            <div className="card stat">
-              <div className="stat-label">{t("待复核项目")}</div>
-              <div className="stat-number">{data.counts.needsReview}</div>
-            </div>
-          </>
-        ) : null}
-      </section>
-
-      <section className="mobile-only mobile-dashboard-stats">
-        <div className="mobile-stat-card">
-          <div>
-            <div className="mobile-stat-label">{t("学校")}</div>
-            <div className="mobile-stat-number">{data.counts.schools}</div>
-          </div>
-          <Building2 aria-hidden="true" />
-        </div>
-        <div className="mobile-stat-card">
-          <div>
-            <div className="mobile-stat-label">{t("项目")}</div>
-            <div className="mobile-stat-number">{data.counts.programs}</div>
-          </div>
-          <GraduationCap aria-hidden="true" />
-        </div>
-        {!marketManagerView ? (
-          <>
-            <div className="mobile-stat-card">
-              <div>
-                <div className="mobile-stat-label">{t("有效客户")}</div>
-                <div className="mobile-stat-number">{data.counts.customers}</div>
-              </div>
-              <Users aria-hidden="true" />
-            </div>
-            <div className="mobile-stat-card">
-              <div>
-                <div className="mobile-stat-label">{t("待复核项目")}</div>
-                <div className="mobile-stat-number">{data.counts.needsReview}</div>
-              </div>
-              <LayoutList aria-hidden="true" />
-            </div>
-          </>
-        ) : null}
-      </section>
-
-      <section
-        className={`grid cols-2 desktop-only dashboard-secondary-grid${canViewAudit ? "" : " is-single"}`}
-        style={{ marginTop: 16 }}
-      >
-        <DashboardCard
-          title={t("30 天内截止项目")}
-          empty={<EmptyState>{t("暂无已结构化的临近截止项目")}</EmptyState>}
-        >
-          {data.deadlines.map((program) => (
-            <tr key={program.id}>
-              <td>
-                <strong>{program.schoolName}</strong>
-                <div className="small muted">{program.name}</div>
-              </td>
-              <td className="nowrap">
-                <Badge tone="amber">{formatDate(program.deadlineDate)}</Badge>
-              </td>
-            </tr>
           ))}
-        </DashboardCard>
-        {canViewAudit ? (
-          <DashboardCard
-            title={t("最近操作")}
-            moreHref="/audit"
-            moreLabel={t("操作审计")}
-            empty={<EmptyState>{t("暂无操作记录")}</EmptyState>}
-          >
-            {data.recentAudit.map((log) => (
-              <tr key={log.id}>
-                <td>
-                  <strong>{log.displayName ?? t("系统")}</strong>
-                  <div className="small muted">
-                    {t(AUDIT_ACTION_LABELS[log.action] || log.action)} · {t(ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType)}
-                  </div>
-                </td>
-                <td className="small nowrap">{formatDate(log.createdAt)}</td>
-              </tr>
-            ))}
-          </DashboardCard>
-        ) : null}
+        </dl>
       </section>
 
-      <section className="mobile-only mobile-dashboard-sections">
-        <MobileSection title={t("30 天内截止项目")}>
-          {data.deadlines.length ? (
-            data.deadlines.map((program) => (
-              <div key={program.id} className="mobile-list-item">
-                <div>
-                  <strong>{program.schoolName}</strong>
-                  <div className="small muted">{program.name}</div>
-                </div>
-                <Badge tone="amber">{formatDate(program.deadlineDate)}</Badge>
-              </div>
-            ))
-          ) : (
-            <div className="mobile-empty">{t("暂无已结构化的临近截止项目")}</div>
-          )}
-          {data.deadlines.length ? (
-            <Link href="/screening" className="mobile-section-more">{t("查看全部")}</Link>
-          ) : null}
-        </MobileSection>
-
-        {canViewAudit ? (
-          <MobileSection title={t("最近操作")} href="/audit" more={t("操作审计")}>
-            {data.recentAudit.map((log) => (
-              <div key={log.id} className="mobile-list-item">
-                <div>
-                  <strong>{log.displayName ?? t("系统")}</strong>
-                  <div className="small muted">{t(AUDIT_ACTION_LABELS[log.action] || log.action)} · {t(ENTITY_TYPE_LABELS[log.entityType as keyof typeof ENTITY_TYPE_LABELS] || log.entityType)}</div>
-                </div>
-                <span className="small muted">{formatDate(log.createdAt)}</span>
-              </div>
-            ))}
-            {data.recentAudit.length ? (
-              <Link href="/audit" className="mobile-section-more">{t("查看全部")}</Link>
-            ) : null}
-          </MobileSection>
-        ) : null}
-      </section>
+      <div className={`dashboard-panels${canViewAudit ? "" : " is-single"}`}>
+        <section className="card dashboard-panel" aria-labelledby="dashboard-deadlines-title">
+          <header className="card-header">
+            <h2 id="dashboard-deadlines-title"><CalendarClock size={18} aria-hidden="true" /> {t("30 天内截止项目")}</h2>
+            {canViewScreening && <Link href="/screening">{t("前往筛查")} <ArrowRight size={14} aria-hidden="true" /></Link>}
+          </header>
+          {deadlines.length ? (
+            <ul className="dashboard-records">
+              {deadlines.map((program) => (
+                <li key={program.id}>
+                  <div><strong>{program.schoolName}</strong><span>{program.name}</span></div>
+                  <Badge tone="amber">{formatDate(program.deadlineDate)}</Badge>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyState>{t("暂无已结构化的临近截止项目")}</EmptyState>}
+        </section>
+        {canViewAudit && (
+          <section className="card dashboard-panel" aria-labelledby="dashboard-audit-title">
+            <header className="card-header">
+              <h2 id="dashboard-audit-title"><History size={18} aria-hidden="true" /> {t("最近操作")}</h2>
+              <Link href="/audit">{t("操作审计")} <ArrowRight size={14} aria-hidden="true" /></Link>
+            </header>
+            {recentAudit.length ? (
+              <ul className="dashboard-records">
+                {recentAudit.map((log) => (
+                  <li key={log.id}>
+                    <div>
+                      <strong>{t(AUDIT_ACTION_LABELS[log.action] || log.action)}</strong>
+                      <span>{log.displayName ?? t("系统")} · {t(ENTITY_TYPE_LABELS[log.entityType as AuditEntityType] || log.entityType)}</span>
+                    </div>
+                    <span className="dashboard-record-date small muted">{formatDate(log.createdAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <EmptyState>{t("暂无操作记录")}</EmptyState>}
+          </section>
+        )}
+      </div>
     </>
-  );
-}
-
-function DashboardCard({
-  title,
-  moreHref,
-  moreLabel,
-  empty,
-  children,
-}: {
-  title: string;
-  moreHref?: string;
-  moreLabel?: string;
-  empty: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
-  return (
-    <div className="card">
-      <div className="card-header">
-        <h3>{title}</h3>
-        {moreHref ? <Link href={moreHref}>{moreLabel}</Link> : null}
-      </div>
-      <div className="card-body">
-        {hasChildren ? <table><tbody>{children}</tbody></table> : empty}
-      </div>
-    </div>
-  );
-}
-
-function MobileSection({
-  title,
-  href,
-  more,
-  children,
-}: {
-  title: string;
-  href?: string;
-  more?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mobile-section">
-      <div className="mobile-section-header">
-        <h3>{title}</h3>
-        {href ? <Link href={href}>{more}</Link> : null}
-      </div>
-      <div className="mobile-section-body">{children}</div>
-    </div>
   );
 }

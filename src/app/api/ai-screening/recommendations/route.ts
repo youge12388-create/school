@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { getUserPermissions, type AccessUser } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
 import { buildResults, criteriaSchema, type ResultCard } from "@/lib/ai-screening";
@@ -14,6 +15,7 @@ import { newId } from "@/lib/utils";
 export const runtime = "nodejs";
 const saveSchema = z.object({
   requestId: z.string().uuid(), customerId: z.string().min(1).max(120), title: z.string().trim().min(1).max(80),
+  notes: z.string().trim().max(600).optional(),
   criteria: criteriaSchema, source: z.string().min(1).max(120), showOther: z.boolean(),
   items: z.array(z.object({ programId: z.string().min(1).max(120), revision: z.string().max(12000) }).strict()).min(1).max(30),
 }).strict();
@@ -46,8 +48,15 @@ function safeEvidence(card: ResultCard, source: string) {
   ];
 }
 
+function canSaveRecommendation(user: AccessUser) {
+  const permissions = getUserPermissions(user);
+  return permissions.includes("CUSTOMER_VIEW") && permissions.includes("RECOMMENDATION_MANAGE");
+}
+
 export async function GET() {
-  if (!await getCurrentUser()) return Response.json({ error: "请先登录。" }, { status: 401 });
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "请先登录。" }, { status: 401 });
+  if (!canSaveRecommendation(user)) return Response.json({ error: "当前账号无权保存方案。" }, { status: 403 });
   try { return Response.json({ customers: await listCustomerOptions() }, { headers: { "Cache-Control": "no-store" } }); }
   catch { return Response.json({ error: "无法读取客户列表，请稍后重试。" }, { status: 503 }); }
 }
@@ -56,6 +65,7 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "请先登录。" }, { status: 401 });
   if (!isSameOrigin(request)) return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  if (!canSaveRecommendation(user)) return Response.json({ error: "当前账号无权保存方案。" }, { status: 403 });
   let parsed: ReturnType<typeof saveSchema.safeParse>;
   try {
     const text = await readLimited(request, 256_000);
@@ -66,8 +76,8 @@ export async function POST(request: Request) {
   if (!Object.values(data.criteria).some((value) => value != null && value !== "")) return Response.json({ error: "请先提供申请条件并重新检索。" }, { status: 400 });
   const ids = data.items.map((item) => item.programId);
   if (new Set(ids).size !== ids.length) return Response.json({ error: "同一项目不能重复选择。" }, { status: 400 });
-  const textValues = [data.title, ...Object.values(data.criteria).filter((value): value is string => typeof value === "string")];
-  if (textValues.some((value) => containsPersonalContact(value) || containsSensitiveRestriction(value))) return Response.json({ error: "方案名称或条件包含需移除的个人信息或敏感限制。" }, { status: 400 });
+  const textValues = [data.title, data.notes ?? "", ...Object.values(data.criteria).filter((value): value is string => typeof value === "string")];
+  if (textValues.some((value) => containsPersonalContact(value) || containsSensitiveRestriction(value))) return Response.json({ error: "请移除方案中的联系方式、证件信息或敏感限制。" }, { status: 400 });
   const requestHash = createHash("sha256").update(JSON.stringify(data)).digest("hex");
   try {
     const existing = sqlite.prepare("SELECT created_by AS createdBy, customer_id AS customerId, criteria_json AS criteriaJson FROM recommendations WHERE id = ?").get(data.requestId) as { createdBy: string; customerId: string; criteriaJson: string } | undefined;
@@ -100,7 +110,7 @@ export async function POST(request: Request) {
       }
       // Recheck the customer inside the transaction so an archived record cannot receive a new plan.
       if (!sqlite.prepare("SELECT id FROM customers WHERE id = ? AND archived = 0").get(data.customerId)) throw new Error("客户不存在或已归档，请重新选择。");
-      sqlite.prepare("INSERT INTO recommendations (id, customer_id, created_by, title, criteria_json, notes, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)").run(data.requestId, data.customerId, user.id, data.title, criteriaJson, now);
+      sqlite.prepare("INSERT INTO recommendations (id, customer_id, created_by, title, criteria_json, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(data.requestId, data.customerId, user.id, data.title, criteriaJson, data.notes || null, now);
       const insert = sqlite.prepare("INSERT INTO recommendation_items (id, recommendation_id, program_id, rank, fit_level, reason, evidence_json) VALUES (?, ?, ?, ?, ?, NULL, ?)");
       selected.forEach(({ card }, index) => {
         const item = card!;

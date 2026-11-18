@@ -100,7 +100,7 @@ describe("AI 选校意图解析", () => {
         },
         { apiKey: "" },
       ),
-    ).rejects.toThrow("尚未配置 DeepSeek");
+    ).rejects.toThrow("尚未配置 AI API");
 
     await expect(
       extractScreeningIntent(

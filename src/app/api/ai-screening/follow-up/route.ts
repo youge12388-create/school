@@ -5,6 +5,7 @@ import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
 import { isSameOrigin } from "@/lib/http";
+import { getRecommendationFollowUp } from "@/lib/recommendation-records";
 import {
   screeningFollowUpContent,
   screeningFollowUpDueAt,
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   }
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "请先登录。" }, { status: 401 });
-  if (!userHasPermission(user, "FOLLOW_UP_MANAGE")) {
+  if (!userHasPermission(user, "FOLLOW_UP_MANAGE") || !userHasPermission(user, "CUSTOMER_VIEW")) {
     return Response.json(
       { error: "当前账号无权创建跟进任务。" },
       { status: 403 },
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
         FROM recommendation_items i
         INNER JOIN programs p ON p.id = i.program_id
         INNER JOIN schools s ON s.id = p.school_id
-        WHERE i.recommendation_id = ?
+        WHERE i.recommendation_id = ? AND p.archived = 0 AND s.archived = 0
         ORDER BY i.rank`,
       )
       .all(recommendation.id) as Array<
@@ -94,34 +95,18 @@ export async function POST(request: Request) {
     const nextFollowUpAt = screeningFollowUpDueAt(
       rows.map((row) => row.deadlineDate),
     );
-    const existing = sqlite
-      .prepare(
-        `SELECT id, content, next_follow_up_at AS nextFollowUpAt
-        FROM follow_ups
-        WHERE customer_id = ? AND channel = 'AI 选校' AND content LIKE ?
-        LIMIT 1`,
-      )
-      .get(
-        recommendation.customerId,
-        `%方案编号：${recommendation.id}%`,
-      ) as
-      | { id: string; content: string; nextFollowUpAt: number | null }
-      | undefined;
-    if (existing) {
-      return Response.json(
-        {
-          created: false,
-          id: existing.id,
-          content: existing.content,
-          nextFollowUpAt: existing.nextFollowUpAt,
-        },
-        { headers: { "Cache-Control": "no-store" } },
-      );
-    }
-
     const followUpId = newId();
     sqlite.exec("BEGIN IMMEDIATE");
     try {
+      const existing = getRecommendationFollowUp(recommendation.id, recommendation.customerId);
+      if (existing) {
+        sqlite.exec("COMMIT");
+        return Response.json({ created: false, ...existing }, { headers: { "Cache-Control": "no-store" } });
+      }
+      if (!sqlite.prepare("SELECT 1 FROM customers WHERE id = ? AND archived = 0").get(recommendation.customerId)) {
+        sqlite.exec("ROLLBACK");
+        return Response.json({ error: "客户已归档，无法创建跟进。" }, { status: 404 });
+      }
       sqlite
         .prepare(
           `INSERT INTO follow_ups (

@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { AiProviderError } from "@/lib/ai-provider";
 import { getCurrentUser } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
 import { buildResults, criteriaSchema } from "@/lib/ai-screening";
 import { loadScreeningData } from "@/lib/ai-screening-data";
 import { loadScreeningFeedbackScores } from "@/lib/ai-screening-feedback";
@@ -22,7 +24,7 @@ function safeConversationReply(reply: string | null | undefined) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof WorkbookError || error instanceof Error && (error.message.startsWith("模型") || error.message.startsWith("DeepSeek") || error.message.startsWith("尚未") || error.message.startsWith("招生表")) ? error.message : "读取数据或模型请求失败，请检查配置后重试。";
+  return error instanceof AiProviderError || error instanceof WorkbookError || error instanceof Error && (error.message.startsWith("模型") || error.message.startsWith("招生表")) ? error.message : "读取数据或模型请求失败，请检查配置后重试。";
 }
 
 async function search(data: z.infer<typeof requestSchema>, user: { id: string; role: string }, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
@@ -93,6 +95,7 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "请先登录" }, { status: 401 });
+  if (!userHasPermission(user, "SCREENING_VIEW")) return Response.json({ error: "当前账号无权使用选校。" }, { status: 403 });
   let body: ReturnType<typeof requestSchema.safeParse>;
   try { body = requestSchema.safeParse(await request.json()); } catch { return Response.json({ error: "输入内容无效，请检查后重试。" }, { status: 400 }); }
   if (!body.success) return Response.json({ error: "输入内容无效，请检查后重试。" }, { status: 400 });

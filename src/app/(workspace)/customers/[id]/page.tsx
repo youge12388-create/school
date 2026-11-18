@@ -149,7 +149,7 @@ export default async function CustomerDetailPage({
 
       {/* 跟进 + 材料：两列并排，已有列表优先，新建表单视觉权重低 */}
       <section className="grid cols-2 detail-section">
-        <div className="card card-compact">
+        <div className="card card-compact" id="customer-follow-ups">
           <div className="card-header">
             <h3>{t("后续跟进情况")}</h3>
             <span className="small muted">{tv("{n} 条记录", { n: data.followUps.length })}</span>

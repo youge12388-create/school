@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { admissionGroupLabel, comparisonCards, latestSaveableResultIndex, outcomeSummary, presentedProgramIds, presentedSchoolNames, summarizePoints } from "./ai-screening-presentation";
+import { admissionGroupLabel, comparisonCards, outcomeSummary, presentedProgramIds, presentedSchoolNames, summarizePoints } from "./ai-screening-presentation";
 import type { ResultCard } from "./ai-screening";
 import type { ScreeningResponse } from "./ai-screening-events";
 
@@ -114,24 +114,5 @@ describe("选校结果的重点展示", () => {
     };
 
     expect(comparisonCards(result).map((item) => item.name)).toEqual(["丙大学", "甲大学", "乙大学"]);
-  });
-  it("追问返回空结果时仍保留最近一轮可保存方案", () => {
-    const withCandidates: ScreeningResponse = {
-      criteria: {},
-      source: "名单",
-      partnerConfigured: false,
-      otherRequested: false,
-      sensitiveContext: false,
-      prompt: "",
-      results: { confirmed: [card("甲大学", "p1")], pending: [], other: [], otherHidden: false },
-    };
-    const noNewCandidates: ScreeningResponse = {
-      ...withCandidates,
-      otherRequested: true,
-      results: { confirmed: [], pending: [], other: [], otherHidden: false },
-    };
-
-    expect(latestSaveableResultIndex([{ result: withCandidates }, { result: noNewCandidates }])).toBe(0);
-    expect(latestSaveableResultIndex([{ result: noNewCandidates }])).toBe(-1);
   });
 });

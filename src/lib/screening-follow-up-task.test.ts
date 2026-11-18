@@ -51,6 +51,20 @@ describe("选校自动跟进草稿", () => {
     ).toBe(now.getTime() + 3 * 86_400_000);
   });
 
+  it("长项目名被截短时保留完整方案编号，便于找回关联任务", () => {
+    const note = screeningFollowUpContent({
+      recommendationId: "long-plan-id",
+      title: "测试跟进",
+      items: [{
+        schoolName: "示例学校".repeat(150),
+        programName: "英文项目".repeat(150),
+        evidenceJson: "[]",
+      }],
+    });
+    expect(note.length).toBeLessThanOrEqual(600);
+    expect(note.endsWith("方案编号：long-plan-id")).toBe(true);
+  });
+
   it("证据损坏或为空时仍生成可执行的默认核实任务", () => {
     expect(screeningConcernLabels("{bad json")).toEqual([]);
     const content = screeningFollowUpContent({

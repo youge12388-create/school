@@ -2,7 +2,9 @@ import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ user: vi.fn(), db: null as DatabaseSync | null }));
-vi.mock("@/lib/auth", () => ({ requireUser: mocks.user }));
+vi.mock("@/lib/auth", () => ({ requirePermission: mocks.user }));
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 vi.mock("@/lib/db", () => ({ sqlite: new Proxy({}, { get(_target, key) {
   const value = Reflect.get(mocks.db!, key);
@@ -32,7 +34,7 @@ beforeEach(() => {
     INSERT INTO programs VALUES ('program-1', 0), ('program-2', 0);
     INSERT INTO recommendations VALUES ('plan-1', 'customer-1');
     INSERT INTO recommendation_items VALUES ('plan-1', 'program-1');`);
-  mocks.user.mockReset().mockResolvedValue({ id: "advisor-1" });
+  mocks.user.mockReset().mockResolvedValue({ id: "advisor-1", role: "ADVISOR" });
 });
 
 describe("从选校方案创建申请", () => {
@@ -40,6 +42,7 @@ describe("从选校方案创建申请", () => {
     let first = "";
     try { await createApplicationFromRecommendationAction(form()); } catch (error) { first = (error as Error).message; }
     expect(first).toMatch(/^redirect:\/applications\//);
+    expect(mocks.user).toHaveBeenCalledWith("APPLICATION_MANAGE");
     await expect(createApplicationFromRecommendationAction(form())).rejects.toThrow(first);
     expect(mocks.db!.prepare("SELECT COUNT(*) AS n FROM applications").get()).toMatchObject({ n: 1 });
     expect(mocks.db!.prepare("SELECT COUNT(*) AS n FROM application_events").get()).toMatchObject({ n: 1 });

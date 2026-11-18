@@ -2,17 +2,35 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowUp, Check, ChevronDown, LoaderCircle, MessageCircle, PencilLine, RotateCcw, ShieldAlert, UserRound } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, ChevronDown, ClipboardList, GraduationCap, LoaderCircle, MessageCircle, PencilLine, Plus, Settings2, ShieldAlert, SlidersHorizontal, Square, UserRound } from "lucide-react";
+import { PlanDraftPane, type SavedPlan } from "@/components/ai-screening-plan";
+import { PageHeading } from "@/components/ui";
 import { criteriaSchema, schoolIdentityKey, type ChatCriteria, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse, SearchEvent, SearchStep } from "@/lib/ai-screening-events";
 import type { WorkbookInfo, WorkbookPreview } from "@/lib/ai-screening-workbook";
-import { admissionGroupLabel, admissionListLabel, candidateRevision, comparisonCards, displayProgramName, isCandidate, latestSaveableResultIndex, outcomeSummary, presentedProgramIds, presentedSchoolNames, summarizePoints } from "@/lib/ai-screening-presentation";
+import { removePlanCandidate, togglePlanCandidate, type DraftPlan } from "@/lib/ai-screening-plan";
+import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgramName, isCandidate, outcomeSummary, presentedProgramIds, presentedSchoolNames, summarizePoints } from "@/lib/ai-screening-presentation";
 import "./ai-screening.css";
 
 type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; providedCriteria?: ChatCriteria; steps: SearchStep[]; result?: ScreeningResponse; error?: string };
-type ConversationSnapshot = { input: string; criteria: ChatCriteria; sensitiveContext: boolean; focusSchool: string | null; turns: Turn[] };
-let conversationSnapshot: ConversationSnapshot | null = null;
-const PROFILE_STORAGE_KEY = "school-syt.ai-screening-profile.v1";
+type ConversationSnapshot = {
+  input: string; criteria: ChatCriteria; sensitiveContext: boolean; focusSchool: string | null;
+  turns: Turn[]; draft: DraftPlan | null; savedPlan: SavedPlan | null; profileCustomerId: string;
+};
+let conversationSnapshot: { userId: string; snapshot: ConversationSnapshot } | null = null;
+const PROFILE_STORAGE_KEY = "school-syt.ai-screening-profile.v2";
+const PlanSelectionContext = createContext<{
+  selectedIds: ReadonlySet<string>;
+  saving: boolean;
+  toggle: (card: ResultCard, result: ScreeningResponse) => void;
+} | null>(null);
+const ActiveResultContext = createContext<ScreeningResponse | null>(null);
+
+const suggestedQueries = [
+  { label: "英文授课硕士", prompt: "想申请英文授课的计算机硕士，雅思 6.5，首年预算 8 万元，计划 2027 年春季入学。" },
+  { label: "筛查 CSCA 要求", prompt: "想申请中文授课的国际商务本科，目前没有 CSCA。请优先查明确不要求 CSCA 的项目。" },
+  { label: "按首年预算筛选", prompt: "首年预算 6 万元，想申请机械工程硕士。请列出可能符合的项目，并标明还需核实的费用。" },
+];
 const FeedbackContext = createContext<{
   saved: Record<string, "relevant" | "not_relevant">;
   pending: Set<string>;
@@ -174,7 +192,7 @@ function ProfileLinker({
 }: {
   criteria: ChatCriteria;
   busy: boolean;
-  onLoad: (criteria: ChatCriteria) => void;
+  onLoad: (criteria: ChatCriteria, customerId: string) => void;
 }) {
   const [customers, setCustomers] = useState<CustomerProfile[] | null>(null);
   const [customerId, setCustomerId] = useState("");
@@ -215,7 +233,7 @@ function ProfileLinker({
     if (mergedCriteria.scholarshipType == null) {
       mergedCriteria.scholarshipType = criteria.scholarshipType ?? null;
     }
-    onLoad(mergedCriteria);
+    onLoad(mergedCriteria, customer.id);
     const loaded = criteriaLabels(mergedCriteria);
     const retained = unsupportedFields.length
       ? ` ${unsupportedFields.join("、")}继续使用当前浏览器中的值。`
@@ -330,9 +348,14 @@ function ProfileLinker({
 
 function SearchTrace({ steps, busy }: { steps: SearchStep[]; busy: boolean }) {
   if (!busy) return null;
-  const current = [...steps].reverse().find((step) => step.status === "active");
-  const message = current?.id === "cooperation" ? "正在检索内部合作院校…" : current?.message ?? (steps.length ? "正在整理选校结果…" : "正在连接选校服务…");
-  return <div className="agent-searching" role="status"><LoaderCircle className="agent-spin" size={15} aria-hidden="true" />{message}</div>;
+  if (!steps.length) return <div className="agent-searching" role="status"><LoaderCircle className="agent-spin" size={15} aria-hidden="true" />正在连接选校服务…</div>;
+  return <ol className="agent-stage-list" aria-label="检索进度">
+    {steps.map((step) => <li key={step.id} data-stage={step.status}>
+      {step.status === "active" ? <LoaderCircle size={14} className="agent-spin" aria-hidden="true" /> :
+        step.status === "done" ? <Check size={14} aria-hidden="true" /> : <span className="agent-stage-dot" aria-hidden="true" />}
+      <span>{step.message}</span>
+    </li>)}
+  </ol>;
 }
 
 function SearchHistory({ steps, source }: { steps: SearchStep[]; source?: string }) {
@@ -343,6 +366,19 @@ function SearchHistory({ steps, source }: { steps: SearchStep[]; source?: string
   </details>;
 }
 
+function CandidatePlanButton({ card }: { card: ResultCard }) {
+  const selection = useContext(PlanSelectionContext);
+  const result = useContext(ActiveResultContext);
+  if (!selection || !result?.source || !card.programId || !isCandidate(card)) return null;
+  const selected = selection.selectedIds.has(card.programId);
+  return <button type="button" className="agent-plan-toggle" aria-pressed={selected} disabled={selection.saving}
+    onClick={() => selection.toggle(card, result)}
+    aria-label={`${selected ? "移出方案" : "加入方案"}：${card.name} · ${displayProgramName(card.name, card.program)}`}>
+    {selected ? <Check size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
+    {selected ? "已加入" : "加入方案"}
+  </button>;
+}
+
 function CandidateDetails({ card }: { card: ResultCard }) {
   const { matches, concerns, highlights, firstConcern } = summarizePoints(card.points);
   const tableNotes = card.evidence.filter((item) => item.startsWith("名单第"));
@@ -350,7 +386,7 @@ function CandidateDetails({ card }: { card: ResultCard }) {
   const feedbackValue = card.programId ? feedback?.saved[card.programId] : undefined;
   const feedbackPending = card.programId ? feedback?.pending.has(card.programId) : false;
   return <div className="agent-candidate-body">
-    <p className="agent-program">{displayProgramName(card.name, card.program)}</p>
+    <div className="agent-candidate-action"><p className="agent-program">{displayProgramName(card.name, card.program)}</p><CandidatePlanButton card={card} /></div>
     <p className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{card.verified ? "项目资料已人工核实" : "项目资料待人工核实"}</p>
     {card.programId && isCandidate(card) && feedback && <div className="agent-feedback">
       <button type="button" aria-pressed={feedbackValue === "relevant"} onClick={() => feedback.submit(card.programId!, "relevant")} disabled={feedbackPending || feedbackValue === "relevant"}>
@@ -443,7 +479,7 @@ function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { 
   });
   const schools = [...groups.entries()];
   const renderSchool = ([name, items]: [string, ResultCard[]]) => <article className="agent-result" key={name}>
-    <div className="agent-result-heading"><h4>{items[0].schoolId ? <Link href={`/schools/${encodeURIComponent(items[0].schoolId)}`}>{name}</Link> : name}</h4>{items[0].fit !== repeatedStatus && <span className={`agent-status ${items[0].fit === "已知条件符合" ? "agent-status-good" : ""}`}>{items[0].fit === "合作及招生条件待核实" ? "合作待核实" : items[0].fit === "合作不可用或存在冲突，需核实" ? "合作状态有冲突" : items[0].fit}</span>}</div>
+    <div className="agent-result-heading"><h4>{items[0].schoolId ? <Link href={`/schools/${encodeURIComponent(items[0].schoolId)}`}>{items[0].name}</Link> : items[0].name}</h4>{items[0].fit !== repeatedStatus && <span className={`agent-status ${items[0].fit === "已知条件符合" ? "agent-status-good" : ""}`}>{items[0].fit === "合作及招生条件待核实" ? "合作待核实" : items[0].fit === "合作不可用或存在冲突，需核实" ? "合作状态有冲突" : items[0].fit}</span>}</div>
     <CandidateDetails card={items[0]} />
     {items.length > 1 && <details className="agent-extra-programs"><summary>查看该校另外 {items.length - 1} 个项目 <ChevronDown size={14} aria-hidden="true" /></summary>{items.slice(1).map((card, index) => <CandidateDetails key={`${card.program}-${index}`} card={card} />)}</details>}
   </article>;
@@ -461,8 +497,11 @@ function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
   const highlights = result.narrative?.highlights ?? [];
   if (!highlights.length) return null;
   const cardBySchool = new Map<string, ResultCard>();
+  const cardByProgram = new Map<string, ResultCard>();
   for (const card of [...result.results.confirmed, ...result.results.pending, ...result.results.other]) {
-    if (card.schoolId) cardBySchool.set(schoolIdentityKey(card.name), card);
+    const key = schoolIdentityKey(card.name);
+    if (card.schoolId && !cardBySchool.has(key)) cardBySchool.set(key, card);
+    if (card.programId) cardByProgram.set(card.programId, card);
   }
   const groups = [
     { key: "partner", title: admissionGroupLabel(result.source, "partner"), items: highlights.filter((item) => item.group === "partner") },
@@ -472,10 +511,15 @@ function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
   return <div className="agent-school-groups">{groups.map((group) => <section className="agent-school-group" data-kind={group.key} key={group.key} aria-label={group.title}>
     <h3>{group.title}</h3>
     <div className="agent-school-list">{group.items.map((item, index) => {
-      const card = cardBySchool.get(schoolIdentityKey(item.name));
+      const program = item.programId ? cardByProgram.get(item.programId) : undefined;
+      const card = program ?? cardBySchool.get(schoolIdentityKey(item.name));
       return <article className="agent-school-item" key={`${item.name}-${index}`}>
-        <div className="agent-school-heading"><h4>{card?.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{item.name}</Link> : item.name}</h4>
+        <div className="agent-school-heading"><div className="agent-school-title">
+          <h4>{card?.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{item.name}</Link> : item.name}</h4>
+          {program && <p className="agent-program">{displayProgramName(program.name, program.program)}</p>}
+        </div>
           {item.attention && <span className="agent-school-risk"><ShieldAlert size={14} aria-hidden="true" />需内部核实</span>}
+          {program && <CandidatePlanButton card={program} />}
         </div>
         <p>{item.body}</p>
       </article>;
@@ -521,112 +565,6 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
     {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}
     {result.prompt.startsWith("想进一步") && <p className="agent-follow-up">{result.prompt}</p>}
   </div>;
-}
-
-function PlanBuilder({ result, disabled }: { result: ScreeningResponse; disabled: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [customers, setCustomers] = useState<{ id: string; name: string; customerNo: string }[] | null>(null);
-  const [customerId, setCustomerId] = useState("");
-  const [title, setTitle] = useState(`${result.criteria.intakeYear ? `${result.criteria.intakeYear} 年` : ""}选校方案`);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [customerAttempt, setCustomerAttempt] = useState(0);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState<{ id: string; customerId: string } | null>(null);
-  const [followUp, setFollowUp] = useState<{ id: string; nextFollowUpAt: number } | null>(null);
-  const [followUpBusy, setFollowUpBusy] = useState(false);
-  const [followUpMessage, setFollowUpMessage] = useState("");
-  const requestId = useRef<string | null>(null);
-  const submitting = useRef(false);
-  const { confirmed, pending, other } = result.results;
-  const partner = [...confirmed, ...pending].filter(isCandidate);
-  const alternatives = other.filter(isCandidate);
-  const seen = new Set<string>();
-  const choices = (result.otherRequested ? [...alternatives, ...partner] : [...partner, ...alternatives]).filter((card) => {
-    if (!card.programId || seen.has(card.programId)) return false;
-    seen.add(card.programId);
-    return true;
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-    void fetch("/api/ai-screening/recommendations", { cache: "no-store", signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("无法读取客户列表，请稍后重试。");
-      const data = await response.json() as { customers: { id: string; name: string; customerNo: string }[] };
-      setCustomers(data.customers); setError("");
-    }).catch((cause) => { if (cause instanceof Error && cause.name !== "AbortError") setError(cause.message); });
-    return () => controller.abort();
-  }, [open, customerAttempt]);
-
-  if (!choices.length) return null;
-
-  function changeSelection(id: string, checked: boolean) {
-    requestId.current = null; setSaved(null); setFollowUp(null); setFollowUpMessage(""); setError("");
-    setSelected((old) => checked ? [...old, id] : old.filter((item) => item !== id));
-  }
-
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    if (submitting.current || !customerId || !title.trim() || !selected.length) return;
-    submitting.current = true; setSaving(true); setError("");
-    setFollowUp(null); setFollowUpMessage("");
-    requestId.current ??= crypto.randomUUID();
-    try {
-      const response = await fetch("/api/ai-screening/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        requestId: requestId.current, customerId, title: title.trim(), criteria: result.criteria, source: result.source,
-        showOther: alternatives.length > 0 || result.otherRequested,
-        items: choices.filter((card) => selected.includes(card.programId!)).map((card) => ({ programId: card.programId, revision: candidateRevision(card) })),
-      }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "方案未保存，请重试。");
-      setSaved({ id: data.id, customerId: data.customerId });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "方案未保存，请重试。"); }
-    finally { submitting.current = false; setSaving(false); }
-  }
-
-  async function createFollowUp() {
-    if (!saved || followUpBusy) return;
-    setFollowUpBusy(true); setFollowUpMessage("");
-    try {
-      const response = await fetch("/api/ai-screening/follow-up", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recommendationId: saved.id }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "跟进任务未创建。");
-      setFollowUp({ id: data.id, nextFollowUpAt: data.nextFollowUpAt });
-      setFollowUpMessage(data.created ? "已生成跟进任务，并同步到客户档案。" : "该方案已有跟进任务，未重复创建。");
-    } catch (cause) {
-      setFollowUpMessage(cause instanceof Error ? cause.message : "跟进任务未创建。");
-    } finally {
-      setFollowUpBusy(false);
-    }
-  }
-
-  return <details className="agent-plan" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-    <summary>整理并保存选校方案 <ChevronDown size={15} aria-hidden="true" /></summary>
-    <form onSubmit={save} className="agent-plan-form">
-      <fieldset><legend>选择项目</legend><div className="agent-plan-choices">{choices.map((card) => <label className="agent-plan-choice" key={card.programId}>
-        <input type="checkbox" checked={selected.includes(card.programId!)} onChange={(event) => changeSelection(card.programId!, event.target.checked)} disabled={saving || disabled || (selected.length >= 30 && !selected.includes(card.programId!))} />
-        <span><strong>{card.name}</strong><span>{displayProgramName(card.name, card.program)} · {card.cooperation === "not_cooperating" ? "名单标注不合作" : card.cooperation === "unknown" ? "其他院校" : "合作名单"} · {card.fit}</span></span>
-      </label>)}</div></fieldset>
-      <div className="agent-plan-fields"><label>保存到客户<select value={customerId} required disabled={saving || disabled || customers === null} onChange={(event) => { requestId.current = null; setSaved(null); setFollowUp(null); setFollowUpMessage(""); setCustomerId(event.target.value); }}><option value="">{customers === null ? "正在读取客户…" : "请选择客户"}</option>{customers?.map((customer) => <option value={customer.id} key={customer.id}>{customer.name} · {customer.customerNo}</option>)}</select></label>
-        <label>方案名称<input value={title} maxLength={80} required disabled={saving || disabled} onChange={(event) => { requestId.current = null; setSaved(null); setFollowUp(null); setFollowUpMessage(""); setTitle(event.target.value); }} /></label></div>
-      {customers?.length === 0 && <p>还没有客户，可先<Link href="/customers/new">新建客户</Link>。</p>}
-      {selected.length >= 30 && <p>每份方案最多选择 30 个项目。</p>}
-      <button type="submit" disabled={saving || disabled || !customerId || !selected.length || !title.trim()}>{saving ? "正在保存…" : `保存方案${selected.length ? `（${selected.length}）` : ""}`}</button>
-      {error && <p className="agent-plan-error" role="alert">{error}</p>}
-      {error && customers === null && <button type="button" onClick={() => { setError(""); setCustomerAttempt((value) => value + 1); }}>重新读取客户</button>}
-      {saved && <div className="agent-plan-success" role="status"><p>已保存。<Link href={`/recommendations/${saved.id}/print`}>查看并打印方案</Link> <Link href={`/customers/${saved.customerId}`}>打开客户档案</Link></p>
-        <div className="agent-plan-follow-up"><button type="button" onClick={() => void createFollowUp()} disabled={followUpBusy || Boolean(followUp)}>{followUp ? "跟进任务已生成" : followUpBusy ? "正在生成…" : "生成跟进任务"}</button>
-          {followUp && <span>计划跟进：{new Date(followUp.nextFollowUpAt).toLocaleDateString("zh-CN")}</span>}
-        </div>
-        {followUpMessage && <p className="agent-plan-success-note">{followUpMessage}</p>}
-      </div>}
-    </form>
-  </details>;
 }
 
 function WorkbookManager({ canManage, refreshKey }: { canManage: boolean; refreshKey: number }) {
@@ -687,73 +625,102 @@ function WorkbookManager({ canManage, refreshKey }: { canManage: boolean; refres
   </div>;
 }
 
-export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: boolean }) {
+export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSavePlans, canCreateCustomer }: {
+  userId: string;
+  canManageWorkbook: boolean;
+  canViewPlans: boolean;
+  canSavePlans: boolean;
+  canCreateCustomer: boolean;
+}) {
   const [input, setInput] = useState("");
   const [criteria, setCriteria] = useState<ChatCriteria>({});
   const [sensitiveContext, setSensitiveContext] = useState(false);
   const [focusSchool, setFocusSchool] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
+  const [panel, setPanel] = useState<"chat" | "draft">("chat");
+  const [draft, setDraft] = useState<DraftPlan | null>(null);
+  const [savedPlan, setSavedPlan] = useState<SavedPlan | null>(null);
+  const [profileCustomerId, setProfileCustomerId] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [draftNotice, setDraftNotice] = useState<{ message: string; error?: boolean } | null>(null);
   const [feedbackSaved, setFeedbackSaved] = useState<Record<string, "relevant" | "not_relevant">>({});
   const [feedbackPending, setFeedbackPending] = useState<Set<string>>(new Set());
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const sequence = useRef(0);
-  const running = useRef(false);
-  const lastScrolled = useRef(0);
+  const running = useRef<AbortController | null>(null);
+  const lastScrolled = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const toolRef = useRef<HTMLDetailsElement>(null);
   const latest = turns[turns.length - 1];
-  const latestResultIndex = latestSaveableResultIndex(turns);
-  const snapshotRef = useRef<ConversationSnapshot>({ input, criteria, sensitiveContext, focusSchool, turns });
+  const selectedIds = new Set(draft?.items.map((item) => item.programId));
+  const profileKey = `${PROFILE_STORAGE_KEY}.${userId}`;
+  const snapshotRef = useRef<ConversationSnapshot>({ input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan, profileCustomerId });
   const restoring = useRef(false);
   const profileRestored = useRef(false);
 
   useEffect(() => {
-    if (conversationSnapshot) {
-      const saved = conversationSnapshot;
+    if (conversationSnapshot?.userId === userId) {
+      const saved = conversationSnapshot.snapshot;
       restoring.current = true;
       snapshotRef.current = saved;
       queueMicrotask(() => {
         setInput(saved.input); setCriteria(saved.criteria); setSensitiveContext(saved.sensitiveContext); setFocusSchool(saved.focusSchool); setTurns(saved.turns);
+        setDraft(canSavePlans ? saved.draft : null);
+        setSavedPlan(canViewPlans ? saved.savedPlan : null);
+        setProfileCustomerId(canViewPlans ? saved.profileCustomerId : "");
         sequence.current = Math.max(0, ...saved.turns.map((turn) => turn.id));
         restoring.current = false;
       });
     } else {
       try {
-        const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+        const raw = window.sessionStorage.getItem(profileKey);
         const parsed = raw ? criteriaSchema.safeParse(JSON.parse(raw)) : null;
         if (parsed?.success) queueMicrotask(() => setCriteria(parsed.data));
-      } catch {
-        window.localStorage.removeItem(PROFILE_STORAGE_KEY);
-      }
+      } catch { /* Criteria storage is optional. */ }
     }
     profileRestored.current = true;
-    return () => { conversationSnapshot = snapshotRef.current; };
-  }, []);
+    return () => {
+      running.current?.abort();
+      const current = snapshotRef.current;
+      conversationSnapshot = { userId, snapshot: { ...current, turns: current.turns.map((turn) =>
+        !turn.result && !turn.error ? { ...turn, error: "已停止检索。" } : turn) } };
+    };
+  }, [canSavePlans, canViewPlans, profileKey, userId]);
 
   useEffect(() => {
-    if (!restoring.current) snapshotRef.current = { input, criteria, sensitiveContext, focusSchool, turns };
-  }, [input, criteria, sensitiveContext, focusSchool, turns]);
+    if (!restoring.current) snapshotRef.current = { input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan, profileCustomerId };
+  }, [input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan, profileCustomerId]);
 
   useEffect(() => {
     if (!profileRestored.current) return;
     try {
       if (Object.values(criteria).some((value) => value != null && value !== "")) {
-        window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(criteria));
+        window.sessionStorage.setItem(profileKey, JSON.stringify(criteria));
+      } else {
+        window.sessionStorage.removeItem(profileKey);
       }
     } catch {
       // Storage can be unavailable in private or restricted browser contexts.
     }
-  }, [criteria]);
+  }, [criteria, profileKey]);
 
   useEffect(() => {
-    if ((!latest?.result && !latest?.error) || latest.id === lastScrolled.current) return;
-    lastScrolled.current = latest.id;
-    document.getElementById(`agent-turn-${latest.id}`)?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [latest]);
+    if (!latest || !threadRef.current?.clientHeight) return;
+    const key = `${latest.id}:${latest.result || latest.error ? "complete" : "pending"}`;
+    if (key === lastScrolled.current) return;
+    const viewport = threadRef.current;
+    const turn = document.getElementById(`agent-turn-${latest.id}`);
+    if (!turn) return;
+    lastScrolled.current = key;
+    viewport.scrollTop += turn.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 18;
+  }, [latest, panel]);
 
   async function run(message: string, previous: ChatCriteria, showOther = false, previousSensitive = sensitiveContext, previousFocus = focusSchool, providedCriteria: ChatCriteria | null = null) {
     if (!message.trim() || running.current) return;
-    running.current = true;
+    const controller = new AbortController();
+    running.current = controller;
     const id = ++sequence.current;
     setBusy(true);
     setTurns((old) => [...old, { id, question: message, criteriaBefore: previous, sensitiveBefore: previousSensitive, focusBefore: previousFocus, showOther, providedCriteria: providedCriteria ?? undefined, steps: [] }]);
@@ -769,7 +736,7 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
         { role: "user" as const, content: turn.question.slice(0, 500) },
         ...(turn.result?.conversation && turn.result.answer?.lead ? [{ role: "assistant" as const, content: turn.result.answer.lead.slice(0, 500) }] : []),
       ]).slice(-8);
-      const response = await fetch("/api/ai-screening", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message, criteria: providedCriteria ?? previous, ...(providedCriteria ? { criteriaOverride: providedCriteria } : {}), showOther: providedCriteria ? false : showOther, sensitiveContext: previousSensitive, hasPrevious: providedCriteria ? false : Boolean(lastResult), previousOtherRequested: providedCriteria ? false : lastResult?.otherRequested ?? false, focusSchool: providedCriteria ? null : previousFocus, previousProgramIds, seenProgramIds, seenSchoolNames, history }) });
+      const response = await fetch("/api/ai-screening", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message, criteria: providedCriteria ?? previous, ...(providedCriteria ? { criteriaOverride: providedCriteria } : {}), showOther: providedCriteria ? false : showOther, sensitiveContext: previousSensitive, hasPrevious: providedCriteria ? false : Boolean(lastResult), previousOtherRequested: providedCriteria ? false : lastResult?.otherRequested ?? false, focusSchool: providedCriteria ? null : previousFocus, previousProgramIds, seenProgramIds, seenSchoolNames, history }) });
       if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || "请求没有完成，请重试。"); }
       if (!response.body) throw new Error("没有收到完整的检索结果，请重试。");
       const reader = response.body.getReader();
@@ -792,9 +759,13 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
       }
       if (!receivedResult) throw new Error("检索中断了，请重试。");
     } catch (error) {
-      const message = error instanceof Error && !/failed to fetch|networkerror|load failed|unexpected token|json/i.test(error.message) ? error.message : "暂时无法连接选校服务，请检查网络后重试。";
-      update((turn) => ({ ...turn, error: message }));
-    } finally { running.current = false; setBusy(false); }
+      const message = controller.signal.aborted ? "已停止检索。" : error instanceof Error && !/failed to fetch|networkerror|load failed|unexpected token|json/i.test(error.message) ? error.message : "暂时无法连接选校服务，请检查网络后重试。";
+      if (!receivedResult) update((turn) => ({ ...turn, error: message }));
+    } finally {
+      controller.abort();
+      running.current = null;
+      setBusy(false);
+    }
   }
 
   function submit(event: FormEvent) {
@@ -830,17 +801,149 @@ export function AiScreeningChat({ canManageWorkbook }: { canManageWorkbook: bool
     }
   }
 
-  return <FeedbackContext.Provider value={{ saved: feedbackSaved, pending: feedbackPending, submit: (programId, value) => void submitFeedback(programId, value) }}>
-    <div className="agent-page">
-    <div className="agent-heading"><div className="agent-title-row"><MessageCircle aria-hidden="true" /><h1>AI 选校</h1></div><button type="button" className="agent-reset" onClick={() => { setTurns([]); setCriteria({}); setSensitiveContext(false); setFocusSchool(null); setInput(""); try { window.localStorage.removeItem(PROFILE_STORAGE_KEY); } catch {} inputRef.current?.focus(); }} disabled={busy}><RotateCcw size={15} aria-hidden="true" />新对话</button></div>
-    <div className="agent-privacy">请使用脱敏信息，勿输入姓名、联系方式或证件信息；当前及近期对话会发送至 AI 服务。</div>
-    {feedbackStatus && <p className="agent-feedback-status" role="status">{feedbackStatus}</p>}
-    <WorkbookManager canManage={canManageWorkbook} refreshKey={latest?.result ? latest.id : 0} />
-    <CriteriaBar criteria={criteria} busy={busy} onApply={(next) => { setCriteria(next); void run("按已更新的申请条件重新筛选。", criteria, false, sensitiveContext, focusSchool, next); }} />
-    <ProfileLinker criteria={criteria} busy={busy} onLoad={setCriteria} />
-    {turns.length === 0 && <div className="agent-empty"><h2>告诉我学生想申请什么</h2><p>输入学历、专业、预算等，条件不全也可以先查。我会先查合作院校，必要时再查其他院校。</p><button type="button" onClick={() => { setInput("想申请英文授课的计算机硕士，雅思 6.5，首年预算 8 万，2027 年春季入学。"); inputRef.current?.focus(); }}>填入常用条件</button></div>}
-    <div className="agent-conversation" aria-live="polite">{turns.map((turn, index) => <div id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}><p className="agent-user">{turn.question}</p><div className="agent-response"><SearchTrace steps={turn.steps} busy={busy && index === turns.length - 1} />{turn.error && <div className="agent-error" role="alert"><strong>这次没有完成</strong><p>{turn.error}</p><div className="agent-error-actions">{!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore, turn.providedCriteria ?? null)} disabled={busy}>重新试一次</button>}<button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>修改输入</button></div></div>}{turn.result && <Answer result={turn.result} busy={busy || index < turns.length - 1} onOthers={() => void run("请查看其他院校", turn.result!.criteria, true, turn.result!.sensitiveContext)} />}{turn.result && <div className="agent-answer-footer"><SearchHistory steps={turn.steps} source={turn.result.source} />{index === latestResultIndex && <PlanBuilder result={turn.result} disabled={busy} />}</div>}{!turn.result && turn.error && <SearchHistory steps={turn.steps} source={undefined} />}</div></div>)}</div>
-    <form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">输入学生申请需求</label><span className="sr-only" id="agent-input-help">按 Enter 发送，按 Shift 加 Enter 换行。</span><textarea ref={inputRef} id="agent-input" aria-describedby="agent-input-help" value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入学生的申请需求…" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><button type="submit" disabled={busy || !input.trim()} aria-label="发送"><ArrowUp size={19} /></button></form>
-    </div>
-  </FeedbackContext.Provider>;
+  function newConversation() {
+    setTurns([]);
+    setInput("");
+    setCriteria({});
+    setSensitiveContext(false);
+    setFocusSchool(null);
+    setProfileCustomerId("");
+    setFeedbackStatus("");
+    setPanel("chat");
+    setDraftNotice(draft?.items.length ? { message: "已开启新对话，原草稿仍保留。" } : null);
+    inputRef.current?.focus();
+  }
+
+  function selectCandidate(card: ResultCard, result: ScreeningResponse) {
+    if (savingPlan) return;
+    const next = togglePlanCandidate(draft, card, result, profileCustomerId);
+    setDraft(next.draft);
+    setDraftNotice({ message: next.notice, error: next.error });
+  }
+
+  return (
+    <FeedbackContext.Provider value={{ saved: feedbackSaved, pending: feedbackPending, submit: (programId, value) => void submitFeedback(programId, value) }}>
+      <PlanSelectionContext.Provider value={canSavePlans ? { selectedIds, saving: savingPlan, toggle: selectCandidate } : null}>
+        <div className="agent-page">
+          <PageHeading title="AI 选校" description="查找院校项目，比较匹配依据，把选定的项目整理成方案。" action={
+            <div className="agent-page-actions">
+              {canViewPlans && <Link href="/recommendations" prefetch={false} className="button"><ClipboardList size={15} aria-hidden="true" />方案记录</Link>}
+              <button type="button" onClick={newConversation} disabled={busy || savingPlan || (!turns.length && !input.trim() && !criteriaLabels(criteria).length)}>
+                <Plus size={16} aria-hidden="true" />新对话
+              </button>
+            </div>
+          } />
+
+          {canSavePlans && <div className="agent-panel-switch" role="group" aria-label="工作区视图">
+            <button type="button" aria-pressed={panel === "chat"} onClick={() => setPanel("chat")} aria-controls="agent-chat-panel">
+              <MessageCircle size={16} aria-hidden="true" />对话
+            </button>
+            <button type="button" aria-pressed={panel === "draft"} onClick={() => setPanel("draft")} aria-controls="agent-draft-panel">
+              <ClipboardList size={16} aria-hidden="true" />方案草稿{selectedIds.size ? ` · ${selectedIds.size}` : ""}
+            </button>
+          </div>}
+
+          <div className={`agent-workbench${canSavePlans ? " has-draft" : ""}`} data-panel={panel}>
+            <section className="agent-chat-panel" id="agent-chat-panel" aria-label="选校对话">
+              <header className="agent-chat-head">
+                <strong><MessageCircle size={16} aria-hidden="true" /> 选校对话</strong>
+                <details className="agent-controls" ref={toolRef}>
+                  <summary><SlidersHorizontal size={15} aria-hidden="true" /> 条件与资料{criteriaLabels(criteria).length ? ` · ${criteriaLabels(criteria).length}` : ""} <ChevronDown size={14} aria-hidden="true" /></summary>
+                  <div className="agent-control-body">
+                    <CriteriaBar criteria={criteria} busy={busy} onApply={(next) => {
+                      setCriteria(next);
+                      if (toolRef.current) toolRef.current.open = false;
+                      void run("按已更新的申请条件重新筛选。", criteria, false, sensitiveContext, focusSchool, next);
+                    }} />
+                    {canViewPlans && <ProfileLinker criteria={criteria} busy={busy} onLoad={(profile, customerId) => {
+                      setCriteria(profile);
+                      setProfileCustomerId(customerId);
+                    }} />}
+                    <WorkbookManager canManage={canManageWorkbook} refreshKey={latest?.result ? latest.id : 0} />
+                    {canManageWorkbook && <Link className="agent-settings-link" href="/settings"><Settings2 size={14} aria-hidden="true" />API 设置</Link>}
+                  </div>
+                </details>
+              </header>
+
+              <div className="agent-thread" ref={threadRef} tabIndex={0} aria-label="对话消息">
+                {!turns.length ? (
+                  <section className="agent-intro" aria-labelledby="agent-intro-title">
+                    <span className="agent-intro-icon"><GraduationCap size={24} aria-hidden="true" /></span>
+                    <h2 id="agent-intro-title">想找什么样的院校项目？</h2>
+                    <p>说出学历、专业或预算即可开始。结果会区分已知匹配和需要核实的条件。</p>
+                    <div className="agent-suggestions" aria-label="常用提问">
+                      {suggestedQueries.map(({ label, prompt }) => (
+                        <button key={label} type="button" onClick={() => { setInput(prompt); inputRef.current?.focus(); }}>
+                          {label}<ArrowRight size={14} aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : (
+                  <div className="agent-conversation" aria-live="polite">
+                    {turns.map((turn, index) => (
+                      <article id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}>
+                        <p className="agent-user"><span className="sr-only">顾问：</span>{turn.question}</p>
+                        <div className="agent-response">
+                          <p className="agent-response-label"><GraduationCap size={16} aria-hidden="true" /> 选校助手</p>
+                          <SearchTrace steps={turn.steps} busy={busy && index === turns.length - 1} />
+                          {(turn.result || turn.error) && <SearchHistory steps={turn.steps} source={turn.result?.source} />}
+                          {turn.error && <div className="agent-error" role="alert">
+                            <strong>{turn.error === "已停止检索。" ? "检索已停止" : "这次没有完成"}</strong>
+                            {turn.error !== "已停止检索。" && <p>{turn.error}</p>}
+                            <div className="agent-error-actions">
+                              {!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore, turn.providedCriteria ?? null)} disabled={busy}>重试检索</button>}
+                              <button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>修改输入</button>
+                            </div>
+                          </div>}
+                          {turn.result && <ActiveResultContext.Provider value={turn.result}>
+                            <Answer result={turn.result} busy={busy || index < turns.length - 1}
+                              onOthers={() => void run("请查看其他院校", turn.result!.criteria, true, turn.result!.sensitiveContext)} />
+                          </ActiveResultContext.Provider>}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="agent-compose-area">
+                {draftNotice && <div className={`agent-compose-notice${draftNotice.error ? " is-error" : ""}`} role={draftNotice.error ? "alert" : "status"}>
+                  <span>{draftNotice.message}</span>
+                  {selectedIds.size > 0 && <button type="button" className="agent-mobile-view-draft" onClick={() => setPanel("draft")}>查看草稿 <ArrowRight size={13} aria-hidden="true" /></button>}
+                </div>}
+                {feedbackStatus && <p className="agent-feedback-status" role="status">{feedbackStatus}</p>}
+                <form className="agent-composer" method="post" onSubmit={submit}>
+                  <label className="sr-only" htmlFor="agent-input">输入学生申请需求</label>
+                  <textarea ref={inputRef} id="agent-input" aria-describedby="agent-input-help" value={input}
+                    onChange={(event) => setInput(event.target.value)} placeholder={turns.length ? "继续提问，或调整申请条件…" : "描述申请需求，例如：英文授课的计算机硕士…"}
+                    rows={2} maxLength={1500}
+                    onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}
+                  />
+                  <div className="agent-composer-actions">
+                    <span id="agent-input-help">Enter 发送 · Shift+Enter 换行</span>
+                    {busy ? <button className="agent-stop" type="button" aria-label="停止检索" title="停止检索" onClick={() => running.current?.abort()}>
+                      <Square size={13} fill="currentColor" aria-hidden="true" />
+                    </button> : <button className="primary" type="submit" disabled={!input.trim()} aria-label="发送" title="发送"><ArrowUp size={19} aria-hidden="true" /></button>}
+                  </div>
+                </form>
+                <p className="agent-privacy"><ShieldAlert size={13} aria-hidden="true" />对话会发送到模型服务，请使用脱敏案例。</p>
+              </div>
+            </section>
+
+            {canSavePlans && <aside className="agent-draft-panel" id="agent-draft-panel" aria-label="选校方案草稿">
+              <PlanDraftPane draft={draft} saved={savedPlan} saving={savingPlan} canCreateCustomer={canCreateCustomer}
+                onChange={(fields) => setDraft((current) => current ? { ...current, ...fields } : null)}
+                onRemove={(programId) => { setDraft((current) => removePlanCandidate(current, programId)); setDraftNotice(null); }}
+                onClear={() => { setDraft(null); setDraftNotice(null); }}
+                onSaving={setSavingPlan}
+                onSaved={(plan) => { setSavedPlan(plan); setDraft(null); setDraftNotice({ message: "已保存到方案记录。" }); }}
+              />
+              <Link href="/recommendations" prefetch={false} className="agent-draft-records">查看方案记录 <ArrowRight size={15} aria-hidden="true" /></Link>
+            </aside>}
+          </div>
+        </div>
+      </PlanSelectionContext.Provider>
+    </FeedbackContext.Provider>
+  );
 }

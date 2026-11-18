@@ -63,8 +63,10 @@ export function screeningFollowUpContent(input: {
       labels.length ? labels.join("、") : "招生批次、最新费用和申请截止"
     }`;
   });
-  const base = `AI 选校跟进｜${input.title}：核实${details.join("；")}。核实前不向客户确认费用、截止日期或开班状态。方案编号：${input.recommendationId}`;
-  return base.slice(0, 600);
+  const body = `AI 选校跟进｜${input.title}：核实${details.join("；")}`;
+  const suffix = `。核实前不向客户确认费用、截止日期或开班状态。方案编号：${input.recommendationId}`;
+  const available = 600 - suffix.length;
+  return (body.length > available ? `${body.slice(0, available - 1)}…` : body) + suffix;
 }
 
 export function screeningFollowUpDueAt(

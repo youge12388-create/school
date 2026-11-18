@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 
 import { AppNav } from "@/components/app-nav";
 import { LocaleToggle } from "@/components/locale-toggle";
@@ -28,23 +29,26 @@ export default async function WorkspaceLayout({
     <LocaleProvider locale={locale}>
       <MobileShell role={user.role} permissions={permissions}>
         <div className="app-shell">
-          <SidebarShell>
+          <SidebarShell brand={(
             <div className="brand">
-              <div className="brand-mark">SYT</div>
-              <div className="brand-name">{t("高校筛查与申请管理")}</div>
+              <div className="brand-mark" aria-hidden="true">SYT</div>
+              <div className="brand-name">{t("高校访查与申请管理")}</div>
             </div>
+          )}>
             <AppNav role={user.role} permissions={permissions} />
             <div className="sidebar-user">
-              <Link href="/account"><strong>{user.displayName}</strong></Link>
-              <small>{roleLabel}</small>
+              <Link href="/account" className="sidebar-account" aria-label={t("个人账号")} title={t("个人账号")}>
+                <span className="sidebar-avatar" aria-hidden="true">{Array.from(user.displayName.trim()).slice(0, 1).join("").toUpperCase() || "U"}</span>
+                <span className="sidebar-account-text"><strong>{user.displayName}</strong><small>{roleLabel}</small></span>
+              </Link>
               <form action="/api/auth/logout" method="post">
-                <button type="submit">{t("退出登录")}</button>
+                <button type="submit" aria-label={t("退出登录")} title={t("退出登录")}><LogOut size={16} aria-hidden="true" /></button>
               </form>
             </div>
           </SidebarShell>
           <main className="main">
             <header className="topbar">
-              <h1>{t("留学项目工作台")}</h1>
+              <span className="topbar-title">{t("留学项目工作台")}</span>
               <div className="topbar-actions">
                 <GlobalSearch />
                 <LocaleToggle locale={locale} />
@@ -56,7 +60,7 @@ export default async function WorkspaceLayout({
             <div className="page-content">{children}</div>
           </main>
         </div>
-        <MobileNav />
+        <MobileNav permissions={permissions} />
       </MobileShell>
     </LocaleProvider>
   );

@@ -31,28 +31,16 @@ export function PageHeading({
   const { setOpen } = useMobileDrawer();
   const t = useT();
   return (
-    <>
-      <div className="page-heading desktop-only">
-        <div>
-          <h2>{title}</h2>
-          {description ? <p>{description}</p> : null}
-        </div>
-        {action}
+    <header className="page-heading">
+      <button type="button" className="page-heading-menu" onClick={() => setOpen(true)}
+        aria-label={t("打开导航")} aria-haspopup="dialog" aria-controls="mobile-workspace-nav">
+        <Menu size={20} aria-hidden="true" />
+      </button>
+      <div className="page-heading-copy">
+        <h1>{title}</h1>
+        {description ? <p>{description}</p> : null}
       </div>
-      <header className="mobile-page-header mobile-only">
-        <button
-          className="mobile-menu-btn"
-          onClick={() => setOpen(true)}
-          aria-label={t("打开导航")}
-        >
-          <Menu aria-hidden="true" />
-        </button>
-        <div className="mobile-page-header-title">
-          <h1>{title}</h1>
-          {description ? <p>{description}</p> : null}
-        </div>
-        {action ? <div className="mobile-page-header-action">{action}</div> : null}
-      </header>
-    </>
+      {action ? <div className="page-heading-action">{action}</div> : null}
+    </header>
   );
 }

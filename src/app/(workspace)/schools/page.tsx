@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { Search } from "lucide-react";
+import { ArrowRight, Search, StickyNote } from "lucide-react";
 import { Pagination } from "@/components/pagination";
-import { Badge, PageHeading } from "@/components/ui";
+import { Badge, EmptyState, PageHeading } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { makeT } from "@/lib/i18n/dict";
 import { getUiLocale } from "@/lib/i18n/server";
@@ -30,27 +30,24 @@ export default async function SchoolsPage({
       <PageHeading
         title={t("学校知识库")}
         description={t("学校主数据、合作等级和关键项目概览。学校级 CSCA 仅作参考，筛选以项目要求为准。")}
-        action={
-          <Link className="button mobile-header-icon-only" href="/schools" aria-label={t("搜索学校")}>
-            <Search aria-hidden="true" />
-          </Link>
-        }
       />
-      <form className="toolbar desktop-only">
-        <label className="search">
-          {t("搜索学校、省份或城市")}
-          <input name="q" defaultValue={q} placeholder={t("例如：浙江、深圳大学")} />
-        </label>
-        <button type="submit">{t("搜索")}</button>
-        <Link className="button" href="/schools/noted">{t("特别备注院校")}</Link>
+      <form action="/schools" className="school-directory-filters">
+        <div className="school-directory-search">
+          <Search size={16} aria-hidden="true" />
+          <input name="q" type="search" defaultValue={q} aria-label={t("搜索学校、省份或城市")}
+            placeholder={t("搜索学校、省份或城市")} />
+          <button type="submit">{t("搜索")}</button>
+        </div>
+        <Link className="button" href="/schools/noted"><StickyNote size={15} aria-hidden="true" />{t("特别备注院校")}</Link>
       </form>
 
-      <form className="mobile-only mobile-school-search">
-        <input name="q" defaultValue={q} placeholder={t("搜索学校、省份或城市")} />
-        <button type="submit">{t("搜索")}</button>
-      </form>
+      <div className="school-directory-count">
+        <strong>{result.total.toLocaleString("en-US")}</strong> {t("所院校")}
+        {q && <Link href="/schools">{t("清除搜索")}</Link>}
+      </div>
 
-      <div className="table-wrap desktop-only">
+      {rows.length === 0 ? <div className="card"><EmptyState>{t("没有找到符合条件的院校。")}</EmptyState></div> : <>
+      <div className="table-wrap school-directory-table desktop-only">
         <table>
           <thead>
             <tr>
@@ -68,7 +65,7 @@ export default async function SchoolsPage({
             {rows.map((school) => (
               <tr key={school.id}>
                 <td>
-                  <Link href={`/schools/${school.id}`}><strong>{school.nameZh}</strong></Link>
+                  <Link className="school-directory-link" href={`/schools/${school.id}`}><strong>{school.nameZh}</strong><ArrowRight size={14} aria-hidden="true" /></Link>
                 </td>
                 <td>{[school.province, school.city].filter(Boolean).join(" · ") || "—"}</td>
                 {!marketManagerView ? <td>{school.qsRanking || "—"}</td> : null}
@@ -169,6 +166,7 @@ export default async function SchoolsPage({
           </Link>
         ))}
       </div>
+      </>}
 
       {totalPages > 1 ? (
         <Pagination page={page} totalPages={totalPages} basePath="/schools" extraParams={extraParams} />

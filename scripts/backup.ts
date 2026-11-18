@@ -1,6 +1,7 @@
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { aiProviderSettingsPath } from "../src/lib/ai-provider";
 import { openRawDatabase } from "../src/lib/db/raw";
 
 const stamp = new Date()
@@ -19,6 +20,11 @@ database.close();
 
 const uploadDir = resolve(process.env.UPLOAD_DIR ?? "./data/uploads");
 const keyPath = resolve(process.env.APP_KEY_PATH ?? "./data/keys/app.key");
+const providerPath = aiProviderSettingsPath();
+
+if (existsSync(providerPath)) {
+  cpSync(providerPath, resolve(backupRoot, "ai-provider.json"), { force: false });
+}
 
 if (existsSync(uploadDir)) {
   cpSync(uploadDir, resolve(backupRoot, "uploads"), {

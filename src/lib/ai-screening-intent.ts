@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getAiProviderConfig, requestAiCompletion } from "@/lib/ai-provider";
 import { criteriaSchema, mergeCriteria, type ChatCriteria } from "@/lib/ai-screening";
 
 export const screeningHistorySchema = z
@@ -104,53 +105,23 @@ export async function extractScreeningIntent(
   },
   options: ExtractOptions = {},
 ): Promise<ScreeningIntentResult & { criteria: ChatCriteria }> {
-  const key = options.apiKey ?? process.env.DEEPSEEK_API_KEY;
-  if (!key) {
-    throw new Error(
-      "尚未配置 DeepSeek API，无法解析对话条件。请联系管理员配置后重试。",
-    );
-  }
-  const base = (
-    options.baseUrl ??
-    process.env.DEEPSEEK_BASE_URL ??
-    "https://api.deepseek.com"
-  ).replace(/\/$/, "");
-  const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
-  const signals = options.signal ? [options.signal, timeout] : [timeout];
-  const response = await (options.fetchImpl ?? fetch)(
-    `${base}/chat/completions`,
+  const current = getAiProviderConfig();
+  const payload = await requestAiCompletion({
+    apiKey: options.apiKey ?? current.apiKey,
+    baseUrl: options.baseUrl ?? current.baseUrl,
+    model: options.model ?? current.model,
+  }, [
+    { role: "system", content: SCREENING_INTENT_SYSTEM_PROMPT },
     {
-      method: "POST",
-      cache: "no-store",
-      signal: AbortSignal.any(signals),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model:
-          options.model ?? process.env.DEEPSEEK_MODEL ?? "deepseek-flash",
-        response_format: { type: "json_object" },
-        temperature: 0,
-        messages: [
-          { role: "system", content: SCREENING_INTENT_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: JSON.stringify({
-              previousCriteria: input.criteria,
-              hasPreviousSearch: input.hasPrevious,
-              history: input.history,
-              message: input.message,
-            }),
-          },
-        ],
+      role: "user",
+      content: JSON.stringify({
+        previousCriteria: input.criteria,
+        hasPreviousSearch: input.hasPrevious,
+        history: input.history,
+        message: input.message,
       }),
     },
-  );
-  if (!response.ok) {
-    throw new Error("DeepSeek 请求失败，请检查模型配置或稍后重试。");
-  }
-  const payload = await response.json();
+  ], { timeoutMs: options.timeoutMs ?? 25_000, signal: options.signal, fetchImpl: options.fetchImpl });
   const content = payload?.choices?.[0]?.message?.content;
   if (
     typeof content !== "string" ||

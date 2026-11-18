@@ -6,6 +6,7 @@ import { candidateRevision } from "@/lib/ai-screening-presentation";
 import type { MatchProgram } from "@/lib/matcher";
 
 const mocks = vi.hoisted(() => ({ user: vi.fn(), data: vi.fn(), customers: vi.fn(), db: null as DatabaseSync | null }));
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.user }));
 vi.mock("@/lib/ai-screening-data", () => ({ loadScreeningData: mocks.data }));
 vi.mock("@/lib/queries", () => ({ listCustomerOptions: mocks.customers }));
@@ -49,6 +50,19 @@ describe("AI 选校方案保存", () => {
     expect((await GET()).status).toBe(401);
     expect((await POST(request(body(), "https://other.example"))).status).toBe(403);
     expect(mocks.data).not.toHaveBeenCalled();
+  });
+  it("拥有客户查看权限但无方案维护权限时，不能读取保存表单的客户列表或写入方案", async () => {
+    mocks.user.mockResolvedValue({ id: "viewer-1", role: "MARKET_MANAGER" });
+    expect((await GET()).status).toBe(403);
+    expect((await POST(request(body()))).status).toBe(403);
+    expect(mocks.customers).not.toHaveBeenCalled();
+    expect(mocks.data).not.toHaveBeenCalled();
+  });
+  it("保存顾问备注，拒绝在备注中记录联系方式", async () => {
+    expect((await POST(request({ ...body(), notes: "请优先核实秋季开班。" }))).status).toBe(201);
+    expect(mocks.db!.prepare("SELECT notes FROM recommendations").get()).toMatchObject({ notes: "请优先核实秋季开班。" });
+    expect((await POST(request({ ...body(), notes: "联系 advisor@example.com 确认可申请。" }))).status).toBe(400);
+    expect(mocks.db!.prepare("SELECT COUNT(*) AS n FROM recommendations").get()).toMatchObject({ n: 1 });
   });
   it("保存经过服务端复核的项目和脱敏依据，重复请求不产生第二份方案", async () => {
     const payload = body();

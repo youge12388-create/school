@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import * as XLSX from "xlsx";
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn(async () => ({ id: "test", role: "ADMIN" })) }));
 vi.mock("@/lib/db", () => ({ sqlite: { prepare: () => ({ all: () => [] }) } }));
 vi.mock("@/lib/queries", () => ({ getProgramsForScreening: vi.fn(async () => []) }));
@@ -36,7 +37,7 @@ describe("AI 选校接口", () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "");
     const response = await POST(makeRequest());
     expect(response.status).toBe(503);
-    expect((await response.json()).error).toContain("尚未配置 DeepSeek");
+    expect((await response.json()).error).toContain("尚未配置 AI API");
   });
   it.each([["你好", "您好，我可以帮您查找适合的院校。"], ["你是谁", "我是 AI 选校助手，可以协助您查找和比较院校。"]])("普通对话由模型自然回答且不触发院校检索：%s", async (message, reply) => {
     vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");

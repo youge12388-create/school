@@ -1,32 +1,13 @@
 "use client";
 
-import {
-  Database,
-  FileClock,
-  GraduationCap,
-  LayoutDashboard,
-  MessageCircle,
-  SearchCheck,
-  StickyNote,
-  UserRoundCog,
-  X,
-} from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+
+import { isWorkspaceNavActive, workspaceNavGroups } from "@/components/workspace-navigation";
 import { useT } from "@/lib/i18n/locale-context";
 import type { PermissionKey } from "@/lib/permissions";
-
-const drawerItems = [
-  { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
-  { href: "/screening", label: "学校筛查", icon: SearchCheck },
-  { href: "/ai-screening", label: "AI 选校", icon: MessageCircle },
-  { href: "/schools", label: "学校库", icon: GraduationCap },
-  { href: "/schools/noted", label: "特别备注院校", icon: StickyNote },
-  { href: "/imports", label: "数据导入", icon: Database },
-  { href: "/audit", label: "操作审计", icon: FileClock },
-  { href: "/admin/users", label: "账号管理", icon: UserRoundCog },
-];
 
 const MobileDrawerContext = createContext<{
   open: boolean;
@@ -50,12 +31,7 @@ export function MobileShell({
   return (
     <MobileDrawerContext.Provider value={{ open, setOpen }}>
       {children}
-      <MobileDrawer
-        role={role}
-        permissions={permissions}
-        open={open}
-        onClose={() => setOpen(false)}
-      />
+      <MobileDrawer role={role} permissions={permissions} open={open} onClose={() => setOpen(false)} />
     </MobileDrawerContext.Provider>
   );
 }
@@ -73,72 +49,54 @@ function MobileDrawer({
 }) {
   const pathname = usePathname();
   const t = useT();
-  const isNotedRoute = pathname.startsWith("/schools/noted");
-  const items = drawerItems.filter((item) => {
-    if (item.href === "/dashboard") return permissions.includes("WORKSPACE_VIEW");
-    if (item.href === "/screening") return permissions.includes("SCREENING_VIEW");
-    if (item.href === "/ai-screening") return permissions.includes("SCREENING_VIEW");
-    if (item.href === "/schools" || item.href === "/schools/noted") {
-      return permissions.includes("SCHOOL_VIEW_PUBLIC");
-    }
-    if (item.href === "/admin/users") return role === "ADMIN";
-    if (item.href === "/imports") {
-      return permissions.includes("DATA_IMPORT");
-    }
-    if (item.href === "/audit") return permissions.includes("AUDIT_VIEW");
-    return true;
-  });
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    if (open && !element.open) element.showModal();
+    if (!open && element.open) element.close();
+  }, [open]);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const closeOnDesktop = () => { if (desktop.matches) dialog.current?.close(); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   return (
-    <>
-      <div
-        className="mobile-drawer-backdrop"
-        data-open={open}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      <aside
-        className="mobile-drawer"
-        data-open={open}
-        aria-label={t("主导航抽屉")}
-      >
+    <dialog id="mobile-workspace-nav" ref={dialog} className="mobile-drawer"
+      aria-label={t("主导航抽屉")} onClose={onClose}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="mobile-drawer-inner">
         <div className="mobile-drawer-header">
-          <div className="brand-mark">SYT</div>
-          <button
-            className="mobile-drawer-close"
-            onClick={onClose}
-            aria-label={t("关闭导航")}
-          >
-            <X aria-hidden="true" />
+          <div className="brand-mark" aria-hidden="true">SYT</div>
+          <strong>{t("留学项目工作台")}</strong>
+          <button className="mobile-drawer-close" type="button" onClick={onClose} aria-label={t("关闭导航")}>
+            <X size={19} aria-hidden="true" />
           </button>
         </div>
         <nav className="mobile-drawer-nav" aria-label={t("主导航")}>
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active =
-              pathname === item.href ||
-              (
-                item.href !== "/dashboard" &&
-                pathname.startsWith(`${item.href}/`) &&
-                !(item.href === "/schools" && isNotedRoute)
-              );
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`mobile-drawer-link${active ? " active" : ""}`}
-                onClick={onClose}
-              >
-                <Icon aria-hidden="true" />
-                {t(item.label)}
-              </Link>
-            );
-          })}
+          {workspaceNavGroups(role, permissions).map(({ label, items }) => (
+            <div className="nav-group" key={label ?? "home"}>
+              {label && <p className="nav-group-label">{t(label)}</p>}
+              {items.map(({ href, label, icon: Icon }) => {
+                const active = isWorkspaceNavActive(pathname, href);
+                return (
+                  <Link key={href} href={href} className={`mobile-drawer-link${active ? " active" : ""}`}
+                    aria-current={active ? "page" : undefined} onClick={onClose}>
+                    <Icon aria-hidden="true" />
+                    {t(label)}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <form className="mobile-drawer-footer" action="/api/auth/logout" method="post">
           <button type="submit">{t("退出登录")}</button>
         </form>
-      </aside>
-    </>
+      </div>
+    </dialog>
   );
 }

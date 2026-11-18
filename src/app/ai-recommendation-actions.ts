@@ -1,13 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
-import { requireUser } from "@/lib/auth";
+import { userHasPermission } from "@/lib/access-control";
+import { requirePermission } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
 import { asText, newId } from "@/lib/utils";
 
 export async function createApplicationFromRecommendationAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requirePermission("APPLICATION_MANAGE");
+  if (!userHasPermission(user, "CUSTOMER_VIEW")) throw new Error("当前账号无权操作客户申请。");
   const recommendationId = asText(formData.get("recommendationId"));
   const programId = asText(formData.get("programId"));
   if (!recommendationId || !programId) throw new Error("方案和项目不能为空。");
@@ -31,5 +34,6 @@ export async function createApplicationFromRecommendationAction(formData: FormDa
     }
     sqlite.exec("COMMIT");
   } catch (error) { sqlite.exec("ROLLBACK"); throw error; }
+  revalidatePath(`/recommendations/${recommendationId}/print`);
   redirect(`/applications/${applicationId}`);
 }
