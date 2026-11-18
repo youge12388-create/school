@@ -13,7 +13,7 @@ import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgra
 import "./ai-screening.css";
 import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
-type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; providedCriteria?: ChatCriteria; steps: SearchStep[]; result?: ScreeningResponse; error?: string };
+type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; providedCriteria?: ChatCriteria; steps: SearchStep[]; result?: ScreeningResponse; error?: string; revealed?: { programIds: string[]; schoolNames: string[] } };
 type ConversationSnapshot = {
   input: string; criteria: ChatCriteria; sensitiveContext: boolean; focusSchool: string | null;
   turns: Turn[]; draft: DraftPlan | null; savedPlan: SavedPlan | null;
@@ -174,7 +174,7 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
       <label>年龄<input type="number" min="1" max="120" value={draft.age} onChange={(event) => change("age", event.target.value)} placeholder="如 22" /></label>
       <label>省份<input value={draft.province} maxLength={30} onChange={(event) => change("province", event.target.value)} placeholder="如 北京" /></label>
       <label>城市<input value={draft.city} maxLength={30} onChange={(event) => change("city", event.target.value)} placeholder="如 上海" /></label>
-      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />按这些条件重新筛选</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>取消</button><small>条件会自动保存在当前浏览器，也可关联客户档案。</small></div>
+      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />按这些条件重新筛选</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>取消</button><small>条件会暂存在当前浏览器标签页。</small></div>
     </form>}
   </section>;
 }
@@ -218,7 +218,7 @@ function CandidateDetails({ card }: { card: ResultCard }) {
   const feedback = useContext(FeedbackContext);
   const feedbackValue = card.programId ? feedback?.saved[card.programId] : undefined;
   const feedbackPending = card.programId ? feedback?.pending.has(card.programId) : false;
-  return <div className="agent-candidate-body">
+  return <div className="agent-candidate-body" data-result-school={card.name} data-result-program={card.programId}>
     <div className="agent-candidate-action"><p className="agent-program">{displayProgramName(card.name, card.program)}</p><CandidatePlanButton card={card} /></div>
     <p className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{card.verified ? "项目资料已人工核实" : "项目资料待人工核实"}</p>
     {card.programId && isCandidate(card) && feedback && <div className="agent-feedback">
@@ -311,7 +311,7 @@ function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { 
     groups.set(key, [...(groups.get(key) ?? []), card]);
   });
   const schools = [...groups.entries()];
-  const renderSchool = ([name, items]: [string, ResultCard[]]) => <article className="agent-result" key={name}>
+  const renderSchool = ([name, items]: [string, ResultCard[]]) => <article className="agent-result" data-result-school={items[0].name} key={name}>
     <div className="agent-result-heading"><h4>{items[0].schoolId ? <Link href={`/schools/${encodeURIComponent(items[0].schoolId)}`}>{items[0].name}</Link> : items[0].name}</h4>{items[0].fit !== repeatedStatus && <span className={`agent-status ${items[0].fit === "已知条件符合" ? "agent-status-good" : ""}`}>{items[0].fit === "合作及招生条件待核实" ? "合作待核实" : items[0].fit === "合作不可用或存在冲突，需核实" ? "合作状态有冲突" : items[0].fit}</span>}</div>
     <CandidateDetails card={items[0]} />
     {items.length > 1 && <details className="agent-extra-programs"><summary>查看该校另外 {items.length - 1} 个项目 <ChevronDown size={14} aria-hidden="true" /></summary>{items.slice(1).map((card, index) => <CandidateDetails key={`${card.program}-${index}`} card={card} />)}</details>}
@@ -346,7 +346,7 @@ function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
     <div className="agent-school-list">{group.items.map((item, index) => {
       const program = item.programId ? cardByProgram.get(item.programId) : undefined;
       const card = program ?? cardBySchool.get(schoolIdentityKey(item.name));
-      return <article className="agent-school-item" key={`${item.name}-${index}`}>
+      return <article className="agent-school-item" data-result-school={item.name} data-result-program={program?.programId} key={`${item.name}-${index}`}>
         <div className="agent-school-heading"><div className="agent-school-title">
           <h4>{card?.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{item.name}</Link> : item.name}</h4>
           {program && <p className="agent-program">{displayProgramName(program.name, program.program)}</p>}
@@ -552,6 +552,32 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
     viewport.scrollTop += turn.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 18;
   }, [latest, panel]);
 
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) return;
+    function rememberRevealed(event: Event) {
+      const details = event.target;
+      if (!(details instanceof HTMLDetailsElement) || !details.open) return;
+      const turnNode = details.closest<HTMLElement>(".agent-turn");
+      if (!turnNode) return;
+      const turnId = Number(turnNode.id.replace(/^agent-turn-/, ""));
+      const visible = [...turnNode.querySelectorAll<HTMLElement>("[data-result-school], [data-result-program]")]
+        .filter((element) => !element.closest("details:not([open])")
+          && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden");
+      const programIds = visible.flatMap((element) => element.dataset.resultProgram ? [element.dataset.resultProgram] : []);
+      const schoolNames = visible.flatMap((element) => element.dataset.resultSchool ? [element.dataset.resultSchool] : []);
+      setTurns((old) => old.map((turn) => turn.id === turnId ? {
+        ...turn,
+        revealed: {
+          programIds: [...new Set([...(turn.revealed?.programIds ?? []), ...programIds])],
+          schoolNames: [...new Set([...(turn.revealed?.schoolNames ?? []), ...schoolNames])],
+        },
+      } : turn));
+    }
+    thread.addEventListener("toggle", rememberRevealed, true);
+    return () => thread.removeEventListener("toggle", rememberRevealed, true);
+  }, []);
+
   async function run(message: string, previous: ChatCriteria, showOther = false, previousSensitive = sensitiveContext, previousFocus = focusSchool, providedCriteria: ChatCriteria | null = null) {
     if (!message.trim() || running.current) return;
     const controller = new AbortController();
@@ -565,8 +591,8 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
       const lastResult = [...turns].reverse().find((turn) => turn.result?.source)?.result;
       const lastNarrative = [...turns].reverse().find((turn) => turn.result?.narrative)?.result?.narrative;
       const previousProgramIds = providedCriteria ? [] : lastNarrative?.highlights.flatMap((item) => item.programId ? [item.programId] : []) ?? [];
-      const seenProgramIds = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => presentedProgramIds(turn.result)))].slice(-200);
-      const seenSchoolNames = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => presentedSchoolNames(turn.result)))].slice(-200);
+      const seenProgramIds = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => [...presentedProgramIds(turn.result), ...(turn.revealed?.programIds ?? [])]))].slice(-200);
+      const seenSchoolNames = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => [...presentedSchoolNames(turn.result), ...(turn.revealed?.schoolNames ?? [])]))].slice(-200);
       const history = providedCriteria ? [] : turns.filter((turn) => turn.result).flatMap((turn) => [
         { role: "user" as const, content: turn.question.slice(0, 500) },
         ...(turn.result?.conversation && turn.result.answer?.lead ? [{ role: "assistant" as const, content: turn.result.answer.lead.slice(0, 500) }] : []),

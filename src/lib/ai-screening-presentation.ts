@@ -18,6 +18,11 @@ export function resultSchoolKey(card: ResultCard) {
 
 export function presentedProgramIds(result: ScreeningResponse | undefined) {
   if (!result) return [];
+  if (result.shown) return [...new Set(result.shown.programIds)];
+  if (result.answer) return [];
+  if (result.narrative) {
+    return [...new Set(result.narrative.highlights.flatMap((item) => item.programId ? [item.programId] : []))];
+  }
   return [
     ...new Set(
       [...result.results.confirmed, ...result.results.pending, ...result.results.other]
@@ -28,6 +33,9 @@ export function presentedProgramIds(result: ScreeningResponse | undefined) {
 
 export function presentedSchoolNames(result: ScreeningResponse | undefined) {
   if (!result) return [];
+  if (result.shown) return [...new Set(result.shown.schoolNames)];
+  if (result.answer) return [];
+  if (result.narrative) return [...new Set(result.narrative.highlights.map((item) => item.name))];
   return [
     ...new Set(
       [...result.results.confirmed, ...result.results.pending, ...result.results.other]
