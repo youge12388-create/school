@@ -338,26 +338,6 @@ export default async function CustomerDetailPage({
           </div>
         )}
       </section>
-
-      <section className="card card-compact detail-section">
-        <div className="card-header">
-          <h3>{t("已保存筛选方案")}</h3>
-          <span className="small muted">{tv("{n} 个", { n: data.recommendations.length })}</span>
-        </div>
-        <div className="card-body">
-          {data.recommendations.length ? (
-            <ul className="detail-list">
-              {data.recommendations.map((recommendation) => (
-                <li className="detail-list-row" key={recommendation.id}>
-                  <strong>{recommendation.title}</strong>
-                  <span className="small muted">{tv("{n} 个项目 · {d}", { n: recommendation.itemCount, d: formatDate(recommendation.createdAt) })}</span>
-                  <Link className="button" href={`/recommendations/${recommendation.id}/print`}>{t("查看与打印")}</Link>
-                </li>
-              ))}
-            </ul>
-          ) : <EmptyState>{t("尚未保存筛选方案")}</EmptyState>}
-        </div>
-      </section>
     </>
   );
 }

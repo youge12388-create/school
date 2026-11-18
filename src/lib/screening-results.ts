@@ -2,6 +2,10 @@ import type { FitLevel, RankedProgram } from "@/lib/matcher";
 
 type CurrentFitLevel = Exclude<FitLevel, "NOT_MATCHED">;
 
+export function isScreeningPlanEligible(result: RankedProgram) {
+  return result.fitLevel !== "NOT_MATCHED" && result.effectiveDeadlineStatus !== "EXPIRED";
+}
+
 export function partitionScreeningResults(results: RankedProgram[]) {
   const currentByFit: Record<CurrentFitLevel, RankedProgram[]> = {
     MATCHED: [],

@@ -57,11 +57,13 @@ export async function ScreeningResultCard({
   rank,
   detailParams,
   marketManagerView = false,
+  canSelect = false,
 }: {
   result: RankedProgram;
   rank: number;
   detailParams?: DetailLinkParams;
   marketManagerView?: boolean;
+  canSelect?: boolean;
 }) {
   const { program } = result;
   const locale = await getUiLocale();
@@ -98,15 +100,17 @@ export async function ScreeningResultCard({
     <article className="card result-card">
       <div className="result-main">
         <div className="result-select">
-          <input
+          {canSelect && <input
             type="checkbox"
             name="programIds"
             value={program.id}
+            data-school-id={program.schoolId}
+            data-school-name={program.schoolName}
             aria-label={tv("选择 {school} {program}", {
               school: program.schoolName,
               program: program.programName,
             })}
-          />
+          />}
           <span className="result-rank" aria-label={tv("排序第 {n}", { n: rank })}>{rank}</span>
         </div>
         <div className="result-content">
@@ -205,18 +209,12 @@ export async function ScreeningResultCard({
               </div>
             </div>
           ) : null}
-          {!marketManagerView ? (
+          {canSelect && !marketManagerView ? (
             <label className="result-reason">
               {t("顾问推荐理由")}
-              <input name={`reason_${program.id}`} placeholder={t("可选，打印方案时显示")} />
+              <input name={`reason_${program.id}`} maxLength={400} placeholder={t("可选，打印方案时显示")} />
             </label>
           ) : null}
-          <input type="hidden" name={`fit_${program.id}`} value={result.fitLevel} />
-          <input
-            type="hidden"
-            name={`evidence_${program.id}`}
-            value={JSON.stringify(result.evidence)}
-          />
         </div>
       </div>
       {!marketManagerView ? (

@@ -1,51 +1,31 @@
 "use client";
 
-import { ArrowRight, Check, ClipboardList, LoaderCircle, X } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowRight, ArrowUp, Check, ClipboardList, LoaderCircle, X } from "lucide-react";
 
+import { PlanProfileFields } from "@/components/plan-profile-fields";
 import type { DraftPlan, DraftPlanFields } from "@/lib/ai-screening-plan";
+import { groupPlanSchools, RECOMMENDED_SCHOOL_COUNT, RECOMMENDATION_FIELD_LIMITS } from "@/lib/recommendation-profile";
 
-type CustomerOption = { id: string; name: string; customerNo: string };
 export type SavedPlan = { id: string; title: string };
 
-export function PlanDraftPane({
-  draft, saved, saving, canCreateCustomer, onChange, onRemove, onClear, onSaving, onSaved,
-}: {
+export function PlanDraftPane({ draft, saved, saving, onChange, onRemove, onMove, onClear, onSaving, onSaved }: {
   draft: DraftPlan | null;
   saved: SavedPlan | null;
   saving: boolean;
-  canCreateCustomer: boolean;
   onChange: (fields: Partial<DraftPlanFields>) => void;
   onRemove: (programId: string) => void;
+  onMove: (schoolId: string, offset: -1 | 1) => void;
   onClear: () => void;
   onSaving: (value: boolean) => void;
   onSaved: (plan: SavedPlan) => void;
 }) {
-  const [customers, setCustomers] = useState<CustomerOption[] | null>(null);
-  const [loadError, setLoadError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const [error, setError] = useState("");
   const inFlight = useRef(false);
   const previousRequest = useRef<{ body: string; id: string } | null>(null);
-  const hasItems = Boolean(draft?.items.length);
-  const canSave = Boolean(draft?.title.trim() && customers?.some((customer) => customer.id === draft.customerId));
-
-  useEffect(() => {
-    if (!hasItems) return;
-    const controller = new AbortController();
-    void fetch("/api/ai-screening/recommendations", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "无法读取客户，请重试。");
-        setCustomers(data.customers);
-        setLoadError("");
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) setLoadError(cause instanceof Error ? cause.message : "无法读取客户，请重试。");
-      });
-    return () => controller.abort();
-  }, [hasItems, attempt]);
+  const [error, setError] = useState("");
+  const schools = groupPlanSchools(draft?.items ?? []);
+  const canSave = Boolean(schools.length && draft?.studentName.trim() && draft.title.trim());
 
   function change(fields: Partial<DraftPlanFields>) {
     setError("");
@@ -54,14 +34,15 @@ export function PlanDraftPane({
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!draft?.items.length || !canSave || inFlight.current) return;
+    if (!draft || !canSave || inFlight.current) return;
     inFlight.current = true;
     setError("");
     onSaving(true);
     const payload = {
-      title: draft.title.trim(), customerId: draft.customerId, notes: draft.notes.trim(),
+      title: draft.title.trim(), studentName: draft.studentName.trim(),
+      studentRegion: draft.studentRegion.trim(), preferredRegion: draft.preferredRegion.trim(), notes: draft.notes.trim(),
       criteria: draft.criteria, source: draft.source, showOther: draft.items.some((item) => item.requiresOtherResults),
-      items: draft.items.map(({ programId, revision }) => ({ programId, revision })),
+      items: schools.flat().map(({ programId, revision }) => ({ programId, revision })),
     };
     const body = JSON.stringify(payload);
     try {
@@ -85,52 +66,54 @@ export function PlanDraftPane({
   return (
     <section className="agent-draft" aria-labelledby="agent-draft-title">
       <header className="agent-draft-head">
-        <div><ClipboardList size={17} aria-hidden="true" /><h2 id="agent-draft-title">方案草稿</h2>
-          {hasItems && <span>{draft!.items.length}</span>}
-        </div>
-        {draft && <button type="button" className="agent-text-action" disabled={saving} onClick={() => { setError(""); onClear(); }}>清空</button>}
+        <div><ClipboardList size={17} aria-hidden="true" /><h2 id="agent-draft-title">方案草稿</h2></div>
+        {draft && <button type="button" className="agent-text-action" disabled={saving} onClick={() => {
+          setError(""); previousRequest.current = null; onClear();
+        }}>清空</button>}
       </header>
       {saved && <div className="agent-draft-saved" role="status">
         <p><Check size={16} aria-hidden="true" /> 方案已保存</p>
         <Link href={`/recommendations/${saved.id}/print`}>{saved.title} <ArrowRight size={15} aria-hidden="true" /></Link>
       </div>}
-      {!hasItems ? <div className="agent-draft-empty">
-        <strong>还没有候选项目</strong>
-        <p>在检索结果中点「加入方案」，这里会汇总你选中的项目。</p>
+      {!draft || !schools.length ? <div className="agent-draft-empty">
+        <strong>还没有选定院校</strong>
+        <p>从结果点「加入方案」。建议选 {RECOMMENDED_SCHOOL_COUNT} 所，可按需要调整。</p>
       </div> : (
         <form method="post" className="agent-draft-form" onSubmit={save} aria-busy={saving}>
-          <ol className="agent-draft-items" aria-label="已选项目">
-            {draft!.items.map((item) => (
-              <li key={item.programId}>
-                <div><strong>{item.name}</strong><span>{item.program}</span><small>{item.fit}</small></div>
-                <button type="button" className="agent-icon-action" disabled={saving} aria-label={`移除 ${item.name} · ${item.program}`}
-                  onClick={() => { setError(""); onRemove(item.programId); }}>
-                  <X size={15} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
+          <div className="agent-draft-count">
+            <strong>已选 {schools.length} 所学校</strong>
+            <span>建议 {RECOMMENDED_SCHOOL_COUNT} 所，可调整</span>
+          </div>
+          <ol className="agent-draft-items" aria-label="已选学校及项目">
+            {schools.map((projects, index) => {
+              const school = projects[0];
+              return <li className="agent-draft-school" key={school.schoolId}>
+                <div className="agent-draft-school-head">
+                  <strong><span>{index + 1}.</span> {school.name}</strong>
+                  {schools.length > 1 && <div className="agent-draft-order">
+                    <button type="button" className="agent-icon-action" disabled={saving || index === 0}
+                      aria-label={`上移 ${school.name}`} title="上移" onClick={() => onMove(school.schoolId, -1)}><ArrowUp size={14} aria-hidden="true" /></button>
+                    <button type="button" className="agent-icon-action" disabled={saving || index === schools.length - 1}
+                      aria-label={`下移 ${school.name}`} title="下移" onClick={() => onMove(school.schoolId, 1)}><ArrowDown size={14} aria-hidden="true" /></button>
+                  </div>}
+                </div>
+                <ul className="agent-draft-projects">
+                  {projects.map((item) => <li key={item.programId}>
+                    <div><span>{item.program}</span><small>{item.fit}</small></div>
+                    <button type="button" className="agent-icon-action" disabled={saving} aria-label={`移除 ${item.name} · ${item.program}`}
+                      onClick={() => { setError(""); onRemove(item.programId); }}><X size={15} aria-hidden="true" /></button>
+                  </li>)}
+                </ul>
+              </li>;
+            })}
           </ol>
           <div className="agent-draft-fields">
-            <label>方案名称<input name="plan-title" value={draft!.title} maxLength={80} required disabled={saving}
-              placeholder="例如：春季计算机硕士备选" onChange={(event) => change({ title: event.target.value })} /></label>
-            <label>关联客户<select name="plan-customer" value={draft!.customerId} required disabled={saving || !customers?.length || Boolean(loadError)}
-              onChange={(event) => change({ customerId: event.target.value })}>
-              <option value="">{loadError ? "客户列表读取失败" : customers === null ? "正在读取客户…" : "请选择客户"}</option>
-              {customers?.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · {customer.customerNo}</option>)}
-            </select></label>
-            {loadError && <div className="agent-draft-error" role="alert">{loadError} <button type="button" onClick={() => { setLoadError(""); setAttempt((value) => value + 1); }}>重试</button></div>}
-            {customers !== null && !loadError && <div className="agent-draft-hint">
-              {customers.length === 0 && <>暂无可用客户。{canCreateCustomer && <Link href="/customers/new" target="_blank" rel="noopener">先新建客户</Link>}</>}
-              <button className="agent-text-action" type="button" disabled={saving}
-                onClick={() => { setCustomers(null); setAttempt((value) => value + 1); }}>刷新客户列表</button>
-            </div>}
-            <label>顾问备注 <small>选填 · 不随方案打印</small>
-              <textarea name="plan-notes" rows={2} maxLength={600} value={draft!.notes} disabled={saving}
-                placeholder="记录取舍、待确认事项或下一步" onChange={(event) => change({ notes: event.target.value })} />
-            </label>
+            <label>方案名称<input name="title" value={draft.title} maxLength={RECOMMENDATION_FIELD_LIMITS.title} required disabled={saving}
+              onChange={(event) => change({ title: event.target.value })} /></label>
+            <PlanProfileFields profile={draft} onChange={change} disabled={saving} />
             {error && <p className="agent-draft-error" role="alert">{error}</p>}
           </div>
-          <div className="agent-draft-actions"><button className="primary" type="submit" disabled={saving || !canSave || Boolean(loadError)}>
+          <div className="agent-draft-actions"><button className="primary" type="submit" disabled={saving || !canSave}>
             {saving && <LoaderCircle size={15} aria-hidden="true" className="agent-spin" />}{saving ? "正在保存…" : "保存方案"}
           </button></div>
         </form>

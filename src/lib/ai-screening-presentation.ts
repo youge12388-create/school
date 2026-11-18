@@ -1,5 +1,6 @@
 import { schoolIdentityKey, type EvidencePoint, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse } from "@/lib/ai-screening-events";
+import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
 const pointPriority: Record<string, number> = {
   "CSCA": 0, "学校 CSCA 要求": 0, "专业": 1, "首年预算": 2, "奖学金": 3,
@@ -9,6 +10,10 @@ const pointPriority: Record<string, number> = {
 
 export function isCandidate(card: ResultCard) {
   return card.kind === "project" && card.quality !== "insufficient";
+}
+
+export function resultSchoolKey(card: ResultCard) {
+  return card.schoolId ?? card.schoolKey ?? schoolIdentityKey(card.name);
 }
 
 export function presentedProgramIds(result: ScreeningResponse | undefined) {
@@ -35,6 +40,7 @@ export function comparisonCards(result: ScreeningResponse) {
   const { confirmed, pending, other } = result.results;
   const available = [...confirmed, ...pending, ...other].filter(isCandidate);
   const highlighted = result.narrative?.highlights ?? [];
+  const preferredOrder = result.otherRequested ? [...other, ...confirmed, ...pending] : available;
   const ordered = highlighted.length
     ? highlighted.flatMap((item) => {
         const card = item.programId
@@ -43,14 +49,14 @@ export function comparisonCards(result: ScreeningResponse) {
         const schoolKey = schoolIdentityKey(item.name);
         return card ?? available.find((candidate) => schoolIdentityKey(candidate.name) === schoolKey) ?? [];
       })
-    : (result.otherRequested ? [...other, ...confirmed, ...pending] : [...confirmed, ...pending, ...other]).filter(isCandidate);
+    : preferredOrder.filter(isCandidate).sort((a, b) => Number(a.cooperation === "not_cooperating") - Number(b.cooperation === "not_cooperating"));
   const seen = new Set<string>();
   return ordered.filter((card) => {
-    const key = schoolIdentityKey(card.name);
+    const key = resultSchoolKey(card);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, 4);
+  }).slice(0, RECOMMENDED_SCHOOL_COUNT);
 }
 
 export function displayProgramName(school: string, program: string) {
@@ -60,7 +66,7 @@ export function displayProgramName(school: string, program: string) {
 
 // Only public evidence and the existence of an internal warning participate in the revision.
 export function candidateRevision(card: ResultCard) {
-  return JSON.stringify({ id: card.programId, name: card.name, program: card.program, fit: card.fit, quality: card.quality, cooperation: card.cooperation, points: card.points, sources: card.sources, warning: card.warning.length > 0, yellow: card.yellow, image: card.image });
+  return JSON.stringify({ id: card.programId, schoolId: card.schoolId, name: card.name, program: card.program, fit: card.fit, quality: card.quality, cooperation: card.cooperation, points: card.points, sources: card.sources, warning: card.warning.length > 0, yellow: card.yellow, image: card.image, facts: card.facts, comparableCost: card.comparableCost, verified: card.verified });
 }
 
 export function summarizePoints(points: EvidencePoint[]) {
@@ -84,7 +90,7 @@ export function admissionGroupLabel(source: string, group: "partner" | "other") 
 }
 
 export function outcomeSummary(result: ScreeningResponse) {
-  const count = (cards: ScreeningResponse["results"]["confirmed"]) => new Set(cards.filter(isCandidate).map((card) => schoolIdentityKey(card.name))).size;
+  const count = (cards: ScreeningResponse["results"]["confirmed"]) => new Set(cards.filter(isCandidate).map(resultSchoolKey)).size;
   if (result.otherRequested) return `找到 ${count(result.results.other)} 所其他院校。合作状态待核实。`;
   const confirmed = count(result.results.confirmed);
   if (confirmed) return `找到 ${confirmed} 所合作院校，已知条件符合。`;

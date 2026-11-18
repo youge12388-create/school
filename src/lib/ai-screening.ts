@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { evaluateProgram, type MatchProgram, type ScreeningCriteria } from "@/lib/matcher";
+import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
 export const criteriaSchema = z.object({
   programType: z.enum(["UG", "MASTER", "PHD", "LONG_TERM", "SHORT_TERM"]).nullable().optional(),
@@ -324,7 +325,7 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
       const points = validEvidence.map((e) => evidencePoint(e, p, criteria));
       const quality = candidateQuality(points, criteria);
       const relevance = candidateRelevance(points, quality);
-      return { ...base, kind: "project", programId: p.id, quality, points, relevance, comparableCost, facts, verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), warning: makeWarnings(list, school, partner, p), program: p.programName, cooperation: blocked ? "not_cooperating" : isConfirmed && partner?.programIds?.includes(p.id) ? "project_confirmed" : "listed", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: [...result.evidence.map(displayEvidence), ...listEvidence(p.programType as keyof typeof columns)] };
+      return { ...base, kind: "project", schoolId: p.schoolId, programId: p.id, quality, points, relevance, comparableCost, facts, verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), warning: makeWarnings(list, school, partner, p), program: p.programName, cooperation: blocked ? "not_cooperating" : isConfirmed && partner?.programIds?.includes(p.id) ? "project_confirmed" : "listed", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: [...result.evidence.map(displayEvidence), ...listEvidence(p.programType as keyof typeof columns)] };
     });
     if (!cards.length) {
       const detail = ps.length ? "知识库未找到符合本次条件的项目，是否有其他合适项目需核实" : "知识库未找到同名项目，学历、费用和申请条件需核实";
@@ -337,7 +338,10 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
       else pending.push(card);
     }
   }
-  const searchingOthers = confirmed.length === 0 || showOther;
+  const partnerSchoolCount = new Set([...confirmed, ...pending]
+    .filter((card) => card.kind === "project" && card.quality !== "insufficient" && card.cooperation !== "not_cooperating")
+    .map((card) => card.schoolId ?? card.schoolKey ?? schoolIdentityKey(card.name))).size;
+  const searchingOthers = confirmed.length === 0 || partnerSchoolCount < RECOMMENDED_SCHOOL_COUNT || showOther;
   progress?.onPartnerSearchComplete?.({ confirmed: confirmed.length, pending: pending.length, searchingOthers });
   for (const [key, ps] of searchingOthers ? groupedPrograms : []) {
     if (rowGroups.has(key)) continue;

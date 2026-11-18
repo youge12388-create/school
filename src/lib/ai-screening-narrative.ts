@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { getAiProviderConfig, requestAiCompletion } from "@/lib/ai-provider";
-import { schoolIdentityKey, type ChatCriteria, type EvidencePoint, type ResultCard } from "@/lib/ai-screening";
+import type { ChatCriteria, EvidencePoint, ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse } from "@/lib/ai-screening-events";
-import { admissionListLabel, isCandidate, summarizePoints } from "@/lib/ai-screening-presentation";
+import { admissionListLabel, isCandidate, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
+import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
 const codes = ["MAJOR", "BUDGET", "INTAKE", "DEADLINE", "LANGUAGE", "SCORE", "DEGREE", "EXAM", "SCHOLARSHIP", "ACCOMMODATION", "AGE", "LOCATION"] as const;
 type Code = typeof codes[number];
@@ -38,7 +39,7 @@ function candidatePool(result: ScreeningResponse): Candidate[] {
     const picked: { card: ResultCard; group: Candidate["group"]; tier: Candidate["tier"] }[] = [];
     if (limit <= 0) return picked;
     for (const card of cards) {
-      const key = schoolIdentityKey(card.name);
+      const key = resultSchoolKey(card);
       if (seen.has(key)) continue;
       seen.add(key); picked.push({ card, group, tier });
       if (picked.length === limit) break;
@@ -53,8 +54,12 @@ function candidatePool(result: ScreeningResponse): Candidate[] {
     pool = [...alternativesFirst, ...remainingConfirmed, ...remainingPending];
   } else {
     const first = unique(confirmed.filter(isCandidate), 4, "partner", "confirmed");
-    pool = [...first, ...unique(pending.filter(isCandidate), 4 - first.length, "partner", "pending")];
-    if (!confirmed.length) pool.push(...unique(alternatives, 3, "other", "other"));
+    const pendingProjects = pending.filter(isCandidate);
+    pool = [...first, ...unique(pendingProjects.filter((card) => card.cooperation !== "not_cooperating"), 4 - first.length, "partner", "pending")];
+    pool.push(...unique(alternatives, RECOMMENDED_SCHOOL_COUNT, "other", "other"));
+    if (pool.length < RECOMMENDED_SCHOOL_COUNT) {
+      pool.push(...unique(pendingProjects.filter((card) => card.cooperation === "not_cooperating"), RECOMMENDED_SCHOOL_COUNT - pool.length, "partner", "pending"));
+    }
   }
   return pool.map(({ card, group, tier }, index) => ({ slot: slots[index], card, group, tier, ...candidatePoints(card) }));
 }
@@ -64,16 +69,19 @@ function displayCandidates(result: ScreeningResponse, plan: Plan | null): Candid
   const ranking = new Map<Slot, number>();
   plan?.selections.forEach(({ slot }, index) => { if (!ranking.has(slot)) ranking.set(slot, index); });
   const ordered = (tier: Candidate["tier"]) => pool.filter((item) => item.tier === tier).sort((a, b) => (ranking.get(a.slot) ?? 99) - (ranking.get(b.slot) ?? 99));
-  if (result.otherRequested) return [...ordered("other"), ...ordered("confirmed"), ...ordered("pending")].slice(0, 2);
-  const partners = [...ordered("confirmed"), ...ordered("pending")].slice(0, 2);
-  return [...partners, ...(result.results.confirmed.length ? [] : ordered("other").slice(0, 1))];
+  const pending = ordered("pending");
+  const partners = [...ordered("confirmed"), ...pending.filter(({ card }) => card.cooperation !== "not_cooperating")];
+  const blocked = pending.filter(({ card }) => card.cooperation === "not_cooperating");
+  const orderedCandidates = result.otherRequested ? [...ordered("other"), ...partners] : [...partners, ...ordered("other")];
+  return [...orderedCandidates, ...blocked].slice(0, RECOMMENDED_SCHOOL_COUNT);
 }
 
 export function shownNarrativeCards(result: ScreeningResponse, previousProgramIds: string[] = []): ResultCard[] {
   if (previousProgramIds.length) {
     const available = [...result.results.confirmed, ...result.results.pending, ...result.results.other].filter(isCandidate);
     const selected = previousProgramIds.flatMap((id) => available.find((card) => card.programId === id) ?? []);
-    if (selected.length === previousProgramIds.length && new Set(previousProgramIds).size === previousProgramIds.length) return selected;
+    if (selected.length === previousProgramIds.length && selected.length <= RECOMMENDED_SCHOOL_COUNT
+      && new Set(selected.map(resultSchoolKey)).size === selected.length) return selected;
   }
   return displayCandidates(result, null).map((candidate) => candidate.card);
 }

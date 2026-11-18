@@ -28,8 +28,6 @@ import {
   followUps,
   importBatches,
   programs,
-  recommendationItems,
-  recommendations,
   schools,
   users,
 } from "@/lib/db/schema";
@@ -757,7 +755,7 @@ export async function getCustomer(id: string) {
         .where(eq(users.id, customer.ownerId))
         .limit(1)
     : [];
-  const [followUpRows, applicationRows, documentRows, recommendationRows] =
+  const [followUpRows, applicationRows, documentRows] =
     await Promise.all([
       db
         .select({
@@ -795,29 +793,12 @@ export async function getCustomer(id: string) {
           and(eq(documents.customerId, id), eq(documents.archived, false)),
         )
         .orderBy(desc(documents.createdAt)),
-      db
-        .select({
-          id: recommendations.id,
-          title: recommendations.title,
-          notes: recommendations.notes,
-          createdAt: recommendations.createdAt,
-          itemCount: count(recommendationItems.id),
-        })
-        .from(recommendations)
-        .leftJoin(
-          recommendationItems,
-          eq(recommendationItems.recommendationId, recommendations.id),
-        )
-        .where(eq(recommendations.customerId, id))
-        .groupBy(recommendations.id)
-        .orderBy(desc(recommendations.createdAt)),
     ]);
   return {
     customer: { ...customer, ownerName: owner?.displayName ?? null },
     followUps: followUpRows,
     applications: applicationRows,
     documents: documentRows,
-    recommendations: recommendationRows,
   };
 }
 
@@ -940,14 +921,6 @@ export async function listAuditLogs(page = 1, pageSize = AUDIT_PAGE_SIZE) {
     .get() as { cnt: number };
 
   return { rows, total: totalRow.cnt, page: Math.max(1, page), pageSize };
-}
-
-export async function listCustomerOptions() {
-  return db
-    .select({ id: customers.id, name: customers.name, customerNo: customers.customerNo })
-    .from(customers)
-    .where(eq(customers.archived, false))
-    .orderBy(asc(customers.name));
 }
 
 export async function getSchoolUpdates(schoolId: string) {

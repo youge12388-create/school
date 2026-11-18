@@ -1,8 +1,9 @@
-import { saveRecommendationAction } from "@/app/actions";
 import { ClearScreeningFilters } from "@/components/clear-screening-filters";
 import { MajorPicker, type MajorCatalog } from "@/components/major-picker";
+import { ScreeningPlanForm } from "@/components/screening-plan-form";
 import { ScreeningResultCard } from "@/components/screening-result-card";
 import { EmptyState, PageHeading } from "@/components/ui";
+import { userHasPermission } from "@/lib/access-control";
 import { requirePermission } from "@/lib/auth";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
 import { makeT, makeTv } from "@/lib/i18n/dict";
@@ -15,9 +16,10 @@ import {
   type ScreeningCriteria,
 } from "@/lib/matcher";
 import { isMarketManager } from "@/lib/permissions";
-import { getMajorCatalog, getProgramsForScreening, listCustomerOptions } from "@/lib/queries";
+import { getMajorCatalog, getProgramsForScreening } from "@/lib/queries";
+import { planRegion } from "@/lib/recommendation-profile";
 import { partitionScreeningResults } from "@/lib/screening-results";
-import { asNumber } from "@/lib/utils";
+import { asNumber, newId } from "@/lib/utils";
 
 function parseDateParam(value?: string) {
   if (!value) return null;
@@ -167,6 +169,7 @@ function ResultSection({
   ranks,
   detailParams,
   marketManagerView,
+  canSavePlans,
   t,
   tv,
 }: {
@@ -175,6 +178,7 @@ function ResultSection({
   ranks: Map<string, number>;
   detailParams: Record<string, string | undefined>;
   marketManagerView: boolean;
+  canSavePlans: boolean;
   t: (s: string) => string;
   tv: (s: string, vars: Record<string, string | number>) => string;
 }) {
@@ -194,6 +198,7 @@ function ResultSection({
           rank={ranks.get(result.program.id) ?? 0}
           detailParams={detailParams}
           marketManagerView={marketManagerView}
+          canSelect={canSavePlans}
           key={result.program.id}
         />
       ))}
@@ -212,6 +217,7 @@ export default async function ScreeningPage({
   const t = makeT(locale);
   const tv = makeTv(locale);
   const marketManagerView = isMarketManager(user.role);
+  const canSavePlans = userHasPermission(user, "RECOMMENDATION_MANAGE");
   const criteria = toCriteria(params);
   const hasSearch = hasSearchCriteria(params);
   const showAcademicFilters = hasAnyParam(params, academicFilterKeys);
@@ -220,9 +226,8 @@ export default async function ScreeningPage({
   const showAdditionalFilters =
     hasAnyParam(params, additionalFilterKeys) ||
     Boolean(params.deadlineMode && params.deadlineMode !== "all");
-  const [programs, customers, majorCatalog] = await Promise.all([
+  const [programs, majorCatalog] = await Promise.all([
     hasSearch ? getProgramsForScreening() : Promise.resolve([]),
-    listCustomerOptions(),
     getMajorCatalog(),
   ]);
   const results = hasSearch ? rankPrograms(programs, criteria) : [];
@@ -239,15 +244,73 @@ export default async function ScreeningPage({
   };
   const countText = (n: number) => tv("{n} 个项目", { n });
 
+  const criteriaJson = JSON.stringify(criteria);
+  const resultContent = <>
+    <div className="screening-summary screening-summary-prominent">
+      <strong>{tv("共找到 {n} 个项目", { n: results.length })}</strong>
+      <span className="summary-matched">{tv("可直接申请 {n}", { n: grouped.MATCHED.length })}</span>
+      <span className="summary-need">{tv("需要补充 {n}", { n: grouped.NEEDS_ACTION.length })}</span>
+      <span className="summary-unknown">{tv("信息待核实 {n}", { n: grouped.UNKNOWN.length })}</span>
+      <span>{tv("明确不符合 {n}", { n: notMatchedResults.length })}</span>
+      <span>{tv("已截止 {n}", { n: expiredResults.length })}</span>
+    </div>
+
+    <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} canSavePlans={canSavePlans} t={t} tv={tv} />
+    <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} canSavePlans={canSavePlans} t={t} tv={tv} />
+    <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} canSavePlans={canSavePlans} t={t} tv={tv} />
+
+    {expiredResults.length ? (
+      <details className="card screening-collapsible-group">
+        <summary>
+          <span><strong>{t("已截止项目")}</strong><small>{t("已过期，点击展开查看")}</small></span>
+          <span>{countText(expiredResults.length)}</span>
+        </summary>
+        <div className="screening-collapsible-body">
+          {expiredResults.map((result) => (
+            <ScreeningResultCard
+              result={result}
+              rank={ranks.get(result.program.id) ?? 0}
+              detailParams={detailParams}
+              marketManagerView={marketManagerView}
+              canSelect={false}
+              key={result.program.id}
+            />
+          ))}
+        </div>
+      </details>
+    ) : null}
+
+    {notMatchedResults.length ? (
+      <details className="card screening-collapsible-group">
+        <summary>
+          <span><strong>{t("明确不符合")}</strong><small>{t("默认收起，需要核对原因时再展开")}</small></span>
+          <span>{countText(notMatchedResults.length)}</span>
+        </summary>
+        <div className="screening-collapsible-body">
+          {notMatchedResults.map((result) => (
+            <ScreeningResultCard
+              result={result}
+              rank={ranks.get(result.program.id) ?? 0}
+              detailParams={detailParams}
+              marketManagerView={marketManagerView}
+              canSelect={false}
+              key={result.program.id}
+            />
+          ))}
+        </div>
+      </details>
+    ) : null}
+  </>;
+
   return (
     <>
       <PageHeading
         title={t("学校项目筛查")}
-        description={t("按客户条件查找项目，展开匹配依据后可查看判断细节并保存方案。")}
+        description={t("按申请条件查找项目，核对匹配依据后可保存选校方案。")}
       />
       <form className="card screening-filter-card" method="get">
         <div className="card-header">
-          <h3>{t("客户筛选条件")}</h3>
+          <h3>{t("申请筛选条件")}</h3>
           <div className="header-search">
             <input
               name="q"
@@ -441,83 +504,15 @@ export default async function ScreeningPage({
       <div className="screening-results">
         {!hasSearch ? (
           <EmptyState>{t("填写至少一个筛选条件后查看项目匹配结果")}</EmptyState>
+        ) : results.length === 0 ? (
+          <EmptyState>{t("没有找到符合条件的院校。")}</EmptyState>
         ) : (
-          <form action={saveRecommendationAction}>
-            <div className="toolbar screening-save-toolbar">
-              <label>
-                {t("保存到客户")}
-                <select name="customerId" required>
-                  <option value="">{t("请选择客户")}</option>
-                  {customers.map((customer) => (
-                    <option value={customer.id} key={customer.id}>
-                      {customer.name} · {customer.customerNo}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {t("方案名称")}
-                <input name="title" defaultValue={tv("{y} 项目筛选方案", { y: new Date().getFullYear() })} required />
-              </label>
-              <label className="search">{t("方案备注")}<input name="notes" /></label>
-              <input type="hidden" name="criteriaJson" value={JSON.stringify(criteria)} />
-              <button className="primary" type="submit">{t("保存并生成对比页")}</button>
-            </div>
-
-            <div className="screening-summary screening-summary-prominent">
-              <strong>{tv("共找到 {n} 个项目", { n: results.length })}</strong>
-              <span className="summary-matched">{tv("可直接申请 {n}", { n: grouped.MATCHED.length })}</span>
-              <span className="summary-need">{tv("需要补充 {n}", { n: grouped.NEEDS_ACTION.length })}</span>
-              <span className="summary-unknown">{tv("信息待核实 {n}", { n: grouped.UNKNOWN.length })}</span>
-              <span>{tv("明确不符合 {n}", { n: notMatchedResults.length })}</span>
-              <span>{tv("已截止 {n}", { n: expiredResults.length })}</span>
-            </div>
-
-            <ResultSection fitLevel="MATCHED" results={grouped.MATCHED} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
-            <ResultSection fitLevel="NEEDS_ACTION" results={grouped.NEEDS_ACTION} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
-            <ResultSection fitLevel="UNKNOWN" results={grouped.UNKNOWN} ranks={ranks} detailParams={detailParams} marketManagerView={marketManagerView} t={t} tv={tv} />
-
-                        {expiredResults.length ? (
-              <details className="card screening-collapsible-group">
-                <summary>
-                  <span><strong>{t("已截止项目")}</strong><small>{t("已过期，点击展开查看")}</small></span>
-                  <span>{countText(expiredResults.length)}</span>
-                </summary>
-                <div className="screening-collapsible-body">
-                  {expiredResults.map((result) => (
-                    <ScreeningResultCard
-                      result={result}
-                      rank={ranks.get(result.program.id) ?? 0}
-                      detailParams={detailParams}
-                      marketManagerView={marketManagerView}
-                      key={result.program.id}
-                    />
-                  ))}
-                </div>
-              </details>
-            ) : null}
-
-            {notMatchedResults.length ? (
-              <details className="card screening-collapsible-group">
-                <summary>
-                  <span><strong>{t("明确不符合")}</strong><small>{t("默认收起，需要核对原因时再展开")}</small></span>
-                  <span>{countText(notMatchedResults.length)}</span>
-                </summary>
-                <div className="screening-collapsible-body">
-                  {notMatchedResults.map((result) => (
-                    <ScreeningResultCard
-                      result={result}
-                      rank={ranks.get(result.program.id) ?? 0}
-                      detailParams={detailParams}
-                      marketManagerView={marketManagerView}
-                      key={result.program.id}
-                    />
-                  ))}
-                </div>
-              </details>
-            ) : null}
-
-          </form>
+          canSavePlans ? (
+            <ScreeningPlanForm key={criteriaJson} criteriaJson={criteriaJson} requestId={newId()}
+              title={tv("{y} 项目筛选方案", { y: new Date().getFullYear() })} preferredRegion={planRegion(criteria.province, criteria.city)}>
+              {resultContent}
+            </ScreeningPlanForm>
+          ) : resultContent
         )}
       </div>
     </>

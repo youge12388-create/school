@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFile, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,6 +16,19 @@ import { getProgramsForScreening } from "@/lib/queries";
 import type { MatchProgram } from "@/lib/matcher";
 
 const makeRequest = (message = "想申请硕士") => new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message, criteria: {} }) });
+
+beforeEach(() => {
+  vi.mocked(getCurrentUser).mockReset().mockResolvedValue({
+    id: "test",
+    username: "test",
+    displayName: "测试管理员",
+    role: "ADMIN",
+    authProvider: "LOCAL",
+    active: true,
+    sessionId: "test-session",
+  });
+  vi.mocked(getProgramsForScreening).mockReset().mockResolvedValue([]);
+});
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
@@ -229,18 +242,19 @@ describe("AI 选校接口", () => {
   it("追问还有其他的吗时排除上一轮已展示院校，返回新的知识库候选", async () => {
     const path = join(tmpdir(), `school-ai-more-${randomUUID()}.xlsx`);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ["甲大学"], ["乙大学"]]), "Sheet1");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ["甲大学"], ["乙大学"], ["丙大学"], ["丁大学"]]), "Sheet1");
     await writeFile(path, XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
     const base: MatchProgram = { id: "base", schoolId: "s1", schoolName: "甲大学", schoolTags: null, programName: "计算机硕士", programType: "MASTER", teachingLanguage: "ENGLISH", majorText: "计算机", requirementsText: null, sourceText: null, semesterText: "2027年春季入学", applicationTimeText: null, accommodationText: null, firstYearCostMax: 37000, costIncomplete: false, cscaStatus: "UNKNOWN", gpaMin: null, gpaScale: null, hskLevelMin: null, hskScoreMin: null, ieltsMin: null, toeflMin: null, duolingoMin: null, minAge: null, maxAge: null, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN", scholarshipCategory: null, province: null, city: null, partnershipRating: 0, qsRanking: null, reviewStatus: "AUTO_PARSED" };
     const first = { ...base, id: "p1", schoolId: "s1", schoolName: "甲大学", programName: "甲大学 · 计算机硕士" };
     const second = { ...base, id: "p2", schoolId: "s2", schoolName: "乙大学", programName: "乙大学 · 计算机硕士" };
     const extra = { ...base, id: "p3", schoolId: "s3", schoolName: "丙大学", programName: "丙大学 · 计算机硕士" };
+    const fourth = { ...base, id: "p4", schoolId: "s4", schoolName: "丁大学", programName: "丁大学 · 计算机硕士" };
     try {
       vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
       vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", path);
       vi.stubEnv("AI_SCREENING_SHARED_DIR", join(tmpdir(), `school-ai-empty-${randomUUID()}`));
       vi.stubEnv("AI_SCREENING_PARTNERS_PATH", "");
-      vi.mocked(getProgramsForScreening).mockResolvedValueOnce([first, second, extra]).mockResolvedValueOnce([first, second, extra]);
+      vi.mocked(getProgramsForScreening).mockResolvedValueOnce([first, second, extra, fourth]).mockResolvedValueOnce([first, second, extra, fourth]);
       vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (_url, options) => {
         const body = JSON.parse(String(options?.body));
         const system = String(body.messages?.[0]?.content ?? "");
@@ -250,16 +264,17 @@ describe("AI 选校接口", () => {
         return Response.json({ choices: [{ finish_reason: "stop", message: { content } }] });
       }));
       const initial = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "想申请计算机硕士", criteria: {} }) }))).json();
-      expect(initial.shown.schoolNames.sort()).toEqual(["乙大学", "甲大学"].sort());
+      expect(initial.shown.schoolNames).toHaveLength(3);
+      const allSchools = ["甲大学", "乙大学", "丙大学", "丁大学"];
+      const remainingSchool = allSchools.find((name) => !initial.shown.schoolNames.includes(name))!;
       const more = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "还有其他的吗", criteria: initial.criteria, hasPrevious: true, seenProgramIds: initial.shown.programIds, seenSchoolNames: initial.shown.schoolNames }) }))).json();
-      expect(more.results.confirmed).toHaveLength(0);
+      expect(more.results.confirmed.map((card: { name: string }) => card.name)).toEqual([remainingSchool]);
       expect(more.results.pending).toHaveLength(0);
-      expect(more.results.other.map((card: { name: string }) => card.name)).toEqual(["丙大学"]);
-      expect(more.shown.schoolNames).toEqual(["丙大学"]);
-      expect(more.results.excludedSchoolCount).toBe(2);
+      expect(more.results.other).toHaveLength(0);
+      expect(more.shown.schoolNames).toEqual([remainingSchool]);
+      expect(more.results.excludedSchoolCount).toBe(3);
       expect(more.narrative.lead).toContain("排除了前几轮已展示的院校");
-      expect(JSON.stringify(more.results)).not.toContain("甲大学");
-      expect(JSON.stringify(more.results)).not.toContain("乙大学");
+      for (const name of initial.shown.schoolNames) expect(JSON.stringify(more.results)).not.toContain(name);
     } finally { await unlink(path); }
   });
   it("说明重点分析超时后仍返回可信的自然回答，匿名请求不含内部资料", async () => {

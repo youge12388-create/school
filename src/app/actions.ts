@@ -26,8 +26,6 @@ import {
   programs,
   programMajors,
   schools,
-  recommendationItems,
-  recommendations,
   users,
 } from "@/lib/db/schema";
 import { parseProgram, splitMajors } from "@/lib/program-parser";
@@ -553,50 +551,4 @@ export async function setProgramVerificationAction(formData: FormData) {
   revalidatePath(`/schools/${program.schoolId}`);
   revalidatePath("/schools");
   revalidatePath("/ai-screening");
-}
-
-export async function saveRecommendationAction(formData: FormData) {
-  const user = await requirePermission("RECOMMENDATION_MANAGE");
-  const customerId = asText(formData.get("customerId"));
-  const title = asText(formData.get("title"));
-  const criteriaJson = asText(formData.get("criteriaJson"));
-  const selectedIds = formData.getAll("programIds").map(asText).filter(Boolean);
-  if (!customerId || !title || !selectedIds.length) {
-    throw new Error("客户、方案名称和项目不能为空");
-  }
-  const id = newId();
-  await db.insert(recommendations).values({
-    id,
-    customerId,
-    createdBy: user.id,
-    title,
-    criteriaJson,
-    notes: asText(formData.get("notes")) || null,
-  });
-  const selectedPrograms = await db
-    .select({ id: programs.id })
-    .from(programs)
-    .where(eq(programs.archived, false));
-  const valid = new Set(selectedPrograms.map((item) => item.id));
-  await db.insert(recommendationItems).values(
-    selectedIds
-      .filter((programId) => valid.has(programId))
-      .map((programId, index) => ({
-        id: newId(),
-        recommendationId: id,
-        programId,
-        rank: index + 1,
-        fitLevel: asText(formData.get(`fit_${programId}`)) || "UNKNOWN",
-        reason: asText(formData.get(`reason_${programId}`)) || null,
-        evidenceJson: asText(formData.get(`evidence_${programId}`)) || "[]",
-      })),
-  );
-  await writeAudit({
-    userId: user.id,
-    action: "RECOMMENDATION_SAVED",
-    entityType: "RECOMMENDATION",
-    entityId: id,
-    details: { customerId, itemCount: selectedIds.length },
-  });
-  redirect(`/recommendations/${id}/print`);
 }

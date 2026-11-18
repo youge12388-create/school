@@ -9,7 +9,7 @@
 .plan-index-scope { display: inline-flex; align-items: center; gap: 5px; }
 .plan-index-scope a { border-radius: 7px; padding: 8px 12px; color: var(--text-secondary); font-size: 13px; font-weight: 600; }
 .plan-index-scope a[aria-current] { color: var(--primary-hover); background: var(--primary-soft); }
-.plan-index-search { display: flex; gap: 7px; min-width: 0; flex: 0 1 330px; }
+.plan-index-search { display: flex; gap: 7px; min-width: 0; flex: 0 1 380px; }
 .plan-index-search > div { display: flex; position: relative; flex: 1; align-items: center; min-width: 0; }
 .plan-index-search svg { position: absolute; inset-inline-start: 10px; color: var(--text-secondary); pointer-events: none; }
 .plan-index-search input { padding-inline-start: 33px; min-width: 0; min-height: 36px; font-size: 13px; }
@@ -25,11 +25,11 @@
 .plan-index-list { padding: 0; margin: 0; list-style: none; }
 .plan-index-row + .plan-index-row { border-top: 1px solid var(--border-soft); }
 .plan-index-row:hover { background: var(--surface-hover); }
-.plan-index-title, .plan-index-customer, .plan-index-author { display: grid; min-width: 0; gap: 4px; overflow-wrap: anywhere; }
+.plan-index-title, .plan-index-student, .plan-index-author { display: grid; min-width: 0; gap: 4px; overflow-wrap: anywhere; }
 .plan-index-title a { width: fit-content; color: var(--text); font-weight: 670; }
 .plan-index-title a:hover { color: var(--primary-hover); }
-.plan-index-title span, .plan-index-customer span, .plan-index-author { color: var(--text-secondary); font-size: 12px; }
-.plan-index-customer strong { font-size: 13px; font-weight: 620; }
+.plan-index-title span, .plan-index-student span, .plan-index-author { color: var(--text-secondary); font-size: 12px; }
+.plan-index-student strong { font-size: 13px; font-weight: 620; }
 .plan-index-count { font-variant-numeric: tabular-nums; }
 .plan-index-open { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 7px; }
 .plan-index-open:hover { background: var(--primary-soft); }
@@ -42,16 +42,38 @@
 .plan-index-empty a { margin-top: 4px; }
 
 .plan-detail-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; color: var(--text-secondary); font-size: 13px; }
-.plan-detail-toolbar, .plan-follow-up { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.plan-detail { min-width: 0; }
 .plan-detail-summary { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .plan-detail-summary dt { color: var(--text-secondary); font-size: 12px; }
 .plan-detail-summary dd { margin: 4px 0 0; font-weight: 620; overflow-wrap: anywhere; }
 .plan-detail-caption { margin-top: 13px; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
 .plan-detail-notes { margin-top: 14px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
 .plan-detail-notes p { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.plan-follow-up { padding: 9px 12px; background: var(--bg); border-radius: 8px; font-size: 13px; color: var(--text-secondary); }
-.plan-follow-up [role="alert"] { color: #a52c21; }
-.plan-detail-items .result-title + p { margin-top: 4px; color: var(--text-secondary); }
+.plan-detail-editor { margin-top: 12px; }
+.plan-detail-editor summary { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-hover); cursor: pointer; font-size: 13px; }
+.plan-detail-editor summary::-webkit-details-marker { display: none; }
+.plan-detail-editor form { margin-top: 9px; padding: 13px; border: 1px solid var(--border-soft); border-radius: 8px; }
+.plan-detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.plan-detail-form .plan-notes-field { grid-column: 1 / -1; }
+.plan-detail-form small { color: var(--text-secondary); font-weight: 400; }
+.plan-detail-edit-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px 12px; margin-top: 12px; }
+.plan-detail-error, .plan-detail-saved { font-size: 13px; }
+.plan-detail-error { color: #a52c21; }
+.plan-detail-saved { color: var(--green); }
+.plan-detail-items { margin-top: 24px; }
+.plan-detail-section-head, .plan-school-head, .plan-project-head { display: flex; align-items: center; gap: 10px; }
+.plan-detail-section-head h2 { margin: 0; font-size: 18px; }
+.plan-detail-items .plan-detail-caption { margin: 6px 0 12px; }
+.plan-school + .plan-school { margin-top: 12px; }
+.plan-school-head { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); background: var(--bg); }
+.plan-school-head h3, .plan-project-head h4 { margin: 0; overflow-wrap: anywhere; }
+.plan-school-head p { margin: 2px 0 0; color: var(--text-secondary); font-size: 12px; }
+.plan-school-number { flex: 0 0 auto; display: grid; place-items: center; min-width: 28px; min-height: 28px; color: var(--primary-hover); background: var(--primary-soft); border-radius: 6px; font-size: 13px; font-weight: 650; }
+.plan-project { padding: 12px 16px; }
+.plan-project + .plan-project { border-top: 1px solid var(--border-soft); }
+.plan-project-head { justify-content: space-between; flex-wrap: wrap; margin-bottom: 6px; }
+.plan-project-text { margin: 7px 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.plan-project .evidence-strip { padding: 6px 0 0; }
 
 @media (max-width: 760px) {
   .plan-index-tools, .plan-index-footer { padding-inline: 14px; }
@@ -59,16 +81,24 @@
   .plan-index-columns { display: none; }
   .plan-index-row {
     grid-template-columns: minmax(0, 1fr) auto 34px;
-    grid-template-areas: "title count open" "customer author author";
+    grid-template-areas: "title count open" "student author author";
     align-items: start;
     gap: 9px;
     padding: 12px 14px;
     border-top: 1px solid var(--border-soft);
   }
   .plan-index-title { grid-area: title; }
-  .plan-index-customer { grid-area: customer; }
+  .plan-index-student { grid-area: student; }
   .plan-index-count { grid-area: count; align-self: center; }
   .plan-index-author { grid-area: author; justify-items: end; }
   .plan-index-open { grid-area: open; align-self: center; }
   .plan-detail-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .plan-detail-form { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media print {
+  .plan-detail > .print-only { margin-bottom: 15px; }
+  .plan-detail-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .plan-school-head, .plan-project-head { break-after: avoid; }
+  .plan-project .evidence { break-inside: avoid; }
 }

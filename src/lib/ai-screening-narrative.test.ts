@@ -5,7 +5,7 @@ import type { ScreeningResponse } from "./ai-screening-events";
 
 function card(name: string, group: "listed" | "unknown" = "listed"): ResultCard {
   return {
-    name, schoolId: "private-id", program: "内部项目名称", cooperation: group, fit: "条件待核实", kind: "project", comparableCost: 37000,
+    name, schoolId: `private-id-${name}`, program: "内部项目名称", cooperation: group, fit: "条件待核实", kind: "project", comparableCost: 37000,
     points: [
       { label: "申请学历", level: "PASS", text: "有硕士项目" },
       { label: "专业", level: "PASS", text: "专业信息中包含“计算机”" },
@@ -60,10 +60,10 @@ describe("有依据的自然回答", () => {
     value.results.other = [d];
     const ordered = { selections: (["D", "C", "B", "A"] as const).map((slot) => ({ slot, reasons: ["MAJOR" as const], caution: "INTAKE" as const })) };
     const narrative = createNarrative(value, ordered);
-    expect(narrative.highlights.map((item) => item.programId)).toEqual(["c", "b", "d"]);
+    expect(narrative.highlights.map((item) => item.programId)).toEqual(["c", "b", "a"]);
     expect(shownNarrativeCards(value, ["c", "b", "d"]).map((item) => item.name)).toEqual(["合作丙大学", "合作乙大学", "其他丁大学"]);
     value.results.confirmed = [a]; value.results.pending = [b, c]; value.results.other = [];
-    expect(createNarrative(value, ordered).highlights.map((item) => item.programId)).toEqual(["a", "c"]);
+    expect(createNarrative(value, ordered).highlights.map((item) => item.programId)).toEqual(["a", "c", "b"]);
   });
   it("模型组织解释，服务端只替换本候选的已核验依据", () => {
     const answer = createNarrative(response(), { selections: [{ slot: "A", reasons: ["MAJOR", "BUDGET"], caution: "INTAKE", text: "这所可以先重点联系：{{M1}}，{{M2}}。不过，{{N1}}，建议先向学校核实再推进。", verified: true }] });
@@ -156,11 +156,11 @@ describe("有依据的自然回答", () => {
     value.results.pending = [card("合作甲大学"), card("合作乙大学"), card("未展示大学")];
     value.results.other = [card("其他丁大学", "unknown")];
     for (const item of [...value.results.pending, ...value.results.other]) item.points.push({ label: "授课语言", level: "PASS", text: "项目为英文授课" }, { label: "英语", level: "PASS", text: "至少一项英语成绩达到要求" });
-    value.results.pending[2].points = value.results.pending[2].points.filter((point) => point.label !== "英语");
+    value.results.other[0].points = value.results.other[0].points.filter((point) => point.label !== "英语");
     expect(anonymousNarrativeInput(value).sharedCore).toBe(false);
-    const initial = { selections: (["A", "B", "D", "C"] as const).map((slot) => ({ slot, reasons: ["BUDGET"], caution: "INTAKE" })) };
-    const rewrites = { selections: (["A", "B", "D"] as const).map((slot) => ({ slot, reasons: ["需要核实"], caution: "请确认批次", text: "可以继续了解：{{M2}}。" })) };
-    const reviews = { reviews: (["A", "B", "D"] as const).map((slot) => ({ slot, grounded: true })) };
+    const initial = { selections: (["A", "B", "C", "D"] as const).map((slot) => ({ slot, reasons: ["BUDGET"], caution: "INTAKE" })) };
+    const rewrites = { selections: (["A", "B", "C"] as const).map((slot) => ({ slot, reasons: ["需要核实"], caution: "请确认批次", text: "可以继续了解：{{M2}}。" })) };
+    const reviews = { reviews: (["A", "B", "C"] as const).map((slot) => ({ slot, grounded: true })) };
     const reply = (value: unknown) => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(value) } }] });
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(reply(initial)).mockResolvedValueOnce(reply(rewrites)).mockResolvedValueOnce(reply(reviews));
     vi.stubGlobal("fetch", fetchMock);
@@ -168,18 +168,18 @@ describe("有依据的自然回答", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const answer = createNarrative(value, plan);
     expect(answer.lead).toContain("共同匹配计算机方向、英文授课和英语成绩");
-    expect(answer.highlights.map((item) => item.name)).toEqual(["合作甲大学", "合作乙大学", "其他丁大学"]);
+    expect(answer.highlights.map((item) => item.name)).toEqual(["合作甲大学", "合作乙大学", "未展示大学"]);
     expect(answer.highlights[0].body).toContain("可以继续了解");
     expect(answer.highlights[0].body).not.toContain("授课语言");
     for (const [, options] of fetchMock.mock.calls) expect(String(options?.body)).not.toContain("合作甲大学");
   });
-  it("无候选时如实说明，合作项目明确时不自动补入其他院校", () => {
+  it("无候选时如实说明，可选项目不足三所时用其他院校补齐", () => {
     const empty = response();
     empty.results = { confirmed: [], pending: [], other: [], otherHidden: false };
     expect(createNarrative(empty, null).lead).toContain("暂时没有找到");
     const confirmed = response();
     confirmed.results.confirmed = [card("合作甲大学")]; confirmed.results.pending = [];
-    expect(createNarrative(confirmed, null).highlights.map((item) => item.name)).toEqual(["合作甲大学"]);
+    expect(createNarrative(confirmed, null).highlights.map((item) => item.name)).toEqual(["合作甲大学", "其他乙大学"]);
     expect(createNarrative(confirmed, null).lead).toContain("1 所合作院校可以先核对");
   });
   it("按实际结果简明引出候选，不把待核实说成符合", () => {

@@ -45,28 +45,28 @@ describe("AI 选校结果组装", () => {
     expect(result.pending[0].cooperation).toBe("listed");
     expect(result.other).toHaveLength(1);
   });
-  it("名单内已知条件符合的学校优先，不依赖单独的项目台账", () => {
+  it("名单内已知条件符合的学校优先，候选不足三所时用知识库补齐", () => {
     const open = { ...program, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN" };
     const other = { ...open, id: "other", schoolId: "s2", schoolName: "其他大学" };
     const result = buildResults([row("示例大学", 3)], [open, other], schools, [], { programType: "MASTER" }, false, false);
     expect(result.confirmed).toHaveLength(1);
     expect(result.confirmed[0].cooperation).toBe("listed");
-    expect(result.other).toHaveLength(0);
-    expect(result.otherHidden).toBe(true);
+    expect(result.other).toHaveLength(1);
+    expect(result.otherHidden).toBe(false);
   });
   it("明确不合作优先于台账合作标记", () => {
     const result = buildResults([row("示例大学", 3, "不合作")], [program], schools, [{ name: "示例大学", status: "confirmed" }], {}, true, false);
     expect(result.confirmed).toHaveLength(0);
     expect(result.other).toHaveLength(1);
   });
-  it("区分名单学校与台账确认项目，支持主动查看其他院校", () => {
+  it("区分名单学校与台账确认项目，并在候选不足三所时补充其他院校", () => {
     const open = { ...program, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN" };
     const partner = [{ name: "示例大学", status: "confirmed" as const, programIds: ["p"] }];
     const other = { ...open, id: "other", schoolId: "s2", schoolName: "其他大学" };
     const hidden = buildResults([row("示例大学", 3)], [open, other], schools, partner, {}, false, false);
     expect(hidden.confirmed).toHaveLength(1);
     expect(hidden.confirmed[0].cooperation).toBe("project_confirmed");
-    expect(hidden.other).toHaveLength(0);
+    expect(hidden.other).toHaveLength(1);
     expect(buildResults([row("示例大学", 3)], [open, other], schools, partner, {}, false, true).other).toHaveLength(1);
     expect(buildResults([row("示例大学", 3)], [open], schools, [{ name: "示例大学", status: "confirmed" }], {}, false, false).confirmed[0].cooperation).toBe("listed");
   });
@@ -175,9 +175,16 @@ describe("AI 选校结果组装", () => {
     const open = { ...program, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN" };
     const events: boolean[] = [];
     const progress = { onPartnerSearchComplete: (state: { searchingOthers: boolean }) => events.push(state.searchingOthers) };
-    const partners = [{ name: "示例大学", status: "confirmed" as const, programIds: ["p"] }];
-    buildResults([row("示例大学", 3)], [open], schools, partners, { programType: "MASTER" }, false, false, progress);
-    buildResults([row("示例大学", 3)], [open], schools, partners, { programType: "MASTER" }, false, true, progress);
+    const rows = [row("甲大学", 3), row("乙大学", 4), row("丙大学", 5)];
+    const programs = rows.map((item, index) => ({
+      ...open,
+      id: `open-${index}`,
+      schoolId: `school-${index}`,
+      schoolName: item.name,
+      programName: `${item.name}硕士`,
+    }));
+    buildResults(rows, programs, [], [], { programType: "MASTER" }, false, false, progress);
+    buildResults(rows, programs, [], [], { programType: "MASTER" }, false, true, progress);
     expect(events).toEqual([false, true]);
   });
   it("缺少奖学金资料时保留候选并明确提示，而不是当作不符合", () => {

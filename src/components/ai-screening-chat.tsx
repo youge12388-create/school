@@ -2,20 +2,21 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUp, Check, ChevronDown, ClipboardList, GraduationCap, LoaderCircle, MessageCircle, PencilLine, Plus, Settings2, ShieldAlert, SlidersHorizontal, Square, UserRound } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, ChevronDown, ClipboardList, GraduationCap, LoaderCircle, MessageCircle, PencilLine, Plus, Settings2, ShieldAlert, SlidersHorizontal, Square } from "lucide-react";
 import { PlanDraftPane, type SavedPlan } from "@/components/ai-screening-plan";
 import { PageHeading } from "@/components/ui";
 import { criteriaSchema, schoolIdentityKey, type ChatCriteria, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse, SearchEvent, SearchStep } from "@/lib/ai-screening-events";
 import type { WorkbookInfo, WorkbookPreview } from "@/lib/ai-screening-workbook";
-import { removePlanCandidate, togglePlanCandidate, type DraftPlan } from "@/lib/ai-screening-plan";
-import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgramName, isCandidate, outcomeSummary, presentedProgramIds, presentedSchoolNames, summarizePoints } from "@/lib/ai-screening-presentation";
+import { moveDraftSchool, removePlanCandidate, togglePlanCandidate, type DraftPlan } from "@/lib/ai-screening-plan";
+import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgramName, isCandidate, outcomeSummary, presentedProgramIds, presentedSchoolNames, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
 import "./ai-screening.css";
+import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
 type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; providedCriteria?: ChatCriteria; steps: SearchStep[]; result?: ScreeningResponse; error?: string };
 type ConversationSnapshot = {
   input: string; criteria: ChatCriteria; sensitiveContext: boolean; focusSchool: string | null;
-  turns: Turn[]; draft: DraftPlan | null; savedPlan: SavedPlan | null; profileCustomerId: string;
+  turns: Turn[]; draft: DraftPlan | null; savedPlan: SavedPlan | null;
 };
 let conversationSnapshot: { userId: string; snapshot: ConversationSnapshot } | null = null;
 const PROFILE_STORAGE_KEY = "school-syt.ai-screening-profile.v2";
@@ -178,174 +179,6 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
   </section>;
 }
 
-type CustomerProfile = {
-  id: string;
-  name: string;
-  customerNo: string;
-  criteria: ChatCriteria;
-};
-
-function ProfileLinker({
-  criteria,
-  busy,
-  onLoad,
-}: {
-  criteria: ChatCriteria;
-  busy: boolean;
-  onLoad: (criteria: ChatCriteria, customerId: string) => void;
-}) {
-  const [customers, setCustomers] = useState<CustomerProfile[] | null>(null);
-  const [customerId, setCustomerId] = useState("");
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [unsupportedFields, setUnsupportedFields] = useState<string[]>([]);
-  const hasCriteria = Object.values(criteria).some(
-    (value) => value != null && value !== "",
-  );
-
-  async function loadCustomers() {
-    if (customers) return;
-    try {
-      const response = await fetch("/api/ai-screening/profile", {
-        cache: "no-store",
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "读取客户画像失败。");
-      setCustomers(data.customers as CustomerProfile[]);
-      setUnsupportedFields(Array.isArray(data.unsupportedFields) ? data.unsupportedFields : []);
-      setMessage("");
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "读取客户画像失败。",
-      );
-    }
-  }
-
-  function applyCustomerProfile() {
-    const customer = customers?.find((item) => item.id === customerId);
-    if (!customer) return;
-    const mergedCriteria: ChatCriteria = {
-      ...customer.criteria,
-      intakeSeason: criteria.intakeSeason ?? null,
-      cscaRequirement: criteria.cscaRequirement ?? null,
-      age: criteria.age ?? null,
-    };
-    if (mergedCriteria.scholarshipType == null) {
-      mergedCriteria.scholarshipType = criteria.scholarshipType ?? null;
-    }
-    onLoad(mergedCriteria, customer.id);
-    const loaded = criteriaLabels(mergedCriteria);
-    const retained = unsupportedFields.length
-      ? ` ${unsupportedFields.join("、")}继续使用当前浏览器中的值。`
-      : "";
-    setMessage(
-      loaded.length
-        ? `已载入 ${customer.name} 的 ${loaded.length} 项条件；点击“调整条件”可继续修改。${retained}`
-        : `${customer.name} 的档案还没有可用的申请条件。`,
-    );
-  }
-
-  async function saveProfile() {
-    if (!customerId || !hasCriteria || saving) return;
-    setSaving(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/ai-screening/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId, criteria }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "画像未保存。");
-      if (Array.isArray(data.unsupportedFields)) {
-        setUnsupportedFields(data.unsupportedFields);
-      }
-      const customer = customers?.find((item) => item.id === customerId);
-      const refreshed = await fetch("/api/ai-screening/profile", {
-        cache: "no-store",
-      }).catch(() => null);
-      if (refreshed?.ok) {
-        const latest = await refreshed.json();
-        setCustomers(latest.customers as CustomerProfile[]);
-      }
-      setMessage(
-        `已保存到 ${customer?.name ?? "客户档案"}。${
-          data.unsupportedFields?.length
-            ? ` ${data.unsupportedFields.join("、")}仍只保存在当前浏览器。`
-            : ""
-        }`,
-      );
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "画像未保存。");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <details
-      className="agent-profile-link"
-      onToggle={(event) => {
-        if (event.currentTarget.open) void loadCustomers();
-      }}
-    >
-      <summary>
-        <UserRound size={14} aria-hidden="true" />
-        关联客户画像
-        <ChevronDown size={14} aria-hidden="true" />
-      </summary>
-      <div className="agent-profile-link-body">
-        <p>
-          可把当前条件保存到客户档案，或从已有客户载入。客户档案未覆盖的字段仍只保存在当前浏览器。
-        </p>
-        <div className="agent-profile-link-actions">
-          <label>
-            客户
-            <select
-              value={customerId}
-              onChange={(event) => {
-                setCustomerId(event.target.value);
-                setMessage("");
-              }}
-              disabled={saving || busy || customers === null}
-            >
-              <option value="">
-                {customers === null ? "正在读取客户…" : "请选择客户"}
-              </option>
-              {customers?.map((customer) => (
-                <option value={customer.id} key={customer.id}>
-                  {customer.name} · {customer.customerNo}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={applyCustomerProfile}
-            disabled={!customerId || busy || saving}
-          >
-            载入条件
-          </button>
-          <button
-            type="button"
-            onClick={() => void saveProfile()}
-            disabled={!customerId || !hasCriteria || busy || saving}
-          >
-            {saving ? "正在保存…" : "保存当前条件"}
-          </button>
-        </div>
-        {customers?.length === 0 && (
-          <p>
-            还没有客户，可先
-            <Link href="/customers/new">新建客户</Link>。
-          </p>
-        )}
-        {message && <p role="status">{message}</p>}
-      </div>
-    </details>
-  );
-}
-
 function SearchTrace({ steps, busy }: { steps: SearchStep[]; busy: boolean }) {
   if (!busy) return null;
   if (!steps.length) return <div className="agent-searching" role="status"><LoaderCircle className="agent-spin" size={15} aria-hidden="true" />正在连接选校服务…</div>;
@@ -369,7 +202,7 @@ function SearchHistory({ steps, source }: { steps: SearchStep[]; source?: string
 function CandidatePlanButton({ card }: { card: ResultCard }) {
   const selection = useContext(PlanSelectionContext);
   const result = useContext(ActiveResultContext);
-  if (!selection || !result?.source || !card.programId || !isCandidate(card)) return null;
+  if (!selection || !result?.source || !card.programId || !card.schoolId || !isCandidate(card)) return null;
   const selected = selection.selectedIds.has(card.programId);
   return <button type="button" className="agent-plan-toggle" aria-pressed={selected} disabled={selection.saving}
     onClick={() => selection.toggle(card, result)}
@@ -474,7 +307,7 @@ function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { 
   if (!cards.length) return null;
   const groups = new Map<string, ResultCard[]>();
   cards.forEach((card) => {
-    const key = schoolIdentityKey(card.name);
+    const key = resultSchoolKey(card);
     groups.set(key, [...(groups.get(key) ?? []), card]);
   });
   const schools = [...groups.entries()];
@@ -484,7 +317,7 @@ function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { 
     {items.length > 1 && <details className="agent-extra-programs"><summary>查看该校另外 {items.length - 1} 个项目 <ChevronDown size={14} aria-hidden="true" /></summary>{items.slice(1).map((card, index) => <CandidateDetails key={`${card.program}-${index}`} card={card} />)}</details>}
   </article>;
   return <section className="agent-results">{!hideHeading && <div className="agent-section-title"><h3>{title}</h3><span>{schools.length} 所</span></div>}
-    <div className="agent-result-list">{schools.slice(0, 3).map(renderSchool)}{schools.length > 3 && <details className="agent-more"><summary>查看另外 {schools.length - 3} 所学校 <ChevronDown size={15} aria-hidden="true" /></summary><div className="agent-result-list">{schools.slice(3).map(renderSchool)}</div></details>}</div>
+    <div className="agent-result-list">{schools.slice(0, RECOMMENDED_SCHOOL_COUNT).map(renderSchool)}{schools.length > RECOMMENDED_SCHOOL_COUNT && <details className="agent-more"><summary>查看另外 {schools.length - RECOMMENDED_SCHOOL_COUNT} 所学校 <ChevronDown size={15} aria-hidden="true" /></summary><div className="agent-result-list">{schools.slice(RECOMMENDED_SCHOOL_COUNT).map(renderSchool)}</div></details>}</div>
   </section>;
 }
 
@@ -536,6 +369,14 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
   const otherSchools = other.filter((card) => !isCandidate(card));
   const listName = admissionListLabel(result.source);
   const otherResults = <><ResultSection title={admissionGroupLabel(result.source, "other")} cards={otherProjects} /><IncompleteResults title="知识库院校资料不足" cards={otherSchools} /></>;
+  const allResults = <>
+    {result.otherRequested && otherResults}
+    <ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} />
+    <ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" />
+    <IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />
+    {!result.otherRequested && otherResults}
+  </>;
+  const hasResults = confirmed.length > 0 || pending.length > 0 || other.length > 0;
   if (result.answer) return <div className="agent-answer"><div className="agent-answer-intro"><p className="agent-outcome">{result.answer.lead}</p>{result.answer.details.length > 0 && <p className="agent-followup-detail">{result.answer.details.join(" ")}</p>}{result.answer.note && <p className="agent-followup-note">{result.answer.note}</p>}{result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}</div>{(confirmed.length > 0 || pending.length > 0 || other.length > 0 || otherHidden) && <details className="agent-incomplete"><summary><span>查看本轮依据</span><ChevronDown size={16} aria-hidden="true" /></summary>{result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}{otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}</details>}</div>;
   if (result.narrative) return <div className="agent-answer">
     <div className="agent-answer-intro"><p className="agent-outcome">{result.narrative.lead}</p>
@@ -544,7 +385,7 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
     <CandidateComparison result={result} />
     <NarrativeSchoolGroups result={result} />
     {result.narrative.next && <p className="agent-narrative-next">{result.narrative.next}</p>}
-    {(confirmed.length > 0 || pending.length > 0 || other.length > 0) && <details className="agent-narrative-results"><summary>查看全部依据 <ChevronDown size={15} aria-hidden="true" /></summary>
+    {hasResults && <details className="agent-narrative-results"><summary>查看更多项目与匹配依据 <ChevronDown size={15} aria-hidden="true" /></summary>
       {conditions.length > 0 && <div className="agent-criteria" aria-label="已识别的申请条件">{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}
       {result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}
     </details>}
@@ -556,11 +397,8 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
       {result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}
     </div>
     <CandidateComparison result={result} />
-    {result.otherRequested && otherResults}
-    <ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} />
-    <ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" />
-    <IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />
-    {!result.otherRequested && otherResults}
+    <ResultSection title="优先查看" cards={comparisonCards(result)} />
+    {hasResults && <details className="agent-narrative-results"><summary>查看更多项目与匹配依据 <ChevronDown size={15} aria-hidden="true" /></summary>{allResults}</details>}
     {!confirmed.length && !pending.length && !other.length && <div className="agent-empty-result"><strong>没有找到可展示的院校。</strong><p>试试放宽专业、预算或入学时间。</p></div>}
     {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}
     {result.prompt.startsWith("想进一步") && <p className="agent-follow-up">{result.prompt}</p>}
@@ -625,12 +463,10 @@ function WorkbookManager({ canManage, refreshKey }: { canManage: boolean; refres
   </div>;
 }
 
-export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSavePlans, canCreateCustomer }: {
+export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
   userId: string;
   canManageWorkbook: boolean;
-  canViewPlans: boolean;
   canSavePlans: boolean;
-  canCreateCustomer: boolean;
 }) {
   const [input, setInput] = useState("");
   const [criteria, setCriteria] = useState<ChatCriteria>({});
@@ -641,7 +477,6 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
   const [panel, setPanel] = useState<"chat" | "draft">("chat");
   const [draft, setDraft] = useState<DraftPlan | null>(null);
   const [savedPlan, setSavedPlan] = useState<SavedPlan | null>(null);
-  const [profileCustomerId, setProfileCustomerId] = useState("");
   const [savingPlan, setSavingPlan] = useState(false);
   const [draftNotice, setDraftNotice] = useState<{ message: string; error?: boolean } | null>(null);
   const [feedbackSaved, setFeedbackSaved] = useState<Record<string, "relevant" | "not_relevant">>({});
@@ -655,8 +490,9 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
   const toolRef = useRef<HTMLDetailsElement>(null);
   const latest = turns[turns.length - 1];
   const selectedIds = new Set(draft?.items.map((item) => item.programId));
+  const selectedSchoolCount = new Set(draft?.items.map((item) => item.schoolId)).size;
   const profileKey = `${PROFILE_STORAGE_KEY}.${userId}`;
-  const snapshotRef = useRef<ConversationSnapshot>({ input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan, profileCustomerId });
+  const snapshotRef = useRef<ConversationSnapshot>({ input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan });
   const restoring = useRef(false);
   const profileRestored = useRef(false);
 
@@ -668,8 +504,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
       queueMicrotask(() => {
         setInput(saved.input); setCriteria(saved.criteria); setSensitiveContext(saved.sensitiveContext); setFocusSchool(saved.focusSchool); setTurns(saved.turns);
         setDraft(canSavePlans ? saved.draft : null);
-        setSavedPlan(canViewPlans ? saved.savedPlan : null);
-        setProfileCustomerId(canViewPlans ? saved.profileCustomerId : "");
+        setSavedPlan(canSavePlans ? saved.savedPlan : null);
         sequence.current = Math.max(0, ...saved.turns.map((turn) => turn.id));
         restoring.current = false;
       });
@@ -687,11 +522,11 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
       conversationSnapshot = { userId, snapshot: { ...current, turns: current.turns.map((turn) =>
         !turn.result && !turn.error ? { ...turn, error: "已停止检索。" } : turn) } };
     };
-  }, [canSavePlans, canViewPlans, profileKey, userId]);
+  }, [canSavePlans, profileKey, userId]);
 
   useEffect(() => {
-    if (!restoring.current) snapshotRef.current = { input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan, profileCustomerId };
-  }, [input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan, profileCustomerId]);
+    if (!restoring.current) snapshotRef.current = { input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan };
+  }, [input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan]);
 
   useEffect(() => {
     if (!profileRestored.current) return;
@@ -807,7 +642,6 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
     setCriteria({});
     setSensitiveContext(false);
     setFocusSchool(null);
-    setProfileCustomerId("");
     setFeedbackStatus("");
     setPanel("chat");
     setDraftNotice(draft?.items.length ? { message: "已开启新对话，原草稿仍保留。" } : null);
@@ -816,7 +650,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
 
   function selectCandidate(card: ResultCard, result: ScreeningResponse) {
     if (savingPlan) return;
-    const next = togglePlanCandidate(draft, card, result, profileCustomerId);
+    const next = togglePlanCandidate(draft, card, result);
     setDraft(next.draft);
     setDraftNotice({ message: next.notice, error: next.error });
   }
@@ -827,7 +661,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
         <div className="agent-page">
           <PageHeading title="AI 选校" description="查找院校项目，比较匹配依据，把选定的项目整理成方案。" action={
             <div className="agent-page-actions">
-              {canViewPlans && <Link href="/recommendations" prefetch={false} className="button"><ClipboardList size={15} aria-hidden="true" />方案记录</Link>}
+              {canSavePlans && <Link href="/recommendations" prefetch={false} className="button"><ClipboardList size={15} aria-hidden="true" />方案记录</Link>}
               <button type="button" onClick={newConversation} disabled={busy || savingPlan || (!turns.length && !input.trim() && !criteriaLabels(criteria).length)}>
                 <Plus size={16} aria-hidden="true" />新对话
               </button>
@@ -839,7 +673,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
               <MessageCircle size={16} aria-hidden="true" />对话
             </button>
             <button type="button" aria-pressed={panel === "draft"} onClick={() => setPanel("draft")} aria-controls="agent-draft-panel">
-              <ClipboardList size={16} aria-hidden="true" />方案草稿{selectedIds.size ? ` · ${selectedIds.size}` : ""}
+              <ClipboardList size={16} aria-hidden="true" />方案草稿{selectedSchoolCount ? ` · ${selectedSchoolCount} 所` : ""}
             </button>
           </div>}
 
@@ -855,10 +689,6 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
                       if (toolRef.current) toolRef.current.open = false;
                       void run("按已更新的申请条件重新筛选。", criteria, false, sensitiveContext, focusSchool, next);
                     }} />
-                    {canViewPlans && <ProfileLinker criteria={criteria} busy={busy} onLoad={(profile, customerId) => {
-                      setCriteria(profile);
-                      setProfileCustomerId(customerId);
-                    }} />}
                     <WorkbookManager canManage={canManageWorkbook} refreshKey={latest?.result ? latest.id : 0} />
                     {canManageWorkbook && <Link className="agent-settings-link" href="/settings"><Settings2 size={14} aria-hidden="true" />API 设置</Link>}
                   </div>
@@ -932,9 +762,10 @@ export function AiScreeningChat({ userId, canManageWorkbook, canViewPlans, canSa
             </section>
 
             {canSavePlans && <aside className="agent-draft-panel" id="agent-draft-panel" aria-label="选校方案草稿">
-              <PlanDraftPane draft={draft} saved={savedPlan} saving={savingPlan} canCreateCustomer={canCreateCustomer}
+              <PlanDraftPane draft={draft} saved={savedPlan} saving={savingPlan}
                 onChange={(fields) => setDraft((current) => current ? { ...current, ...fields } : null)}
                 onRemove={(programId) => { setDraft((current) => removePlanCandidate(current, programId)); setDraftNotice(null); }}
+                onMove={(schoolId, offset) => setDraft((current) => current ? moveDraftSchool(current, schoolId, offset) : null)}
                 onClear={() => { setDraft(null); setDraftNotice(null); }}
                 onSaving={setSavingPlan}
                 onSaved={(plan) => { setSavedPlan(plan); setDraft(null); setDraftNotice({ message: "已保存到方案记录。" }); }}

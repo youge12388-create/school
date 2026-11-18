@@ -18,7 +18,7 @@ const groups = [
     { href: "/schools/noted", label: "特别备注院校", icon: StickyNote, access: permit("SCHOOL_VIEW_PUBLIC") },
     { href: "/screening", label: "学校筛查", icon: SearchCheck, access: permit("SCREENING_VIEW") },
     { href: "/ai-screening", label: "AI 选校", icon: MessageCircle, access: permit("SCREENING_VIEW") },
-    { href: "/recommendations", label: "方案记录", icon: ClipboardList, access: permit("CUSTOMER_VIEW") },
+    { href: "/recommendations", label: "方案记录", icon: ClipboardList, access: permit("RECOMMENDATION_MANAGE") },
   ] },
   { label: "管理", items: [
     { href: "/imports", label: "数据导入", icon: Database, access: permit("DATA_IMPORT") },

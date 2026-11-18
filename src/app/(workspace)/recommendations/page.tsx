@@ -14,10 +14,10 @@ import "./recommendations.css";
 export default async function RecommendationsPage({ searchParams }: {
   searchParams: Promise<{ q?: string; scope?: string; page?: string }>;
 }) {
-  const user = await requirePermission("CUSTOMER_VIEW");
+  const user = await requirePermission("RECOMMENDATION_MANAGE");
   const t = await getT();
   const permissions = getUserPermissions(user);
-  const canStart = permissions.includes("SCREENING_VIEW") && permissions.includes("RECOMMENDATION_MANAGE");
+  const canStart = permissions.includes("SCREENING_VIEW");
   const params = await searchParams;
   const query = (typeof params.q === "string" ? params.q : "").trim().slice(0, 100);
   const mine = params.scope === "mine";
@@ -37,7 +37,7 @@ export default async function RecommendationsPage({ searchParams }: {
     <>
       <PageHeading
         title={t("方案记录")}
-        description={t("找回已保存的选校方案，查看候选项目和后续进度。")}
+        description={t("按学生、地区或院校查找已保存的选校方案。")}
         action={canStart ? <Link className="button primary" href="/ai-screening">{t("开始选校")} <ArrowUpRight size={16} aria-hidden="true" /></Link> : undefined}
       />
       <section className="card plan-index" aria-label={t("已保存的方案")}>
@@ -51,7 +51,7 @@ export default async function RecommendationsPage({ searchParams }: {
             <div>
               <Search size={16} aria-hidden="true" />
               <input name="q" type="search" defaultValue={query} maxLength={100}
-                aria-label={t("搜索方案名、客户或学校")} placeholder={t("搜索方案名、客户或学校")} />
+                aria-label={t("搜索姓名、地区、方案名或学校")} placeholder={t("搜索姓名、地区、方案名或学校")} />
             </div>
             <button type="submit">{t("搜索")}</button>
           </form>
@@ -60,8 +60,8 @@ export default async function RecommendationsPage({ searchParams }: {
           <>
             <div className="plan-index-columns" aria-hidden="true">
               <span>{t("方案")}</span>
-              <span>{t("关联客户")}</span>
-              <span>{t("项目数")}</span>
+              <span>{t("学生与地区")}</span>
+              <span>{t("学校数")}</span>
               <span>{t("保存信息")}</span>
               <span />
             </div>
@@ -72,11 +72,12 @@ export default async function RecommendationsPage({ searchParams }: {
                     <Link href={`/recommendations/${plan.id}/print`}>{plan.title}</Link>
                     <span>{t(plan.mode === "ai" ? "AI 选校" : "条件筛查")}</span>
                   </div>
-                  <div className="plan-index-customer">
-                    <strong>{plan.customerName}</strong>
-                    <span>{plan.customerNo}{plan.customerArchived ? ` · ${t("已归档")}` : ""}</span>
+                  <div className="plan-index-student">
+                    <strong>{plan.studentName || t("姓名未记录")}</strong>
+                    <span>{t("所在地")}：{plan.studentRegion || t("未记录")}</span>
+                    <span>{t("意向地区")}：{plan.preferredRegion || t("未记录")}</span>
                   </div>
-                  <div className="plan-index-count"><Badge>{plan.itemCount} {t("个项目")}</Badge></div>
+                  <div className="plan-index-count"><Badge>{plan.schoolCount} {t("所学校")}</Badge></div>
                   <div className="plan-index-author"><span>{formatDate(plan.createdAt)}</span><span>{plan.authorName || "—"}</span></div>
                   <Link className="plan-index-open" href={`/recommendations/${plan.id}/print`}
                     aria-label={`${t("打开方案")}：${plan.title}`} title={t("打开方案")}><ArrowUpRight size={17} aria-hidden="true" /></Link>
@@ -92,7 +93,7 @@ export default async function RecommendationsPage({ searchParams }: {
           <div className="plan-index-empty">
             <ClipboardList size={26} aria-hidden="true" />
             <h2>{t(query ? "没有找到匹配的方案" : mine ? "你还没有保存方案" : "还没有已保存的方案")}</h2>
-            <p>{t(query ? "试试其他方案名、客户编号或学校名称。" : "在 AI 选校中把项目加入草稿并保存，之后可在这里找回。")}</p>
+            <p>{t(query ? "试试其他姓名、地区、方案名或学校名称。" : "在 AI 选校或学校筛查中选好项目并保存，之后可在这里找回。")}</p>
             {query ? <Link className="button" href={mine ? "/recommendations?scope=mine" : "/recommendations"}>{t("清除搜索")}</Link> : canStart ? (
               <Link className="button" href="/ai-screening">{t("开始选校")}</Link>
             ) : null}

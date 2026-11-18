@@ -83,15 +83,21 @@ describe("后续提问", () => {
     value.results.otherHidden = true;
     expect(followUpAnswer("compare_cost", "哪个最便宜", value, true).note).toContain("其他院校尚未纳入比较");
   });
-  it("这几所只比较刚才展示的项目，明确说全部时才比较隐藏候选", () => {
+  it("这几所只比较刚才展示的前三所，明确说全部时才比较未展示候选", () => {
     const value = response();
-    value.results.pending = [value.results.confirmed[0], value.results.pending[0], card("隐藏丙大学", 1000)]; value.results.confirmed = [];
+    value.results.pending = [
+      value.results.confirmed[0],
+      value.results.pending[0],
+      card("展示丙大学", 1000),
+      card("未展示丁大学", 500),
+    ];
+    value.results.confirmed = [];
     const shown = followUpAnswer("compare_cost", "这几所学校哪个最便宜", value, true);
-    expect(shown.lead + shown.details.join()).not.toContain("隐藏丙大学");
+    expect(shown.lead + shown.details.join()).not.toContain("未展示丁大学");
     expect(shown.note).toContain("只比较刚才展示的项目");
     const all = followUpAnswer("compare_cost", "所有候选院校哪个最便宜", value, true);
-    expect(all.lead).toContain("隐藏丙大学");
-    expect(schoolFactAnswer("TUITION", "第三所的学费多少？", value, true).school).toBe("其他大学");
+    expect(all.lead).toContain("未展示丁大学");
+    expect(schoolFactAnswer("TUITION", "第三所的学费多少？", value, true).school).toBe("展示丙大学");
   });
   it("追问明确不合作的学校时保留状态提醒", () => {
     const value = response();

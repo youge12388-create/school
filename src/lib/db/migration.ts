@@ -100,6 +100,13 @@ export function migrateDatabase(databaseFile?: string) {
         "utf8",
       ),
     },
+    {
+      name: "0009_screening_plans",
+      sql: readFileSync(
+        resolve(process.cwd(), "drizzle/0009_screening_plans.sql"),
+        "utf8",
+      ),
+    },
   ];
 
   database.exec(`

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { FitLevel, RankedProgram } from "./matcher";
-import { parseMajorItems, partitionScreeningResults } from "./screening-results";
+import { isScreeningPlanEligible, parseMajorItems, partitionScreeningResults } from "./screening-results";
 
 function makeResult(
   id: string,
@@ -18,6 +18,14 @@ function makeResult(
 }
 
 describe("screening result presentation", () => {
+  it("only current or verifiable projects can be saved to a plan", () => {
+    expect(isScreeningPlanEligible(makeResult("matched", "MATCHED", "OPEN"))).toBe(true);
+    expect(isScreeningPlanEligible(makeResult("needs-action", "NEEDS_ACTION", "OPEN"))).toBe(true);
+    expect(isScreeningPlanEligible(makeResult("unknown", "UNKNOWN", "UNKNOWN"))).toBe(true);
+    expect(isScreeningPlanEligible(makeResult("expired", "MATCHED", "EXPIRED"))).toBe(false);
+    expect(isScreeningPlanEligible(makeResult("not-matched", "NOT_MATCHED", "OPEN"))).toBe(false);
+  });
+
   it("keeps expired not-matched projects only in the collapsed not-matched group", () => {
     const expiredNotMatched = makeResult("expired-not-matched", "NOT_MATCHED", "EXPIRED");
     const expiredMatched = makeResult("expired-matched", "MATCHED", "EXPIRED");
