@@ -17,7 +17,20 @@ function forwardedHost(request: Request) {
   return host && SAFE_HOST_PATTERN.test(host) ? host : null;
 }
 
+function configuredOrigin(): string | null {
+  const value = process.env.APP_PUBLIC_ORIGIN;
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && url.pathname === "/" && !url.search && !url.hash ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 export function appUrl(request: Request, path: string) {
+  const origin = configuredOrigin();
+  if (origin) return new URL(path, origin);
   const url = new URL(request.url);
   const host = requestHost(request);
   const protocol = getTrustedForwardedProtocol(request);
@@ -42,6 +55,9 @@ export function isSameOrigin(request: Request) {
     return false;
   }
   if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") return false;
+
+  const configured = configuredOrigin();
+  if (configured) return originUrl.origin === configured;
 
   const requestUrl = new URL(request.url);
   const protocol = getTrustedForwardedProtocol(request);

@@ -7,6 +7,11 @@ afterEach(() => {
 });
 
 describe("appUrl", () => {
+  it("uses the configured HTTPS origin for redirects behind a proxy", () => {
+    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://school.example");
+    const req = new Request("http://localhost:3000/login", { headers: { host: "school.example:443" } });
+    expect(String(appUrl(req, "/dashboard"))).toBe("https://school.example/dashboard");
+  });
   it("preserves the browser host when Next normalizes request.url", () => {
     const request = new Request("http://localhost:3000/api/auth/login", {
       headers: { host: "127.0.0.1:3000" },
@@ -42,6 +47,12 @@ describe("appUrl", () => {
 });
 
 describe("isSameOrigin", () => {
+  it("accepts only the configured public origin even without proxy protocol headers", () => {
+    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://school.example");
+    const req = (origin: string) => new Request("http://localhost:3000/login", { method: "POST", headers: { origin, host: "school.example:443" } });
+    expect(isSameOrigin(req("https://school.example"))).toBe(true);
+    expect(isSameOrigin(req("https://evil.example"))).toBe(false);
+  });
   it("accepts the browser origin even when the internal request host differs", () => {
     const request = new Request("https://internal.example/api/customers", {
       method: "POST",
