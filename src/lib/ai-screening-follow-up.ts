@@ -31,6 +31,36 @@ export function followUpIntent(message: string): FollowUpIntent | null {
   return null;
 }
 
+export function shownGroupTopic(message: string): "TUITION" | "INTAKE" | null {
+  if (!/(?:这|那)(?:几|三|两|四|五|些|列出的|推荐的)(?:所|个|些)?|刚(?:才)?(?:推荐|展示|列出)的|上面(?:的|列出的)/u.test(message)) return null;
+  if (/学费/u.test(message)) return "TUITION";
+  if (/开班|开学|入学|招生批次|招生季/u.test(message)) return "INTAKE";
+  return null;
+}
+
+export function shownGroupAnswer(topic: "TUITION" | "INTAKE", message: string, result: ScreeningResponse, previousProgramIds: string[]): FollowUpAnswer {
+  const available = [...result.results.confirmed, ...result.results.pending, ...result.results.other];
+  const cards = [...new Set(previousProgramIds)].flatMap((id) => available.find((card) => card.programId === id) ?? []);
+  if (!cards.length) return { lead: "当前没有可核对的上一轮推荐项目，请先重新检索。", details: [] };
+  if (topic === "INTAKE") {
+    const year = message.match(/20\d{2}/u)?.[0];
+    const season = /春季|春学期/u.test(message) ? "SPRING" : /夏季|夏学期/u.test(message) ? "SUMMER" : /秋季|秋学期/u.test(message) ? "AUTUMN" : /冬季|冬学期/u.test(message) ? "WINTER" : null;
+    const batch = (year && year !== String(result.criteria.intakeYear ?? "")) || (season && season !== result.criteria.intakeSeason);
+    return { lead: "我按刚推荐的项目逐一核对了开班资料。", details: cards.map((card) => {
+      const point = card.points.find((item) => item.label === "入学季");
+      return `${programLabel(card)}：${!batch && point?.level === "PASS" ? point.text.replace(/[。；;]+$/u, "") + "，实际开班仍需学校确认" : "没有足够依据确认目标批次开班"}。`;
+    }), note: "招生名单中的学校记录需与具体项目、年份和季节一起核对。" };
+  }
+  const known = cards.filter((card) => card.facts?.tuitionStatus === "known" && card.facts.tuition != null);
+  const lowest = known.length >= 2 ? Math.min(...known.map((card) => card.facts!.tuition!)) : null;
+  const lowestNames = lowest == null ? [] : known.filter((card) => card.facts!.tuition === lowest).map((card) => card.name);
+  return {
+    lead: lowest == null ? "刚推荐的项目中，可比的单列学费不足，暂时无法判断哪所更低。" : `在有单列学费记录的项目中，${lowestNames.join("、")}的名单金额最低，为 ${lowest.toLocaleString("zh-CN")} 元/年。`,
+    details: cards.map((card) => `${programLabel(card)}：${card.facts?.tuitionStatus === "conflict" ? "学费来源存在冲突" : card.facts?.tuitionStatus === "known" && card.facts.tuition != null ? `招生名单 ${card.facts.tuition.toLocaleString("zh-CN")} 元/年` : "暂无单列学费"}。`),
+    note: "名单金额适用的项目和批次需向学校确认。",
+  };
+}
+
 export function factQuestion(message: string): FactTopic | null {
   if (followUpIntent(message) === "compare_cost") return null;
   if (!/(?:多少|几|什么|怎样|怎么|是否|有没有|有吗|需要吗|要不要|够吗|吗|嘛|[?？])/u.test(message)) return null;

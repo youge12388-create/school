@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { advisorFollowUpAnswer, factQuestion, followUpAnswer, followUpIntent, schoolFactAnswer } from "./ai-screening-follow-up";
+import { advisorFollowUpAnswer, factQuestion, followUpAnswer, followUpIntent, schoolFactAnswer, shownGroupAnswer, shownGroupTopic } from "./ai-screening-follow-up";
 import type { ResultCard } from "./ai-screening";
 import type { ScreeningResponse } from "./ai-screening-events";
 
@@ -14,6 +14,23 @@ function response(): ScreeningResponse {
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("后续提问", () => {
+  it("按刚展示的项目顺序回答多校学费和开班问题", () => {
+    const value = response();
+    value.results.confirmed[0].programId = "a";
+    value.results.pending[0].programId = "b";
+    value.results.other[0].programId = "c";
+    expect(shownGroupTopic("这几所学校哪所学费更低？")).toBe("TUITION");
+    expect(shownGroupTopic("这些推荐项目已经确认2027年春季开班了吗？")).toBe("INTAKE");
+    expect(shownGroupTopic("北京大学学费多少？")).toBeNull();
+    const ids = ["b", "a"];
+    for (const topic of ["TUITION", "INTAKE"] as const) {
+      const result = shownGroupAnswer(topic, "这几所呢？", value, ids);
+      expect(result.details).toHaveLength(2);
+      expect(result.details[0]).toContain("合作乙大学");
+      expect(result.details[1]).toContain("合作甲大学");
+      expect(result.details.join()).not.toContain("其他大学");
+    }
+  });
   it("识别费用比较和推荐理由，但不把调整预算当费用比较", () => {
     expect(followUpIntent("哪所学校最便宜？")).toBe("compare_cost");
     expect(followUpIntent("为什么推荐第一所？")).toBe("explain");

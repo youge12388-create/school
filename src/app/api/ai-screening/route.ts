@@ -9,7 +9,7 @@ import { containsPersonalContact, containsSensitiveRestriction } from "@/lib/ai-
 import { extractScreeningIntent, otherSchoolsPreference, screeningHistorySchema } from "@/lib/ai-screening-intent";
 import { isCandidate } from "@/lib/ai-screening-presentation";
 import { WorkbookError } from "@/lib/ai-screening-workbook";
-import { advisorFollowUpAnswer, factQuestion, followUpIntent, schoolFactAnswer } from "@/lib/ai-screening-follow-up";
+import { advisorFollowUpAnswer, factQuestion, followUpIntent, schoolFactAnswer, shownGroupAnswer, shownGroupTopic } from "@/lib/ai-screening-follow-up";
 import { chooseNarrativeFocus, createNarrative } from "@/lib/ai-screening-narrative";
 import type { SearchEvent, ScreeningResponse } from "@/lib/ai-screening-events";
 import { isSameOrigin } from "@/lib/http";
@@ -30,7 +30,10 @@ function errorMessage(error: unknown) {
 async function search(data: z.infer<typeof requestSchema>, user: { id: string; role: string }, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
   const step = (id: "understand" | "cooperation" | "alternatives" | "summary", status: "active" | "done" | "warning" | "skipped", message: string) => emit({ type: "progress", step: { id, status, message } });
   step("understand", "active", "正在理解学生的申请需求");
-  const extracted = data.criteriaOverride
+  const groupTopic = data.hasPrevious && !data.criteriaOverride ? shownGroupTopic(data.message) : null;
+  const extracted = groupTopic
+    ? { criteria: data.criteria, showOther: false, intent: "school_fact" as const, topic: groupTopic, reply: null }
+    : data.criteriaOverride
     ? { criteria: data.criteriaOverride, showOther: false, intent: "search" as const, topic: null, reply: null }
     : await extractScreeningIntent({ message: data.message, criteria: data.criteria, history: data.history, hasPrevious: data.hasPrevious }, { signal });
   step("understand", "done", "已整理本次申请条件");
@@ -51,7 +54,7 @@ async function search(data: z.infer<typeof requestSchema>, user: { id: string; r
   const partnerConfigured = Boolean(process.env.AI_SCREENING_PARTNERS_PATH);
   let searchingOthers = false;
   const recognizedFact = data.hasPrevious ? factQuestion(data.message) : null;
-  const intent = recognizedFact ? "school_fact" : followUpIntent(data.message) ?? (extracted.intent === "chat" || extracted.intent === "school_fact" && !data.hasPrevious ? "search" : extracted.intent) ?? "search";
+  const intent = groupTopic || recognizedFact ? "school_fact" : followUpIntent(data.message) ?? (extracted.intent === "chat" || extracted.intent === "school_fact" && !data.hasPrevious ? "search" : extracted.intent) ?? "search";
   const otherRequested = data.showOther || (otherPreference !== false && (otherPreference === true || Boolean(extracted.showOther) || (intent !== "search" && data.previousOtherRequested)));
   const evaluationCriteria = intent === "school_fact" ? data.criteria : extracted.criteria;
   const exclusions = otherRequested && intent === "search" ? { schoolKeys: data.seenSchoolNames, programIds: data.seenProgramIds } : undefined;
@@ -74,11 +77,18 @@ async function search(data: z.infer<typeof requestSchema>, user: { id: string; r
   const prompt = missing.length ? `想进一步缩小范围，可以告诉我${missing.slice(0, 2).join("和")}。` : "如果想调整条件，直接告诉我就可以。";
   const sensitiveContext = data.sensitiveContext || /国籍|国别|生源|种族|肤色|皮肤|宗教|穆斯林|伊斯兰|孟加拉|巴基斯坦|印度|尼日利亚|非洲|南亚|东南亚|中亚|俄罗斯|越南|泰国|缅甸|韩国|菲律宾/iu.test(data.message);
   const response: ScreeningResponse = { criteria: evaluationCriteria, results, source: list.name, partnerConfigured, otherRequested, sensitiveContext, prompt };
-  if (intent === "school_fact") {
+  if (groupTopic) response.answer = shownGroupAnswer(groupTopic, data.message, response, data.previousProgramIds);
+  else if (intent === "school_fact") {
     const topic = recognizedFact ?? extracted.topic;
     response.answer = topic ? schoolFactAnswer(topic, data.message, response, data.hasPrevious, data.focusSchool, data.previousProgramIds) : { lead: "您想了解哪所学校的哪项信息？可以问学费、入学时间、语言要求或奖学金。", details: [] };
   } else if (intent !== "search") response.answer = await advisorFollowUpAnswer(intent, data.message, response, data.hasPrevious, data.focusSchool, data.previousProgramIds, signal);
-  else response.narrative = createNarrative(response, await chooseNarrativeFocus(response, signal, data.message));
+  else if (evaluationCriteria.strictMajor && evaluationCriteria.targetMajor && ![...results.confirmed, ...results.pending, ...results.other].some(isCandidate)) {
+    response.shown = { programIds: [], schoolNames: [] };
+    response.answer = { lead: `没有找到符合本轮条件、专业名称确切匹配「${evaluationCriteria.targetMajor}」的项目。`, details: [] };
+  } else if (evaluationCriteria.cscaRequirement === "NOT_REQUIRED" && ![...results.confirmed, ...results.pending, ...results.other].some(isCandidate)) {
+    response.shown = { programIds: [], schoolNames: [] };
+    response.answer = { lead: "目前没有找到符合本轮条件且明确不要求 CSCA 的项目。", details: [] };
+  } else response.narrative = createNarrative(response, await chooseNarrativeFocus(response, signal, data.message));
   if (response.narrative) {
     response.shown = {
       programIds: [...new Set(response.narrative.highlights.flatMap((item) => item.programId ? [item.programId] : []))],

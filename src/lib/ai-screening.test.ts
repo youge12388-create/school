@@ -86,6 +86,14 @@ describe("AI 选校结果组装", () => {
     expect(redactPreferenceSource("某类申请人更受欢迎")).toContain("需人工核实");
     expect(redactPreferenceSource("无特殊要求")).toBe("无特殊要求");
   });
+  it("严格专业只接受专业列表里的完整名称", () => {
+    const criteria = { targetMajor: "计算机", strictMajor: true };
+    const exact = { ...program, id: "exact", majorText: "数学、计算机" };
+    const approximate = { ...program, id: "near", majorText: "计算机科学与技术" };
+    const direction = { ...program, id: "direction", majorText: null, directionText: "计算机" };
+    const result = buildResults([row("示例大学", 3)], [exact, approximate, direction], [], [], criteria, false, false);
+    expect([...result.confirmed, ...result.pending, ...result.other].flatMap((card) => card.programId ?? [])).toEqual(["exact"]);
+  });
   it("已导入的学校台账备注参与敏感提醒，普通顾问看不到原文", () => {
     const school = { id: "s", name: "示例大学", preference: null, updatedAt: Date.parse("2026-10-26T00:00:00Z"), internalNotes: [
       { source: "学校合作备注", text: "仅供测试：不招某国籍" },
@@ -204,6 +212,10 @@ describe("AI 选校结果组装", () => {
     const unknown = buildResults([row("示例大学", 3)], [{ ...undergraduate, cscaStatus: "UNKNOWN" }], schools, [], { cscaRequirement: "NOT_REQUIRED" }, false, false);
     expect(required.pending.every((card) => card.kind === "school")).toBe(true);
     expect(unknown.pending[0].points.find((point) => point.label === "学校 CSCA 要求")?.level).toBe("UNKNOWN");
+    expect(unknown.pending[0].quality).toBe("insufficient");
+    const exempt = buildResults([row("示例大学", 3)], [{ ...undergraduate, cscaStatus: "NOT_REQUIRED" }], schools, [], { cscaRequirement: "NOT_REQUIRED" }, false, false);
+    const exemptCard = [...exempt.confirmed, ...exempt.pending].find((card) => card.kind === "project");
+    expect(exemptCard?.points).toContainEqual({ label: "学校 CSCA 要求", level: "PASS", text: "学校明确不要求 CSCA", source: "项目知识库 · 招生要求" });
   });
   it("申请截止年份不能当作入学年份，春季信息缺失时保持待核实", () => {
     const p = { ...program, semesterText: null, applicationTimeText: "2027年4月申请截止", deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN" };

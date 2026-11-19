@@ -44,7 +44,7 @@ const seasons: Record<string, string> = { SPRING: "春季", SUMMER: "夏季", AU
 function criteriaLabels(criteria: ChatCriteria) {
   return [
     criteria.programType && degrees[criteria.programType],
-    criteria.targetMajor && `${criteria.targetMajor}专业`,
+    criteria.targetMajor && (criteria.strictMajor ? `只看 ${criteria.targetMajor}` : `${criteria.targetMajor}专业`),
     criteria.teachingLanguage && `${criteria.teachingLanguage === "ENGLISH" ? "英文" : "中文"}授课`,
     criteria.budget != null && `首年预算 ${criteria.budget.toLocaleString("zh-CN")} 元`,
     (criteria.intakeYear != null || criteria.intakeSeason) && `${criteria.intakeYear != null ? `${criteria.intakeYear} 年` : ""}${criteria.intakeSeason ? seasons[criteria.intakeSeason] : ""}入学`,
@@ -212,6 +212,11 @@ function CandidatePlanButton({ card }: { card: ResultCard }) {
   </button>;
 }
 
+function CscaBasis({ card }: { card: ResultCard }) {
+  const point = card.points.find((point) => point.level === "PASS" && ["学校 CSCA 要求", "CSCA"].includes(point.label) && point.source);
+  return point ? <p className="agent-reason"><strong>CSCA 依据：</strong>{point.text}。来源：{point.source}。</p> : null;
+}
+
 function CandidateDetails({ card }: { card: ResultCard }) {
   const { matches, concerns, highlights, firstConcern } = summarizePoints(card.points);
   const tableNotes = card.evidence.filter((item) => item.startsWith("名单第"));
@@ -233,6 +238,7 @@ function CandidateDetails({ card }: { card: ResultCard }) {
     {isCandidate(card) && highlights.length > 0 && <p className="agent-reason"><strong>匹配：</strong>{highlights.map((point) => point.text).join("；")}</p>}
     {card.kind === "project" && (!isCandidate(card) || !highlights.length) && <p className="agent-reason">核心条件资料不足，暂时无法推荐。</p>}
     {firstConcern && <p className="agent-unresolved"><strong>待确认：</strong>{firstConcern.text}{concerns.length > 1 && `；另 ${concerns.length - 1} 项`}</p>}
+    <CscaBasis card={card} />
     {card.warning.length > 0 && <div className="agent-alert"><ShieldAlert size={15} aria-hidden="true" /><div><strong>敏感信息，需人工核实</strong>{card.warning.some((warning) => warning.startsWith("敏感信息，需人工核实：")) ? <details><summary>查看 {card.warning.length} 条内部注意事项</summary>{card.warning.map((warning, index) => <p key={index}>{warning.replace(/^敏感信息，需人工核实：/, "")}</p>)}</details> : <p>请联系有权限的同事核实。</p>}</div></div>}
     <details className="agent-detail"><summary>查看完整依据 <ChevronDown size={14} aria-hidden="true" /></summary>
       <div className="agent-detail-content">
@@ -355,6 +361,7 @@ function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
           {program && <CandidatePlanButton card={program} />}
         </div>
         <p>{item.body}</p>
+        {program && <CscaBasis card={program} />}
       </article>;
     })}</div>
   </section>)}</div>;
@@ -377,7 +384,7 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
     {!result.otherRequested && otherResults}
   </>;
   const hasResults = confirmed.length > 0 || pending.length > 0 || other.length > 0;
-  if (result.answer) return <div className="agent-answer"><div className="agent-answer-intro"><p className="agent-outcome">{result.answer.lead}</p>{result.answer.details.length > 0 && <p className="agent-followup-detail">{result.answer.details.join(" ")}</p>}{result.answer.note && <p className="agent-followup-note">{result.answer.note}</p>}{result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}</div>{(confirmed.length > 0 || pending.length > 0 || other.length > 0 || otherHidden) && <details className="agent-incomplete"><summary><span>查看本轮依据</span><ChevronDown size={16} aria-hidden="true" /></summary>{result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}{otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}</details>}</div>;
+  if (result.answer) return <div className="agent-answer"><div className="agent-answer-intro"><p className="agent-outcome">{result.answer.lead}</p>{result.answer.details.length > 0 && <ul className="agent-followup-detail">{result.answer.details.map((detail, index) => <li key={index}>{detail}</li>)}</ul>}{result.answer.note && <p className="agent-followup-note">{result.answer.note}</p>}{result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}</div>{(confirmed.length > 0 || pending.length > 0 || other.length > 0 || otherHidden) && <details className="agent-incomplete"><summary><span>查看本轮依据</span><ChevronDown size={16} aria-hidden="true" /></summary>{result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}{otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}</details>}</div>;
   if (result.narrative) return <div className="agent-answer">
     <div className="agent-answer-intro"><p className="agent-outcome">{result.narrative.lead}</p>
       {result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}
@@ -589,8 +596,8 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
     let receivedResult = false;
     try {
       const lastResult = [...turns].reverse().find((turn) => turn.result?.source)?.result;
-      const lastNarrative = [...turns].reverse().find((turn) => turn.result?.narrative)?.result?.narrative;
-      const previousProgramIds = providedCriteria ? [] : lastNarrative?.highlights.flatMap((item) => item.programId ? [item.programId] : []) ?? [];
+      const lastSearch = [...turns].reverse().find((turn) => turn.result?.shown || turn.result?.narrative)?.result;
+      const previousProgramIds = providedCriteria ? [] : (lastSearch?.shown?.programIds ?? lastSearch?.narrative?.highlights.flatMap((item) => item.programId ? [item.programId] : []) ?? []);
       const seenProgramIds = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => [...presentedProgramIds(turn.result), ...(turn.revealed?.programIds ?? [])]))].slice(-200);
       const seenSchoolNames = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => [...presentedSchoolNames(turn.result), ...(turn.revealed?.schoolNames ?? [])]))].slice(-200);
       const history = providedCriteria ? [] : turns.filter((turn) => turn.result).flatMap((turn) => [

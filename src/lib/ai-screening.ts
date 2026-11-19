@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { splitMajorText } from "@/lib/major-categories";
+import { normalizeKeyword } from "@/lib/utils";
 import { evaluateProgram, type MatchProgram, type ScreeningCriteria } from "@/lib/matcher";
 import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
@@ -6,6 +8,7 @@ export const criteriaSchema = z.object({
   programType: z.enum(["UG", "MASTER", "PHD", "LONG_TERM", "SHORT_TERM"]).nullable().optional(),
   teachingLanguage: z.enum(["CHINESE", "ENGLISH"]).nullable().optional(),
   targetMajor: z.string().max(100).nullable().optional(),
+  strictMajor: z.boolean().nullable().optional(),
   budget: z.number().min(0).max(100000000).nullable().optional(),
   intakeYear: z.number().int().min(2020).max(2100).nullable().optional(),
   intakeSeason: z.enum(["SPRING", "SUMMER", "AUTUMN", "WINTER"]).nullable().optional(),
@@ -29,7 +32,7 @@ export type ChatCriteria = z.infer<typeof criteriaSchema>;
 export type ListRow = { name: string; row: number; sheet?: string; yellow: boolean; fields: string[]; rawFields?: string[]; image: boolean; noCooperation: boolean };
 export type PartnerEntry = { name: string; status: "confirmed" | "not_cooperating" | "unknown"; programIds?: string[]; note?: string };
 export type SchoolInfo = { id: string; name: string; preference: string | null; updatedAt?: number | null; internalNotes?: { source: string; text: string | null }[] };
-export type EvidencePoint = { label: string; level: "PASS" | "NEED" | "UNKNOWN"; text: string };
+export type EvidencePoint = { label: string; level: "PASS" | "NEED" | "UNKNOWN"; text: string; source?: string };
 export type DataFreshness = "current" | "historical" | "unknown";
 export type ProjectFacts = { tuition: number | null; tuitionStatus: "known" | "unknown" | "conflict"; teachingLanguage: "CHINESE" | "ENGLISH" | "UNKNOWN"; ielts: number | null; toefl: number | null; duolingo: number | null; hskLevel: number | null; hskScore: number | null; scholarship: "full" | "available" | "unknown"; sourceYear?: number | null; feeFreshness?: DataFreshness };
 export type ResultCard = { name: string; schoolKey?: string; schoolId?: string; programId?: string; program: string; fit: string; quality?: "candidate" | "insufficient"; cooperation: "listed" | "project_confirmed" | "not_cooperating" | "unknown"; evidence: string[]; points: EvidencePoint[]; kind: "project" | "school"; sources: string[]; warning: string[]; yellow: boolean; image: boolean; comparableCost?: number | null; facts?: ProjectFacts; verified?: boolean };
@@ -81,6 +84,7 @@ export function mergeCriteria(previous: ChatCriteria, next: ChatCriteria, messag
       (merged as Record<string, unknown>)[key] = previousValue;
     }
   }
+  if (!merged.targetMajor || (merged.targetMajor !== previous.targetMajor && next.strictMajor == null)) delete merged.strictMajor;
   return merged;
 }
 
@@ -180,6 +184,7 @@ function projectFacts(program: MatchProgram, tuition: number | null, tuitionStat
 }
 
 function candidateQuality(points: EvidencePoint[], criteria: ChatCriteria): "candidate" | "insufficient" {
+  if (criteria.cscaRequirement && !points.some((point) => point.label === "学校 CSCA 要求" && point.level === "PASS")) return "insufficient";
   const required = [criteria.programType && "申请学历", criteria.targetMajor && "专业"].filter(Boolean);
   if (required.some((label) => !points.some((point) => point.label === label && point.level !== "UNKNOWN"))) return "insufficient";
   if (required.length || !Object.values(criteria).some((value) => value != null && value !== "")) return "candidate";
@@ -203,14 +208,15 @@ function dateInShanghai(date: Date): string {
 
 function evidencePoint(item: { label: string; level: "PASS" | "NEED" | "UNKNOWN"; detail: string }, program: MatchProgram, criteria: ChatCriteria): EvidencePoint {
   const { label, level } = item;
+  const exemptionSource = program.programType === "UG" ? "项目知识库 · 招生要求" : "项目知识库 · CSCA 适用学历";
   if (label === "学校 CSCA 要求") {
     if (level === "UNKNOWN") return { label, level, text: "学校是否要求 CSCA 尚未明确" };
-    return { label, level, text: program.cscaStatus === "NOT_REQUIRED" ? "学校明确不要求 CSCA" : "学校明确要求 CSCA" };
+    return { label, level, text: program.cscaStatus === "NOT_REQUIRED" ? (program.programType === "UG" ? "学校明确不要求 CSCA" : "项目学历不适用本科 CSCA") : "学校明确要求 CSCA", source: program.cscaStatus === "NOT_REQUIRED" ? exemptionSource : undefined };
   }
   if (label === "CSCA") {
     if (level === "UNKNOWN") return { label, level, text: "学校是否要求 CSCA 尚未明确" };
     if (level === "NEED") return { label, level, text: program.cscaStatus === "REQUIRED" && criteria.hasCsca === false ? "学校要求 CSCA，学生目前还没有" : "CSCA 条件还需要补充或核实" };
-    return { label, level, text: program.cscaStatus === "NOT_REQUIRED" ? "学校明确不要求 CSCA" : "学生已有 CSCA" };
+    return { label, level, text: program.cscaStatus === "NOT_REQUIRED" ? (program.programType === "UG" ? "学校明确不要求 CSCA" : "项目学历不适用本科 CSCA") : "学生已有 CSCA", source: program.cscaStatus === "NOT_REQUIRED" ? exemptionSource : undefined };
   }
   if (level === "UNKNOWN") return { label, level, text: label === "申请截止" ? "申请截止时间尚未确认" : `${label}信息不足，暂时无法判断` };
   if (level === "NEED") return { label, level, text: label === "专业" ? "找到可能相关的专业方向，需确认是否符合目标专业" : label === "首年预算" || label === "费用冲突" || label === "申请截止" ? safeText(item.detail) : `${label}还需要补充或核实` };
@@ -236,6 +242,7 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
   const matchingCriteria = Object.fromEntries(Object.entries(criteria).filter(([key, value]) => key !== "cscaRequirement" && key !== "intakeSeason" && value != null)) as ScreeningCriteria;
   type ScoredCard = ResultCard & { relevance: number };
   const confirmed: ScoredCard[] = [], pending: ScoredCard[] = [], other: ScoredCard[] = [];
+  const strictMajor = criteria.strictMajor && criteria.targetMajor ? normalizeKeyword(criteria.targetMajor) : "";
   const evidenceFor = (p: MatchProgram) => {
     const evaluated = evaluateProgram(p, matchingCriteria);
     const evidence = evaluated.evidence.map((item) => {
@@ -244,6 +251,13 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
       if (item.label === "入学年份" && criteria.intakeYear != null && !p.semesterText?.includes(String(criteria.intakeYear))) return { ...item, level: "UNKNOWN" as const, detail: "入学年份尚未确认" };
       return item;
     });
+    if (strictMajor) {
+      const major = evidence.find((item) => item.label === "专业");
+      if (major && !splitMajorText(p.majorText).some((name) => normalizeKeyword(name) === strictMajor)) {
+        major.level = "FAIL";
+        major.detail = "项目专业未与指定名称确切匹配";
+      }
+    }
     const season = seasonEvidence(p, criteria);
     if (season) evidence.push(season);
     if (criteria.cscaRequirement) {
