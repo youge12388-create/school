@@ -114,6 +114,18 @@ export function getWeComLoginUrl(state: string) {
   return url.toString();
 }
 
+export function getWeComQrLoginUrl(state: string) {
+  const { corpId, redirectUri } = getWeComConfig();
+  const agentId = envValue("WECOM_AGENT_ID");
+  if (!/^\d+$/u.test(agentId)) throw new WeComConfigError("企业微信扫码登录尚未配置应用 AgentId");
+  const url = new URL("https://open.work.weixin.qq.com/wwopen/sso/qrConnect");
+  url.searchParams.set("appid", corpId);
+  url.searchParams.set("agentid", agentId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("state", state);
+  return url.toString();
+}
+
 type WeComResponse = {
   errcode?: number;
   errmsg?: string;

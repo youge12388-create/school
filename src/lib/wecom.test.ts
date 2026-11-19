@@ -7,6 +7,7 @@ import {
   getWeComConfig,
   getWeComIdentity,
   getWeComLoginUrl,
+  getWeComQrLoginUrl,
   isValidWeComState,
 } from "@/lib/wecom";
 import { resolveWeComRole } from "@/lib/wecom-service";
@@ -50,6 +51,18 @@ describe("WeCom configuration and OAuth helpers", () => {
     expect(url).toContain("state=state-value");
     expect(url).not.toContain("test-secret");
     expect(url).toContain("#wechat_redirect");
+  });
+
+  it("builds a desktop QR URL with the configured agent and callback", () => {
+    vi.stubEnv("WECOM_AGENT_ID", "1000010");
+    const url = new URL(getWeComQrLoginUrl("state-value"));
+    expect(url.origin + url.pathname).toBe("https://open.work.weixin.qq.com/wwopen/sso/qrConnect");
+    expect(url.searchParams.get("agentid")).toBe("1000010");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://app.example.com/api/auth/wecom/callback");
+    expect(url.searchParams.get("state")).toBe("state-value");
+    vi.stubEnv("WECOM_AGENT_ID", "bad");
+    expect(() => getWeComQrLoginUrl("state-value")).toThrow("AgentId");
+    vi.unstubAllEnvs();
   });
 
   it("compares OAuth state in constant time and rejects missing or mismatched values", () => {

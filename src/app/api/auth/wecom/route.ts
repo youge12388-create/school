@@ -6,6 +6,7 @@ import { shouldUseSecureSessionCookie } from "@/lib/request-security";
 import {
   createWeComState,
   getWeComLoginUrl,
+  getWeComQrLoginUrl,
   getWeComStateCookieOptions,
   isWeComConfigured,
   WECOM_STATE_COOKIE,
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
 
   const state = createWeComState();
   try {
-    const response = NextResponse.redirect(getWeComLoginUrl(state), 303);
+    const inWeCom = /wxwork/i.test(request.headers.get("user-agent") ?? "");
+    const response = NextResponse.redirect(inWeCom ? getWeComLoginUrl(state) : getWeComQrLoginUrl(state), 303);
     response.cookies.set(
       WECOM_STATE_COOKIE,
       state,
@@ -31,7 +33,8 @@ export async function GET(request: Request) {
     );
     return response;
   } catch (error) {
-    if (!(error instanceof WeComConfigError)) console.error("WeCom OAuth start failed", error);
+    if (error instanceof WeComConfigError) return NextResponse.redirect(appUrl(request, "/login?error=企业微信扫码登录尚未配置，请联系管理员"), 303);
+    console.error("WeCom OAuth start failed", error);
     return NextResponse.redirect(
       appUrl(request, "/login?error=企业微信登录暂时不可用，请联系管理员"),
       303,
