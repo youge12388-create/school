@@ -26,7 +26,12 @@ function hashToken(token: string) {
 
 export async function createSession(
   userId: string,
-  metadata: { ipAddress?: string | null; userAgent?: string | null; secure?: boolean } = {},
+  metadata: {
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    secure?: boolean;
+    sameSite?: "strict" | "lax";
+  } = {},
 ) {
   const token = randomBytes(32).toString("base64url");
   const now = new Date();
@@ -45,7 +50,7 @@ export async function createSession(
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: metadata.sameSite ?? "strict",
     secure: metadata.secure ?? (process.env.NODE_ENV === "production"),
     path: "/",
     expires: expiresAt,

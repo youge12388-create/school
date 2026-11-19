@@ -84,6 +84,7 @@ describe("GET /api/auth/wecom/callback", () => {
       ipAddress: null,
       userAgent: null,
       secure: true,
+      sameSite: "lax",
     });
     expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({
       action: "LOGIN_SUCCEEDED",

@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       ipAddress,
       userAgent: request.headers.get("user-agent"),
       secure,
+      sameSite: "lax",
     });
     await writeAudit({
       userId: account.userId,
