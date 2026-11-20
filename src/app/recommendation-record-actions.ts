@@ -9,11 +9,17 @@ import { getCurrentUser } from "@/lib/auth";
 import { rankPrograms } from "@/lib/matcher";
 import { getProgramsForScreening } from "@/lib/queries";
 import { MAX_PLAN_ITEMS, planRegion } from "@/lib/recommendation-profile";
-import { existingPlanRequest, hashPlanRequest, saveRecommendationRecord, updateRecommendationRecord } from "@/lib/recommendation-records";
+import {
+  deleteRecommendationRecord,
+  existingPlanRequest,
+  hashPlanRequest,
+  saveRecommendationRecord,
+  updateRecommendationRecord,
+} from "@/lib/recommendation-records";
 import { hasPrivatePlanText, planIdField, planProfileFields, planRequestField, planTitleField, profileFormValues, safePlanEvidence } from "@/lib/recommendation-validation";
 import { isScreeningPlanEligible } from "@/lib/screening-results";
 
-type FormResult = { error: string; saved?: boolean };
+type FormResult = { error: string; saved?: boolean; deleted?: boolean };
 const profileSchema = z.object(planProfileFields);
 const optionalText = z.string().max(160).nullish();
 const optionalNumber = z.number().nullish();
@@ -38,6 +44,13 @@ const manualSchema = z.object({
   items: z.array(z.object({ programId: planIdField, reason: z.string().trim().max(400) })).min(1).max(MAX_PLAN_ITEMS),
   criteria: manualCriteria,
 });
+
+function planVersionFrom(formData: FormData) {
+  const versionValue = formData.get("version");
+  return typeof versionValue === "string" && /^\d+$/.test(versionValue)
+    ? Number(versionValue)
+    : Number.NaN;
+}
 
 export async function saveScreeningPlanAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
   const user = await getCurrentUser();
@@ -118,10 +131,7 @@ export async function updateRecommendationRecordAction(
   if (!user || !getUserPermissions(user).includes("RECOMMENDATION_MANAGE")) {
     return { error: "当前账号无权编辑方案记录。" };
   }
-  const versionValue = formData.get("version");
-  const version = typeof versionValue === "string" && /^\d+$/.test(versionValue)
-    ? Number(versionValue)
-    : Number.NaN;
+  const version = planVersionFrom(formData);
   if (!planIdField.safeParse(id).success || !Number.isSafeInteger(version) || version < 0) {
     return { error: "无法识别此方案，请刷新后重试。" };
   }
@@ -140,4 +150,27 @@ export async function updateRecommendationRecordAction(
   revalidatePath("/recommendations");
   revalidatePath(`/recommendations/${id}/print`);
   return { error: "", saved: true };
+}
+
+export async function deleteRecommendationRecordAction(
+  id: string, _prev: FormResult, formData: FormData,
+): Promise<FormResult> {
+  const user = await getCurrentUser();
+  if (!user || !getUserPermissions(user).includes("RECOMMENDATION_MANAGE")) {
+    return { error: "当前账号无权删除方案记录。" };
+  }
+  const version = planVersionFrom(formData);
+  if (!planIdField.safeParse(id).success || !Number.isSafeInteger(version) || version < 0) {
+    return { error: "无法识别此方案，请刷新后重试。" };
+  }
+  try {
+    const result = deleteRecommendationRecord(id, version, user.id);
+    if (result === "missing") return { error: "此方案不存在或已删除。" };
+    if (result === "conflict") return { error: "方案已被更新，请刷新后再删除。" };
+  } catch {
+    return { error: "方案记录未删除，请稍后重试。" };
+  }
+  revalidatePath("/recommendations");
+  revalidatePath(`/recommendations/${id}/print`);
+  return { error: "", deleted: true };
 }

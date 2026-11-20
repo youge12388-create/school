@@ -36,6 +36,10 @@ describe("AUDIT_ACTION_LABELS", () => {
   it("SCHOOL_UPDATES_IMPORTED 中文标签", () => {
     expect(AUDIT_ACTION_LABELS["SCHOOL_UPDATES_IMPORTED"]).toBe("导入院校动态");
   });
+
+  it("RECOMMENDATION_RECORD_DELETED 中文标签", () => {
+    expect(AUDIT_ACTION_LABELS["RECOMMENDATION_RECORD_DELETED"]).toBe("删除方案记录");
+  });
 });
 
 describe("formatAuditObject", () => {
@@ -71,6 +75,14 @@ describe("formatAuditObject", () => {
       title: "招生简章更新",
     });
     expect(result).toBe("院校动态 清华大学");
+  });
+
+  it("删除方案记录包含方案名称", () => {
+    const result = formatAuditObject("RECOMMENDATION", {
+      planTitle: "设计硕士备选",
+      schoolCount: 2,
+    });
+    expect(result).toBe("推荐方案 设计硕士备选");
   });
 });
 
@@ -154,6 +166,15 @@ describe("formatAuditDetails", () => {
       fileName: "录取名单.pdf",
     });
     expect(result).toBe("机密附件：录取名单.pdf");
+  });
+
+  it("删除方案记录显示方案名与学校数", () => {
+    const result = formatAuditDetails("RECOMMENDATION_RECORD_DELETED", {
+      planTitle: "设计硕士备选",
+      schoolCount: 2,
+      itemCount: 3,
+    });
+    expect(result).toBe("《设计硕士备选》，2 所学校");
   });
 });
 

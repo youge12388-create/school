@@ -2,12 +2,15 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DeleteRecommendationRecordButton } from "@/components/delete-recommendation-record-button";
 import { PrintButton } from "@/components/print-button";
 import { RecommendationRecordEditor } from "@/components/recommendation-record-editor";
 import { Badge, PageHeading } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { LANGUAGE_LABELS, PROGRAM_TYPE_LABELS } from "@/lib/constants";
-import { getT } from "@/lib/i18n/server";
+import { makeTv } from "@/lib/i18n/dict";
+import { getT, getUiLocale } from "@/lib/i18n/server";
+import { splitMajorText } from "@/lib/major-categories";
 import type { MatchEvidence } from "@/lib/matcher";
 import { groupPlanSchools } from "@/lib/recommendation-profile";
 import { getRecommendationRecord } from "@/lib/recommendation-records";
@@ -62,6 +65,9 @@ export default async function RecommendationPrintPage({
   if (!plan) notFound();
 
   const t = await getT();
+  const locale = await getUiLocale();
+  const tv = makeTv(locale);
+  const en = locale === "en";
   const criteria = savedCriteria(plan.criteriaJson);
   const schools = groupPlanSchools(plan.items);
   const profile = {
@@ -78,7 +84,10 @@ export default async function RecommendationPrintPage({
       <div className="no-print">
         <Link href="/recommendations" className="plan-detail-back"><ArrowLeft size={15} aria-hidden="true" /> {t("返回方案记录")}</Link>
         <PageHeading title={plan.title} description={[date, plan.authorName, t(plan.mode === "ai" ? "AI 选校" : "条件筛查")].filter(Boolean).join(" · ")}
-          action={<PrintButton />} />
+          action={<div className="plan-detail-heading-actions">
+            <PrintButton />
+            <DeleteRecommendationRecordButton id={id} title={plan.title} version={plan.version} redirectTo="/recommendations" />
+          </div>} />
       </div>
       <div className="print-only"><h1>{plan.title}</h1><p>{date}</p></div>
       <section className="card plan-detail-profile" aria-labelledby="plan-profile-title">
@@ -115,6 +124,11 @@ export default async function RecommendationPrintPage({
               const facts = safeJson<SavedFacts | null>(item.factsJson, null);
               const fit = Object.hasOwn(fitLabel, item.fitLevel) ? fitLabel[item.fitLevel] : fitLabel.UNKNOWN;
               const evidence = savedEvidence(item.evidenceJson);
+              const majorNames = facts?.majorText
+                ? splitMajorText(safePlanEvidence(facts.majorText))
+                : [];
+              const visibleMajorNames = majorNames.slice(0, 3);
+              const hasMoreMajors = majorNames.length > visibleMajorNames.length;
               return <div className="plan-project" key={item.id}>
                 <div className="plan-project-head"><h4>{item.programName || t("项目名称未记录")}</h4><Badge tone={fit.tone}>{t(fit.label)}</Badge></div>
                 {facts && <div className="result-meta">
@@ -123,7 +137,10 @@ export default async function RecommendationPrintPage({
                   {facts.firstYearCostMax != null && <span>{t("首年上限")}：{formatMoney(facts.firstYearCostMax)}</span>}
                   {facts.deadlineAt != null && <span>{t("截止日期")}：{formatDate(facts.deadlineAt)}</span>}
                 </div>}
-                {facts?.majorText && <p className="plan-project-text">{t("专业方向")}：{safePlanEvidence(facts.majorText)}</p>}
+                {majorNames.length > 0 && <p className="plan-project-text">
+                  {t("专业方向")}：{visibleMajorNames.join(en ? ", " : "、")}
+                  {hasMoreMajors ? ` ${tv("等 {n} 个专业", { n: majorNames.length })}` : ""}
+                </p>}
                 {facts?.tuitionText && <p className="plan-project-text">{t("学费")}：{safePlanEvidence(facts.tuitionText)}</p>}
                 {item.reason && <p className="plan-project-text"><strong>{t("推荐理由")}：</strong>{safePlanEvidence(item.reason)}</p>}
                 {evidence.length > 0 && <div className="evidence-strip">

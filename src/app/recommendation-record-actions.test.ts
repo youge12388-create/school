@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   existing: vi.fn(),
   update: vi.fn(),
+  remove: vi.fn(),
   redirect: vi.fn(),
 }));
 
@@ -25,9 +26,14 @@ vi.mock("@/lib/recommendation-records", () => ({
   hashPlanRequest: vi.fn(() => "request-hash"),
   saveRecommendationRecord: mocks.save,
   updateRecommendationRecord: mocks.update,
+  deleteRecommendationRecord: mocks.remove,
 }));
 
-import { saveScreeningPlanAction, updateRecommendationRecordAction } from "./recommendation-record-actions";
+import {
+  deleteRecommendationRecordAction,
+  saveScreeningPlanAction,
+  updateRecommendationRecordAction,
+} from "./recommendation-record-actions";
 
 const program: MatchProgram = {
   id: "program-1",
@@ -86,6 +92,7 @@ beforeEach(() => {
   mocks.save.mockReset();
   mocks.existing.mockReset().mockReturnValue("missing");
   mocks.update.mockReset();
+  mocks.remove.mockReset();
   mocks.redirect.mockReset();
 });
 
@@ -181,5 +188,57 @@ describe("方案记录编辑", () => {
       profileForm("2"),
     )).resolves.toEqual({ error: "当前账号无权编辑方案记录。" });
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("方案记录删除", () => {
+  function deleteForm(version = "2") {
+    const data = new FormData();
+    data.set("version", version);
+    return data;
+  }
+
+  it("删除时使用表单版本号和当前操作人写入审计", async () => {
+    mocks.remove.mockReturnValue("deleted");
+    await expect(deleteRecommendationRecordAction(
+      "2466c108-a7b0-437f-a4ff-d05c7801dba0",
+      { error: "" },
+      deleteForm("2"),
+    )).resolves.toEqual({ error: "", deleted: true });
+    expect(mocks.remove).toHaveBeenCalledWith(
+      "2466c108-a7b0-437f-a4ff-d05c7801dba0",
+      2,
+      "advisor-1",
+    );
+  });
+
+  it("无方案管理权限时拒绝删除", async () => {
+    mocks.permissions.mockReturnValue([]);
+    await expect(deleteRecommendationRecordAction(
+      "2466c108-a7b0-437f-a4ff-d05c7801dba0",
+      { error: "" },
+      deleteForm(),
+    )).resolves.toEqual({ error: "当前账号无权删除方案记录。" });
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("拒绝非法版本号，并区分过期和不存在方案", async () => {
+    await expect(deleteRecommendationRecordAction(
+      "2466c108-a7b0-437f-a4ff-d05c7801dba0",
+      { error: "" },
+      deleteForm("2.5"),
+    )).resolves.toEqual({ error: "无法识别此方案，请刷新后重试。" });
+
+    mocks.remove.mockReturnValueOnce("conflict").mockReturnValueOnce("missing");
+    await expect(deleteRecommendationRecordAction(
+      "2466c108-a7b0-437f-a4ff-d05c7801dba0",
+      { error: "" },
+      deleteForm(),
+    )).resolves.toEqual({ error: "方案已被更新，请刷新后再删除。" });
+    await expect(deleteRecommendationRecordAction(
+      "2466c108-a7b0-437f-a4ff-d05c7801dba0",
+      { error: "" },
+      deleteForm(),
+    )).resolves.toEqual({ error: "此方案不存在或已删除。" });
   });
 });

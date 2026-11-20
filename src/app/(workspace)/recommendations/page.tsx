@@ -1,6 +1,7 @@
 import { ArrowUpRight, ClipboardList, Search } from "lucide-react";
 import Link from "next/link";
 
+import { DeleteRecommendationRecordButton } from "@/components/delete-recommendation-record-button";
 import { Pagination } from "@/components/pagination";
 import { Badge, PageHeading } from "@/components/ui";
 import { getUserPermissions } from "@/lib/access-control";
@@ -79,8 +80,11 @@ export default async function RecommendationsPage({ searchParams }: {
                   </div>
                   <div className="plan-index-count"><Badge>{plan.schoolCount} {t("所学校")}</Badge></div>
                   <div className="plan-index-author"><span>{formatDate(plan.createdAt)}</span><span>{plan.authorName || "—"}</span></div>
-                  <Link className="plan-index-open" href={`/recommendations/${plan.id}/print`}
-                    aria-label={`${t("打开方案")}：${plan.title}`} title={t("打开方案")}><ArrowUpRight size={17} aria-hidden="true" /></Link>
+                  <div className="plan-index-actions">
+                    <DeleteRecommendationRecordButton id={plan.id} title={plan.title} version={plan.version} compact />
+                    <Link className="plan-index-open" href={`/recommendations/${plan.id}/print`}
+                      aria-label={`${t("打开方案")}：${plan.title}`} title={t("打开方案")}><ArrowUpRight size={17} aria-hidden="true" /></Link>
+                  </div>
                 </li>
               ))}
             </ul>

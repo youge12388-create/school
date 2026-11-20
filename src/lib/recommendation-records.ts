@@ -11,6 +11,7 @@ type RecommendationRow = {
   id: string;
   title: string;
   createdAt: number;
+  version: number;
   authorName: string | null;
   studentName: string | null;
   studentRegion: string | null;
@@ -20,7 +21,6 @@ type RecommendationRow = {
 type RecommendationDetail = RecommendationRow & {
   criteriaJson: string;
   notes: string | null;
-  version: number;
 };
 export type PlanItemSnapshot = {
   programId: string;
@@ -35,7 +35,7 @@ export type PlanItemSnapshot = {
 };
 type SavedPlanItem = PlanItemSnapshot & { id: string; rank: number };
 
-const planColumns = `r.id, r.title, r.created_at AS createdAt, r.mode,
+const planColumns = `r.id, r.title, r.created_at AS createdAt, r.version, r.mode,
   r.student_name AS studentName, r.student_region AS studentRegion, r.preferred_region AS preferredRegion,
   u.display_name AS authorName`;
 
@@ -149,6 +149,39 @@ export function updateRecommendationRecord(
       version = version + 1 WHERE id = ?`).run(profile.studentName, profile.studentRegion || null, profile.preferredRegion || null, profile.notes || null, id);
     writeAudit({ userId, action: "RECOMMENDATION_RECORD_UPDATED", entityType: "RECOMMENDATION", entityId: id }, database);
     return "updated";
+  });
+}
+
+export function deleteRecommendationRecord(
+  id: string, version: number, userId: string, database: DatabaseSync = sqlite,
+) {
+  return transaction(database, () => {
+    const current = database.prepare(`
+      SELECT r.title, r.student_name AS studentName, r.mode, r.version,
+        (SELECT count(*) FROM screening_plan_items i WHERE i.plan_id = r.id) AS itemCount,
+        (SELECT count(DISTINCT i.school_id) FROM screening_plan_items i WHERE i.plan_id = r.id) AS schoolCount
+      FROM screening_plans r WHERE r.id = ?
+    `).get(id) as
+      | { title: string; studentName: string | null; mode: PlanMode; version: number; itemCount: number; schoolCount: number }
+      | undefined;
+    if (!current) return "missing" as const;
+    if (current.version !== version) return "conflict" as const;
+    database.prepare("DELETE FROM screening_plan_items WHERE plan_id = ?").run(id);
+    database.prepare("DELETE FROM screening_plans WHERE id = ?").run(id);
+    writeAudit({
+      userId,
+      action: "RECOMMENDATION_RECORD_DELETED",
+      entityType: "RECOMMENDATION",
+      entityId: id,
+      details: {
+        planTitle: current.title,
+        studentName: current.studentName,
+        mode: current.mode,
+        itemCount: current.itemCount,
+        schoolCount: current.schoolCount,
+      },
+    }, database);
+    return "deleted" as const;
   });
 }
 

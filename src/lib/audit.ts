@@ -35,6 +35,7 @@ export const AUDIT_ACTIONS = [
   "IMPORT_CONFIRMED",
   "RECOMMENDATION_SAVED",
   "RECOMMENDATION_RECORD_UPDATED",
+  "RECOMMENDATION_RECORD_DELETED",
   "SCREENING_FEEDBACK",
   "SCREENING_FOLLOW_UP_CREATED",
   "DOCUMENT_UPLOADED",
@@ -107,6 +108,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   IMPORT_CONFIRMED: "导入确认",
   RECOMMENDATION_SAVED: "保存推荐方案",
   RECOMMENDATION_RECORD_UPDATED: "更新方案记录",
+  RECOMMENDATION_RECORD_DELETED: "删除方案记录",
   SCREENING_FEEDBACK: "选校结果反馈",
   SCREENING_FOLLOW_UP_CREATED: "生成选校跟进任务",
   DOCUMENT_UPLOADED: "上传文件",
@@ -159,6 +161,7 @@ export function formatAuditObject(
     else if (details.name) identifier = String(details.name);
     else if (details.username) identifier = String(details.username);
     else if (details.customerName) identifier = String(details.customerName);
+    else if (details.planTitle) identifier = String(details.planTitle);
   }
 
   return identifier ? `${label} ${identifier}` : label;
@@ -203,6 +206,16 @@ export function formatAuditDetails(
     return en
       ? `Customer ${details.customerId}, ${details.itemCount} items`
       : `客户 ${details.customerId}，${details.itemCount} 个项目`;
+  }
+  if (action === "RECOMMENDATION_RECORD_DELETED") {
+    const parts: string[] = [];
+    if (details.planTitle) {
+      parts.push(en ? `"${details.planTitle}"` : `《${details.planTitle}》`);
+    }
+    if (typeof details.schoolCount === "number") {
+      parts.push(en ? `${details.schoolCount} schools` : `${details.schoolCount} 所学校`);
+    }
+    return parts.join(en ? ", " : "，") || actionLabel;
   }
   if (action === "DOCUMENT_UPLOADED" && "category" in details) {
     return en ? `Category: ${details.category}` : `分类：${details.category}`;

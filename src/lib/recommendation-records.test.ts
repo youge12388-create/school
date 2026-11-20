@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({ sqlite: {} }));
 
 import {
+  deleteRecommendationRecord,
   existingPlanRequest,
   getRecommendationRecord,
   hashPlanRequest,
@@ -156,5 +157,30 @@ describe("方案记录", () => {
       preferredRegion: "",
       notes: "",
     }, "advisor-1", database)).toBe("missing");
+  });
+
+  it("删除方案时同步清理明细并保留审计记录", () => {
+    expect(deleteRecommendationRecord("plan-a", 0, "advisor-1", database)).toBe("deleted");
+    expect(getRecommendationRecord("plan-a", database)).toBeUndefined();
+    expect(database.prepare("SELECT count(*) AS count FROM screening_plan_items WHERE plan_id = 'plan-a'").get())
+      .toEqual({ count: 0 });
+    expect(database.prepare("SELECT action, entity_id AS entityId, details_json AS detailsJson FROM audit_logs").get())
+      .toMatchObject({
+        action: "RECOMMENDATION_RECORD_DELETED",
+        entityId: "plan-a",
+        detailsJson: JSON.stringify({
+          planTitle: "设计硕士备选",
+          studentName: "林同学",
+          mode: "ai",
+          itemCount: 3,
+          schoolCount: 2,
+        }),
+      });
+  });
+
+  it("拒绝删除已更新或不存在方案，避免覆盖其他会话", () => {
+    expect(deleteRecommendationRecord("plan-a", 1, "advisor-1", database)).toBe("conflict");
+    expect(getRecommendationRecord("plan-a", database)?.title).toBe("设计硕士备选");
+    expect(deleteRecommendationRecord("missing", 0, "advisor-1", database)).toBe("missing");
   });
 });
