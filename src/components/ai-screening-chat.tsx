@@ -12,6 +12,7 @@ import { moveDraftSchool, removePlanCandidate, togglePlanCandidate, type DraftPl
 import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgramName, isCandidate, outcomeSummary, presentedProgramIds, presentedSchoolNames, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
 import "./ai-screening.css";
 import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
+import { useT, useTv, useTm, useLocale } from "@/lib/i18n/locale-context";
 
 type Turn = { id: number; question: string; criteriaBefore: ChatCriteria; sensitiveBefore: boolean; focusBefore: string | null; showOther: boolean; providedCriteria?: ChatCriteria; steps: SearchStep[]; result?: ScreeningResponse; error?: string; revealed?: { programIds: string[]; schoolNames: string[] } };
 type ConversationSnapshot = {
@@ -41,7 +42,26 @@ const FeedbackContext = createContext<{
 const degrees: Record<string, string> = { UG: "本科", MASTER: "硕士", PHD: "博士", LONG_TERM: "长期进修", SHORT_TERM: "短期项目" };
 const seasons: Record<string, string> = { SPRING: "春季", SUMMER: "夏季", AUTUMN: "秋季", WINTER: "冬季" };
 
-function criteriaLabels(criteria: ChatCriteria) {
+function criteriaLabels(criteria: ChatCriteria, locale: "zh" | "en" = "zh") {
+  if (locale === "en") return [
+    criteria.programType && ({ UG: "Bachelor’s", MASTER: "Master’s", PHD: "Doctorate", LONG_TERM: "Long-term study", SHORT_TERM: "Short-term program" } as Record<string, string>)[criteria.programType],
+    criteria.targetMajor && (criteria.strictMajor ? `Only ${criteria.targetMajor}` : `Major: ${criteria.targetMajor}`),
+    criteria.teachingLanguage && (criteria.teachingLanguage === "ENGLISH" ? "English-taught" : "Chinese-taught"),
+    criteria.budget != null && `First-year budget: CNY ${criteria.budget.toLocaleString("en-US")}`,
+    (criteria.intakeYear != null || criteria.intakeSeason) && `Intake: ${criteria.intakeSeason ? ({ SPRING: "Spring", SUMMER: "Summer", AUTUMN: "Autumn", WINTER: "Winter" } as Record<string, string>)[criteria.intakeSeason] : ""} ${criteria.intakeYear ?? ""}`.trim(),
+    criteria.gpa != null && `GPA ${criteria.gpa}${criteria.gpaScale != null ? `/${criteria.gpaScale}` : ""}`,
+    criteria.hskLevel != null && `HSK level ${criteria.hskLevel}${criteria.hskScore != null ? `, score ${criteria.hskScore}` : ""}`,
+    criteria.hskLevel == null && criteria.hskScore != null && `HSK score ${criteria.hskScore}`,
+    criteria.ielts != null && `IELTS ${criteria.ielts}`,
+    criteria.toefl != null && `TOEFL ${criteria.toefl}`,
+    criteria.duolingo != null && `Duolingo ${criteria.duolingo}`,
+    criteria.hasCsca != null && (criteria.hasCsca ? "Has CSCA" : "No CSCA"),
+    criteria.cscaRequirement && (criteria.cscaRequirement === "NOT_REQUIRED" ? "School does not require CSCA" : "School requires CSCA"),
+    criteria.scholarshipType && (criteria.scholarshipType === "full" ? "Full scholarship needed" : "Scholarship needed"),
+    criteria.accommodationRequired && "Accommodation needed",
+    criteria.age != null && `Age ${criteria.age}`,
+    criteria.province, criteria.city,
+  ].filter((item): item is string => Boolean(item));
   return [
     criteria.programType && degrees[criteria.programType],
     criteria.targetMajor && (criteria.strictMajor ? `只看 ${criteria.targetMajor}` : `${criteria.targetMajor}专业`),
@@ -69,9 +89,11 @@ function draftValue(value: string | number | boolean | null | undefined) {
 }
 
 function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy: boolean; onApply: (criteria: ChatCriteria) => void }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const labels = criteriaLabels(criteria);
+  const locale = useLocale();
+  const labels = criteriaLabels(criteria, locale);
   const fields = {
     programType: draftValue(criteria.programType),
     teachingLanguage: draftValue(criteria.teachingLanguage),
@@ -148,41 +170,42 @@ function CriteriaBar({ criteria, busy, onApply }: { criteria: ChatCriteria; busy
   }
 
   if (!labels.length && !editing) return null;
-  return <section className="agent-profile" aria-label="当前申请条件">
+  return <section className="agent-profile" aria-label={t("当前申请条件")}>
     <div className="agent-profile-summary">
-      <div><strong>当前申请条件</strong>{labels.length > 0 && <div className="agent-criteria">{labels.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}</div>
-      <button type="button" onClick={openEditor} disabled={busy}><PencilLine size={14} aria-hidden="true" />调整条件</button>
+      <div><strong>{t("当前申请条件")}</strong>{labels.length > 0 && <div className="agent-criteria">{labels.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}</div>
+      <button type="button" onClick={openEditor} disabled={busy}><PencilLine size={14} aria-hidden="true" />{t("调整条件")}</button>
     </div>
     {editing && <form className="agent-profile-form" onSubmit={submit}>
-      <label>申请学历<select value={draft.programType} onChange={(event) => change("programType", event.target.value)}><option value="">不限</option><option value="UG">本科</option><option value="MASTER">硕士</option><option value="PHD">博士</option><option value="LONG_TERM">长期进修</option><option value="SHORT_TERM">短期项目</option></select></label>
-      <label>目标专业<input value={draft.targetMajor} maxLength={100} onChange={(event) => change("targetMajor", event.target.value)} placeholder="如计算机" /></label>
-      <label>授课语言<select value={draft.teachingLanguage} onChange={(event) => change("teachingLanguage", event.target.value)}><option value="">不限</option><option value="ENGLISH">英文</option><option value="CHINESE">中文</option></select></label>
-      <label>首年预算（元）<input type="number" min="0" value={draft.budget} onChange={(event) => change("budget", event.target.value)} placeholder="如 80000" /></label>
-      <label>入学年份<input type="number" min="2020" max="2100" value={draft.intakeYear} onChange={(event) => change("intakeYear", event.target.value)} placeholder="如 2027" /></label>
-      <label>入学季<select value={draft.intakeSeason} onChange={(event) => change("intakeSeason", event.target.value)}><option value="">不限</option><option value="SPRING">春季</option><option value="SUMMER">夏季</option><option value="AUTUMN">秋季</option><option value="WINTER">冬季</option></select></label>
-      <label>GPA<input type="number" min="0" step="0.01" value={draft.gpa} onChange={(event) => change("gpa", event.target.value)} placeholder="如 3.5" /></label>
-      <label>GPA 满分<input type="number" min="0" step="0.01" value={draft.gpaScale} onChange={(event) => change("gpaScale", event.target.value)} placeholder="如 4" /></label>
-      <label>雅思<input type="number" min="0" max="9" step="0.5" value={draft.ielts} onChange={(event) => change("ielts", event.target.value)} placeholder="如 6.5" /></label>
-      <label>托福<input type="number" min="0" max="120" value={draft.toefl} onChange={(event) => change("toefl", event.target.value)} placeholder="如 90" /></label>
-      <label>多邻国<input type="number" min="0" max="160" value={draft.duolingo} onChange={(event) => change("duolingo", event.target.value)} placeholder="如 120" /></label>
-      <label>HSK 等级<input type="number" min="1" max="9" value={draft.hskLevel} onChange={(event) => change("hskLevel", event.target.value)} placeholder="如 5" /></label>
-      <label>HSK 分数<input type="number" min="0" max="300" value={draft.hskScore} onChange={(event) => change("hskScore", event.target.value)} placeholder="如 250" /></label>
-      <label>CSCA 状态<select value={draft.hasCsca} onChange={(event) => change("hasCsca", event.target.value)}><option value="">未确认</option><option value="true">已有 CSCA</option><option value="false">暂无 CSCA</option></select></label>
-      <label>学校 CSCA 要求<select value={draft.cscaRequirement} onChange={(event) => change("cscaRequirement", event.target.value)}><option value="">不限</option><option value="NOT_REQUIRED">只看不要求</option><option value="REQUIRED">只看要求</option></select></label>
-      <label>奖学金<select value={draft.scholarshipType} onChange={(event) => change("scholarshipType", event.target.value)}><option value="">不限</option><option value="full">需要全额奖学金</option><option value="any">需要奖学金</option></select></label>
-      <label>住宿<select value={draft.accommodationRequired} onChange={(event) => change("accommodationRequired", event.target.value)}><option value="">不限</option><option value="true">需要学校住宿</option><option value="false">不需要住宿</option></select></label>
-      <label>年龄<input type="number" min="1" max="120" value={draft.age} onChange={(event) => change("age", event.target.value)} placeholder="如 22" /></label>
-      <label>省份<input value={draft.province} maxLength={30} onChange={(event) => change("province", event.target.value)} placeholder="如 北京" /></label>
-      <label>城市<input value={draft.city} maxLength={30} onChange={(event) => change("city", event.target.value)} placeholder="如 上海" /></label>
-      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />按这些条件重新筛选</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>取消</button><small>条件会暂存在当前浏览器标签页。</small></div>
+      <label>{t("申请学历")}<select value={draft.programType} onChange={(event) => change("programType", event.target.value)}><option value="">{t("不限")}</option><option value="UG">{t("本科")}</option><option value="MASTER">{t("硕士")}</option><option value="PHD">{t("博士")}</option><option value="LONG_TERM">{t("长期进修")}</option><option value="SHORT_TERM">{t("短期项目")}</option></select></label>
+      <label>{t("目标专业")}<input value={draft.targetMajor} maxLength={100} onChange={(event) => change("targetMajor", event.target.value)} placeholder={t("如计算机")} /></label>
+      <label>{t("授课语言")}<select value={draft.teachingLanguage} onChange={(event) => change("teachingLanguage", event.target.value)}><option value="">{t("不限")}</option><option value="ENGLISH">{t("英文")}</option><option value="CHINESE">{t("中文")}</option></select></label>
+      <label>{t("首年预算（元）")}<input type="number" min="0" value={draft.budget} onChange={(event) => change("budget", event.target.value)} placeholder={t("如 80000")} /></label>
+      <label>{t("入学年份")}<input type="number" min="2020" max="2100" value={draft.intakeYear} onChange={(event) => change("intakeYear", event.target.value)} placeholder={t("如 2027")} /></label>
+      <label>{t("入学季")}<select value={draft.intakeSeason} onChange={(event) => change("intakeSeason", event.target.value)}><option value="">{t("不限")}</option><option value="SPRING">{t("春季")}</option><option value="SUMMER">{t("夏季")}</option><option value="AUTUMN">{t("秋季")}</option><option value="WINTER">{t("冬季")}</option></select></label>
+      <label>GPA<input type="number" min="0" step="0.01" value={draft.gpa} onChange={(event) => change("gpa", event.target.value)} placeholder={t("如 3.5")} /></label>
+      <label>{t("GPA 满分")}<input type="number" min="0" step="0.01" value={draft.gpaScale} onChange={(event) => change("gpaScale", event.target.value)} placeholder={t("如 4")} /></label>
+      <label>{t("雅思")}<input type="number" min="0" max="9" step="0.5" value={draft.ielts} onChange={(event) => change("ielts", event.target.value)} placeholder={t("如 6.5")} /></label>
+      <label>{t("托福")}<input type="number" min="0" max="120" value={draft.toefl} onChange={(event) => change("toefl", event.target.value)} placeholder={t("如 90")} /></label>
+      <label>{t("多邻国")}<input type="number" min="0" max="160" value={draft.duolingo} onChange={(event) => change("duolingo", event.target.value)} placeholder={t("如 120")} /></label>
+      <label>{t("HSK 等级")}<input type="number" min="1" max="9" value={draft.hskLevel} onChange={(event) => change("hskLevel", event.target.value)} placeholder={t("如 5")} /></label>
+      <label>{t("HSK 分数")}<input type="number" min="0" max="300" value={draft.hskScore} onChange={(event) => change("hskScore", event.target.value)} placeholder={t("如 250")} /></label>
+      <label>{t("CSCA 状态")}<select value={draft.hasCsca} onChange={(event) => change("hasCsca", event.target.value)}><option value="">{t("未确认")}</option><option value="true">{t("已有 CSCA")}</option><option value="false">{t("暂无 CSCA")}</option></select></label>
+      <label>{t("学校 CSCA 要求")}<select value={draft.cscaRequirement} onChange={(event) => change("cscaRequirement", event.target.value)}><option value="">{t("不限")}</option><option value="NOT_REQUIRED">{t("只看不要求")}</option><option value="REQUIRED">{t("只看要求")}</option></select></label>
+      <label>{t("奖学金")}<select value={draft.scholarshipType} onChange={(event) => change("scholarshipType", event.target.value)}><option value="">{t("不限")}</option><option value="full">{t("需要全额奖学金")}</option><option value="any">{t("需要奖学金")}</option></select></label>
+      <label>{t("住宿")}<select value={draft.accommodationRequired} onChange={(event) => change("accommodationRequired", event.target.value)}><option value="">{t("不限")}</option><option value="true">{t("需要学校住宿")}</option><option value="false">{t("不需要住宿")}</option></select></label>
+      <label>{t("年龄")}<input type="number" min="1" max="120" value={draft.age} onChange={(event) => change("age", event.target.value)} placeholder={t("如 22")} /></label>
+      <label>{t("省份")}<input value={draft.province} maxLength={30} onChange={(event) => change("province", event.target.value)} placeholder={t("如 北京")} /></label>
+      <label>{t("城市")}<input value={draft.city} maxLength={30} onChange={(event) => change("city", event.target.value)} placeholder={t("如 上海")} /></label>
+      <div className="agent-profile-actions"><button type="submit" disabled={busy}><Check size={14} aria-hidden="true" />{t("按这些条件重新筛选")}</button><button type="button" onClick={() => setEditing(false)} disabled={busy}>{t("取消")}</button><small>{t("条件会暂存在当前浏览器标签页。")}</small></div>
     </form>}
   </section>;
 }
 
 function SearchTrace({ steps, busy }: { steps: SearchStep[]; busy: boolean }) {
+  const t = useT();
   if (!busy) return null;
-  if (!steps.length) return <div className="agent-searching" role="status"><LoaderCircle className="agent-spin" size={15} aria-hidden="true" />正在连接选校服务…</div>;
-  return <ol className="agent-stage-list" aria-label="检索进度">
+  if (!steps.length) return <div className="agent-searching" role="status"><LoaderCircle className="agent-spin" size={15} aria-hidden="true" />{t("正在连接选校服务…")}</div>;
+  return <ol className="agent-stage-list" aria-label={t("检索进度")}>
     {steps.map((step) => <li key={step.id} data-stage={step.status}>
       {step.status === "active" ? <LoaderCircle size={14} className="agent-spin" aria-hidden="true" /> :
         step.status === "done" ? <Check size={14} aria-hidden="true" /> : <span className="agent-stage-dot" aria-hidden="true" />}
@@ -192,24 +215,44 @@ function SearchTrace({ steps, busy }: { steps: SearchStep[]; busy: boolean }) {
 }
 
 function SearchHistory({ steps, source }: { steps: SearchStep[]; source?: string }) {
+  const t = useT();
   if (!steps.length && !source) return null;
   const labels: Record<SearchStep["id"], string> = { understand: "理解需求", cooperation: "合作院校", alternatives: "其他院校", summary: "整理结果" };
-  return <details className="agent-history"><summary>查看检索过程与来源 <ChevronDown size={14} aria-hidden="true" /></summary>
+  return <details className="agent-history"><summary>{t("查看检索过程与来源")} <ChevronDown size={14} aria-hidden="true" /></summary>
     <div className="agent-history-content"><ol>{steps.map((step) => <li key={step.id}><strong>{labels[step.id]}：</strong>{step.status === "active" ? "未完成" : step.message}</li>)}</ol>{source && <p>来源：{source}、学校知识库</p>}</div>
   </details>;
 }
 
 function CandidatePlanButton({ card }: { card: ResultCard }) {
+  const t = useT();
   const selection = useContext(PlanSelectionContext);
   const result = useContext(ActiveResultContext);
   if (!selection || !result?.source || !card.programId || !card.schoolId || !isCandidate(card)) return null;
   const selected = selection.selectedIds.has(card.programId);
   return <button type="button" className="agent-plan-toggle" aria-pressed={selected} disabled={selection.saving}
     onClick={() => selection.toggle(card, result)}
-    aria-label={`${selected ? "移出方案" : "加入方案"}：${card.name} · ${displayProgramName(card.name, card.program)}`}>
+    aria-label={`${t(selected ? "移出方案" : "加入方案")}：${card.name} · ${displayProgramName(card.name, card.program)}`}>
     {selected ? <Check size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
-    {selected ? "已加入" : "加入方案"}
+    {t(selected ? "已加入" : "加入方案")}
   </button>;
+}
+
+function AdmissionsNotice({ warnings }: { warnings: string[] }) {
+  const t = useT();
+  const tv = useTv();
+  if (!warnings.length) return null;
+  const prefix = "敏感信息，需人工核实：";
+  const sources = warnings.filter((warning) => warning.startsWith(prefix));
+  return <div className="agent-alert">
+    <ShieldAlert size={15} aria-hidden="true" />
+    <div>
+      <strong>{t("有内部招生注意事项")}</strong>
+      {sources.length > 0 ? <details>
+        <summary>{tv("查看 {count} 条来源与备注", { count: sources.length })}</summary>
+        {sources.map((warning) => <p key={warning}>{warning.slice(prefix.length)}</p>)}
+      </details> : <p>{t("请联系有权限的同事核实。")}</p>}
+    </div>
+  </div>;
 }
 
 function CscaBasis({ card }: { card: ResultCard }) {
@@ -218,6 +261,7 @@ function CscaBasis({ card }: { card: ResultCard }) {
 }
 
 function CandidateDetails({ card }: { card: ResultCard }) {
+  const t = useT();
   const { matches, concerns, highlights, firstConcern } = summarizePoints(card.points);
   const tableNotes = card.evidence.filter((item) => item.startsWith("名单第"));
   const feedback = useContext(FeedbackContext);
@@ -225,22 +269,22 @@ function CandidateDetails({ card }: { card: ResultCard }) {
   const feedbackPending = card.programId ? feedback?.pending.has(card.programId) : false;
   return <div className="agent-candidate-body" data-result-school={card.name} data-result-program={card.programId}>
     <div className="agent-candidate-action"><p className="agent-program">{displayProgramName(card.name, card.program)}</p><CandidatePlanButton card={card} /></div>
-    <p className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{card.verified ? "项目资料已人工核实" : "项目资料待人工核实"}</p>
+    <p className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{t(card.verified ? "项目资料已人工核实" : "项目资料待人工核实")}</p>
     {card.programId && isCandidate(card) && feedback && <div className="agent-feedback">
       <button type="button" aria-pressed={feedbackValue === "relevant"} onClick={() => feedback.submit(card.programId!, "relevant")} disabled={feedbackPending || feedbackValue === "relevant"}>
-        {feedbackValue === "relevant" ? "已标记有帮助" : feedbackPending ? "正在记录…" : "有帮助"}
+        {t(feedbackValue === "relevant" ? "已标记有帮助" : feedbackPending ? "正在记录…" : "有帮助")}
       </button>
       <button type="button" aria-pressed={feedbackValue === "not_relevant"} onClick={() => feedback.submit(card.programId!, "not_relevant")} disabled={feedbackPending || feedbackValue === "not_relevant"}>
-        {feedbackValue === "not_relevant" ? "已标记不合适" : feedbackPending ? "正在记录…" : "不合适"}
+        {t(feedbackValue === "not_relevant" ? "已标记不合适" : feedbackPending ? "正在记录…" : "不合适")}
       </button>
-      <span>反馈只调整后续排序，不会删除项目。</span>
+      <span>{t("反馈只调整后续排序，不会删除项目。")}</span>
     </div>}
     {isCandidate(card) && highlights.length > 0 && <p className="agent-reason"><strong>匹配：</strong>{highlights.map((point) => point.text).join("；")}</p>}
-    {card.kind === "project" && (!isCandidate(card) || !highlights.length) && <p className="agent-reason">核心条件资料不足，暂时无法推荐。</p>}
+    {card.kind === "project" && (!isCandidate(card) || !highlights.length) && <p className="agent-reason">{t("核心条件资料不足，暂时无法推荐。")}</p>}
     {firstConcern && <p className="agent-unresolved"><strong>待确认：</strong>{firstConcern.text}{concerns.length > 1 && `；另 ${concerns.length - 1} 项`}</p>}
     <CscaBasis card={card} />
-    {card.warning.length > 0 && <div className="agent-alert"><ShieldAlert size={15} aria-hidden="true" /><div><strong>敏感信息，需人工核实</strong>{card.warning.some((warning) => warning.startsWith("敏感信息，需人工核实：")) ? <details><summary>查看 {card.warning.length} 条内部注意事项</summary>{card.warning.map((warning, index) => <p key={index}>{warning.replace(/^敏感信息，需人工核实：/, "")}</p>)}</details> : <p>请联系有权限的同事核实。</p>}</div></div>}
-    <details className="agent-detail"><summary>查看完整依据 <ChevronDown size={14} aria-hidden="true" /></summary>
+    <AdmissionsNotice warnings={card.warning} />
+    <details className="agent-detail"><summary>{t("查看完整依据")} <ChevronDown size={14} aria-hidden="true" /></summary>
       <div className="agent-detail-content">
         {matches.length > 0 && <p><strong>匹配：</strong>{matches.map((point) => point.text).join("；")}</p>}
         {concerns.length > 0 && <p><strong>待确认：</strong>{concerns.map((point) => point.text).join("；")}</p>}
@@ -284,6 +328,7 @@ function comparisonPoint(card: ResultCard, labels: string[]) {
 }
 
 function CandidateComparison({ result }: { result: ScreeningResponse }) {
+  const t = useT();
   const cards = comparisonCards(result);
   if (cards.length < 2) return null;
   return <details className="agent-compare">
@@ -292,24 +337,26 @@ function CandidateComparison({ result }: { result: ScreeningResponse }) {
       {cards.map((card) => {
         const concern = summarizePoints(card.points).firstConcern;
         return <article className="agent-compare-card" key={card.programId ?? card.name}>
-          <div className="agent-compare-heading"><h4>{card.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{card.name}</Link> : card.name}</h4><span className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{card.verified ? "已人工核实" : "待人工核实"}</span></div>
+          <div className="agent-compare-heading"><h4>{card.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{card.name}</Link> : card.name}</h4><span className={`agent-verification ${card.verified ? "is-verified" : ""}`}>{t(card.verified ? "已人工核实" : "待人工核实")}</span></div>
           <p className="agent-program">{displayProgramName(card.name, card.program)}</p>
           <dl>
-            <div><dt>首年费用</dt><dd>{comparisonCost(card)}</dd></div>
-            <div><dt>申请截止</dt><dd>{comparisonPoint(card, ["申请截止"])}</dd></div>
-            <div><dt>入学批次</dt><dd>{comparisonPoint(card, ["入学季", "入学年份"])}</dd></div>
-            <div><dt>语言要求</dt><dd>{comparisonLanguage(card)}</dd></div>
-            <div><dt>主要待确认</dt><dd>{concern?.text ?? "资料尚未发现明确冲突"}</dd></div>
-            <div><dt>合作状态</dt><dd>{card.cooperation === "project_confirmed" ? "项目合作已记录" : card.cooperation === "listed" ? "学校在合作名单" : card.cooperation === "not_cooperating" ? "名单标注不合作" : "合作状态待核"}</dd></div>
+            <div><dt>{t("首年费用")}</dt><dd>{comparisonCost(card)}</dd></div>
+            <div><dt>{t("申请截止")}</dt><dd>{comparisonPoint(card, ["申请截止"])}</dd></div>
+            <div><dt>{t("入学批次")}</dt><dd>{comparisonPoint(card, ["入学季", "入学年份"])}</dd></div>
+            <div><dt>{t("语言要求")}</dt><dd>{comparisonLanguage(card)}</dd></div>
+            <div><dt>{t("主要待确认")}</dt><dd>{concern?.text ?? "资料尚未发现明确冲突"}</dd></div>
+            <div><dt>{t("合作状态")}</dt><dd>{card.cooperation === "project_confirmed" ? "项目合作已记录" : card.cooperation === "listed" ? "学校在合作名单" : card.cooperation === "not_cooperating" ? "名单标注不合作" : "合作状态待核"}</dd></div>
           </dl>
         </article>;
       })}
     </div>
-    <p className="agent-compare-note">对比只使用当前可核验资料；费用、截止日期和开班批次仍需按目标招生季确认。</p>
+    <p className="agent-compare-note">{t("对比只使用当前可核验资料；费用、截止日期和开班批次仍需按目标招生季确认。")}</p>
   </details>;
 }
 
 function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { title: string; cards: ResultCard[]; repeatedStatus?: string; hideHeading?: boolean }) {
+  const t = useT();
+  const tv = useTv();
   if (!cards.length) return null;
   const groups = new Map<string, ResultCard[]>();
   cards.forEach((card) => {
@@ -318,12 +365,12 @@ function ResultSection({ title, cards, repeatedStatus, hideHeading = false }: { 
   });
   const schools = [...groups.entries()];
   const renderSchool = ([name, items]: [string, ResultCard[]]) => <article className="agent-result" data-result-school={items[0].name} key={name}>
-    <div className="agent-result-heading"><h4>{items[0].schoolId ? <Link href={`/schools/${encodeURIComponent(items[0].schoolId)}`}>{items[0].name}</Link> : items[0].name}</h4>{items[0].fit !== repeatedStatus && <span className={`agent-status ${items[0].fit === "已知条件符合" ? "agent-status-good" : ""}`}>{items[0].fit === "合作及招生条件待核实" ? "合作待核实" : items[0].fit === "合作不可用或存在冲突，需核实" ? "合作状态有冲突" : items[0].fit}</span>}</div>
+    <div className="agent-result-heading"><h4>{items[0].schoolId ? <Link href={`/schools/${encodeURIComponent(items[0].schoolId)}`}>{items[0].name}</Link> : items[0].name}</h4>{items[0].fit !== repeatedStatus && <span className={`agent-status ${items[0].fit === "已知条件符合" ? "agent-status-good" : ""}`}>{t(items[0].fit === "合作及招生条件待核实" ? "合作待核实" : items[0].fit === "合作不可用或存在冲突，需核实" ? "合作状态有冲突" : items[0].fit)}</span>}</div>
     <CandidateDetails card={items[0]} />
-    {items.length > 1 && <details className="agent-extra-programs"><summary>查看该校另外 {items.length - 1} 个项目 <ChevronDown size={14} aria-hidden="true" /></summary>{items.slice(1).map((card, index) => <CandidateDetails key={`${card.program}-${index}`} card={card} />)}</details>}
+    {items.length > 1 && <details className="agent-extra-programs"><summary>{tv("查看该校另外 {count} 个项目", { count: items.length - 1 })} <ChevronDown size={14} aria-hidden="true" /></summary>{items.slice(1).map((card, index) => <CandidateDetails key={`${card.program}-${index}`} card={card} />)}</details>}
   </article>;
-  return <section className="agent-results">{!hideHeading && <div className="agent-section-title"><h3>{title}</h3><span>{schools.length} 所</span></div>}
-    <div className="agent-result-list">{schools.slice(0, RECOMMENDED_SCHOOL_COUNT).map(renderSchool)}{schools.length > RECOMMENDED_SCHOOL_COUNT && <details className="agent-more"><summary>查看另外 {schools.length - RECOMMENDED_SCHOOL_COUNT} 所学校 <ChevronDown size={15} aria-hidden="true" /></summary><div className="agent-result-list">{schools.slice(RECOMMENDED_SCHOOL_COUNT).map(renderSchool)}</div></details>}</div>
+  return <section className="agent-results">{!hideHeading && <div className="agent-section-title"><h3>{t(title)}</h3><span>{tv("{count} 所", { count: schools.length })}</span></div>}
+    <div className="agent-result-list">{schools.slice(0, RECOMMENDED_SCHOOL_COUNT).map(renderSchool)}{schools.length > RECOMMENDED_SCHOOL_COUNT && <details className="agent-more"><summary>{tv("查看另外 {count} 所学校", { count: schools.length - RECOMMENDED_SCHOOL_COUNT })} <ChevronDown size={15} aria-hidden="true" /></summary><div className="agent-result-list">{schools.slice(RECOMMENDED_SCHOOL_COUNT).map(renderSchool)}</div></details>}</div>
   </section>;
 }
 
@@ -339,7 +386,7 @@ function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
   const cardByProgram = new Map<string, ResultCard>();
   for (const card of [...result.results.confirmed, ...result.results.pending, ...result.results.other]) {
     const key = schoolIdentityKey(card.name);
-    if (card.schoolId && !cardBySchool.has(key)) cardBySchool.set(key, card);
+    if (!cardBySchool.has(key)) cardBySchool.set(key, card);
     if (card.programId) cardByProgram.set(card.programId, card);
   }
   const groups = [
@@ -357,19 +404,21 @@ function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
           <h4>{card?.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{item.name}</Link> : item.name}</h4>
           {program && <p className="agent-program">{displayProgramName(program.name, program.program)}</p>}
         </div>
-          {item.attention && <span className="agent-school-risk"><ShieldAlert size={14} aria-hidden="true" />需内部核实</span>}
           {program && <CandidatePlanButton card={program} />}
         </div>
         <p>{item.body}</p>
         {program && <CscaBasis card={program} />}
+        <AdmissionsNotice warnings={card?.warning ?? []} />
       </article>;
     })}</div>
   </section>)}</div>;
 }
 
 function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOthers: () => void; busy: boolean }) {
+  const t = useT();
+  const locale = useLocale();
   const { confirmed, pending, other, otherHidden } = result.results;
-  const conditions = criteriaLabels(result.criteria);
+  const conditions = criteriaLabels(result.criteria, locale);
   const pendingProjects = pending.filter(isCandidate);
   const pendingSchools = pending.filter((card) => !isCandidate(card));
   const otherProjects = other.filter(isCandidate);
@@ -384,35 +433,38 @@ function Answer({ result, onOthers, busy }: { result: ScreeningResponse; onOther
     {!result.otherRequested && otherResults}
   </>;
   const hasResults = confirmed.length > 0 || pending.length > 0 || other.length > 0;
-  if (result.answer) return <div className="agent-answer"><div className="agent-answer-intro"><p className="agent-outcome">{result.answer.lead}</p>{result.answer.details.length > 0 && <ul className="agent-followup-detail">{result.answer.details.map((detail, index) => <li key={index}>{detail}</li>)}</ul>}{result.answer.note && <p className="agent-followup-note">{result.answer.note}</p>}{result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}</div>{(confirmed.length > 0 || pending.length > 0 || other.length > 0 || otherHidden) && <details className="agent-incomplete"><summary><span>查看本轮依据</span><ChevronDown size={16} aria-hidden="true" /></summary>{result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}{otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}</details>}</div>;
+  if (result.answer) return <div className="agent-answer"><div className="agent-answer-intro"><p className="agent-outcome">{result.answer.lead}</p>{result.answer.details.length > 0 && <ul className="agent-followup-detail">{result.answer.details.map((detail, index) => <li key={index}>{detail}</li>)}</ul>}{result.answer.note && <p className="agent-followup-note">{result.answer.note}</p>}{result.sensitiveContext && <p className="agent-context-note">{t("申请前请核实生源相关招生注意事项及适用批次。")}</p>}</div>{(confirmed.length > 0 || pending.length > 0 || other.length > 0 || otherHidden) && <details className="agent-incomplete"><summary><span>{t("查看本轮依据")}</span><ChevronDown size={16} aria-hidden="true" /></summary>{result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}{otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>{t("查看知识库院校")}</button>}</details>}</div>;
   if (result.narrative) return <div className="agent-answer">
     <div className="agent-answer-intro"><p className="agent-outcome">{result.narrative.lead}</p>
-      {result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}
+      {result.sensitiveContext && <p className="agent-context-note">{t("申请前请核实生源相关招生注意事项及适用批次。")}</p>}
     </div>
     <CandidateComparison result={result} />
     <NarrativeSchoolGroups result={result} />
     {result.narrative.next && <p className="agent-narrative-next">{result.narrative.next}</p>}
-    {hasResults && <details className="agent-narrative-results"><summary>查看更多项目与匹配依据 <ChevronDown size={15} aria-hidden="true" /></summary>
-      {conditions.length > 0 && <div className="agent-criteria" aria-label="已识别的申请条件">{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}
+    {hasResults && <details className="agent-narrative-results"><summary>{t("查看更多项目与匹配依据")} <ChevronDown size={15} aria-hidden="true" /></summary>
+      {conditions.length > 0 && <div className="agent-criteria" aria-label={t("已识别的申请条件")}>{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}
       {result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}
     </details>}
-    {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}
+    {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>{t("查看知识库院校")}</button>}
   </div>;
   return <div className="agent-answer">
     <div className="agent-answer-intro"><p className="agent-outcome">{outcomeSummary(result)}</p>
-      {conditions.length > 3 ? <details className="agent-conditions"><summary aria-label={`查看全部 ${conditions.length} 项匹配条件`}>{conditions.slice(0, 3).join(" · ")} 等 {conditions.length} 项条件 <ChevronDown size={14} aria-hidden="true" /></summary><div className="agent-criteria" aria-label="已识别的申请条件">{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div></details> : conditions.length > 0 && <p className="agent-conditions-line">{conditions.join(" · ")}</p>}
-      {result.sensitiveContext && <p className="agent-context-note">生源相关限制未自动筛选，请人工核实。</p>}
+      {conditions.length > 3 ? <details className="agent-conditions"><summary aria-label={`查看全部 ${conditions.length} 项匹配条件`}>{conditions.slice(0, 3).join(" · ")} 等 {conditions.length} 项条件 <ChevronDown size={14} aria-hidden="true" /></summary><div className="agent-criteria" aria-label={t("已识别的申请条件")}>{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div></details> : conditions.length > 0 && <p className="agent-conditions-line">{conditions.join(" · ")}</p>}
+      {result.sensitiveContext && <p className="agent-context-note">{t("申请前请核实生源相关招生注意事项及适用批次。")}</p>}
     </div>
     <CandidateComparison result={result} />
     <ResultSection title="优先查看" cards={comparisonCards(result)} />
-    {hasResults && <details className="agent-narrative-results"><summary>查看更多项目与匹配依据 <ChevronDown size={15} aria-hidden="true" /></summary>{allResults}</details>}
-    {!confirmed.length && !pending.length && !other.length && <div className="agent-empty-result"><strong>没有找到可展示的院校。</strong><p>试试放宽专业、预算或入学时间。</p></div>}
-    {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>查看知识库院校</button>}
+    {hasResults && <details className="agent-narrative-results"><summary>{t("查看更多项目与匹配依据")} <ChevronDown size={15} aria-hidden="true" /></summary>{allResults}</details>}
+    {!confirmed.length && !pending.length && !other.length && <div className="agent-empty-result"><strong>{t("没有找到可展示的院校。")}</strong><p>{t("试试放宽专业、预算或入学时间。")}</p></div>}
+    {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>{t("查看知识库院校")}</button>}
     {result.prompt.startsWith("想进一步") && <p className="agent-follow-up">{result.prompt}</p>}
   </div>;
 }
 
 function WorkbookManager({ canManage, refreshKey }: { canManage: boolean; refreshKey: number }) {
+  const t = useT();
+  const tm = useTm();
+  const tv = useTv();
   const [info, setInfo] = useState<WorkbookInfo | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<WorkbookPreview | null>(null);
@@ -454,19 +506,19 @@ function WorkbookManager({ canManage, refreshKey }: { canManage: boolean; refres
   }
 
   return <div className="agent-workbook">
-    <details><summary>{canManage ? "管理合作名单" : "查看合作名单"} <ChevronDown size={14} aria-hidden="true" /></summary>
-      <p>当前名单：{info ? info.available ? info.name : "暂不可用" : "正在读取…"}</p>
-      {canManage && <div className="agent-workbook-form"><p>更新后所有顾问使用新名单，原文件与历史版本保留。</p>
-        <label htmlFor="agent-workbook-file">选择 Excel 名单（.xlsx，最大 10 MB）</label>
+    <details><summary>{t(canManage ? "管理合作名单" : "查看合作名单")} <ChevronDown size={14} aria-hidden="true" /></summary>
+      <p>{t("当前名单：")}{info ? info.available ? info.name : t("暂不可用") : t("正在读取…")}</p>
+      {canManage && <div className="agent-workbook-form"><p>{t("更新后所有顾问使用新名单，原文件与历史版本保留。")}</p>
+        <label htmlFor="agent-workbook-file">{t("选择 Excel 名单（.xlsx，最大 10 MB）")}</label>
         <input ref={fileRef} id="agent-workbook-file" type="file" accept=".xlsx" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPreview(null); setMessage(""); }} disabled={busy} />
-        {preview && <div className="agent-workbook-preview" role="status"><strong>识别到 {preview.schools} 所院校、{preview.rows} 条记录</strong><p>{preview.added == null ? "当前名单无法对比，请仔细核对。" : `与当前名单相比：新增 ${preview.added} 所，移除 ${preview.removed} 所。`} {preview.notCooperating > 0 && `${preview.notCooperating} 所标记不合作。`}</p>{preview.missingColumns.length > 0 && <p>未识别到“{preview.missingColumns.join("、")}”列，相关信息将按未知处理。</p>}</div>}
-        <div className="agent-workbook-actions">{!preview ? <button type="button" onClick={() => void update("preview")} disabled={!info || !file || busy}>检查名单</button> : <button type="button" onClick={() => void update("update")} disabled={busy}>确认更新名单</button>}
-          {info?.canRestore && !confirmRestore && <button type="button" onClick={() => setConfirmRestore(true)} disabled={busy}>恢复上一版</button>}
-          {info?.canRestore && confirmRestore && <><button type="button" onClick={() => void update("restore")} disabled={busy}>确认恢复上一版</button><button type="button" onClick={() => setConfirmRestore(false)} disabled={busy}>取消</button></>}
+        {preview && <div className="agent-workbook-preview" role="status"><strong>{tv("识别到 {schools} 所院校、{rows} 条记录", { schools: preview.schools, rows: preview.rows })}</strong><p>{preview.added == null ? t("当前名单无法对比，请仔细核对。") : tv("与当前名单相比：新增 {added} 所，移除 {removed} 所。", { added: preview.added, removed: preview.removed ?? 0 })} {preview.notCooperating > 0 && tv("{count} 所标记不合作。", { count: preview.notCooperating })}</p>{preview.missingColumns.length > 0 && <p>{tv("未识别到“{columns}”列，相关信息将按未知处理。", { columns: preview.missingColumns.join("、") })}</p>}</div>}
+        <div className="agent-workbook-actions">{!preview ? <button type="button" onClick={() => void update("preview")} disabled={!info || !file || busy}>{t("检查名单")}</button> : <button type="button" onClick={() => void update("update")} disabled={busy}>{t("确认更新名单")}</button>}
+          {info?.canRestore && !confirmRestore && <button type="button" onClick={() => setConfirmRestore(true)} disabled={busy}>{t("恢复上一版")}</button>}
+          {info?.canRestore && confirmRestore && <><button type="button" onClick={() => void update("restore")} disabled={busy}>{t("确认恢复上一版")}</button><button type="button" onClick={() => setConfirmRestore(false)} disabled={busy}>{t("取消")}</button></>}
         </div>
       </div>}
     </details>
-    {message && <p role="status" className="agent-workbook-message">{message}</p>}
+    {message && <p role="status" className="agent-workbook-message">{tm(message)}</p>}
   </div>;
 }
 
@@ -475,6 +527,9 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
   canManageWorkbook: boolean;
   canSavePlans: boolean;
 }) {
+  const t = useT();
+  const tm = useTm();
+  const tv = useTv();
   const [input, setInput] = useState("");
   const [criteria, setCriteria] = useState<ChatCriteria>({});
   const [sensitiveContext, setSensitiveContext] = useState(false);
@@ -692,30 +747,30 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
     <FeedbackContext.Provider value={{ saved: feedbackSaved, pending: feedbackPending, submit: (programId, value) => void submitFeedback(programId, value) }}>
       <PlanSelectionContext.Provider value={canSavePlans ? { selectedIds, saving: savingPlan, toggle: selectCandidate } : null}>
         <div className="agent-page">
-          <PageHeading title="AI 选校" description="查找院校项目，比较匹配依据，把选定的项目整理成方案。" action={
+          <PageHeading title={t("AI 选校")} description={t("查找院校项目，比较匹配依据，把选定的项目整理成方案。")} action={
             <div className="agent-page-actions">
-              {canSavePlans && <Link href="/recommendations" prefetch={false} className="button"><ClipboardList size={15} aria-hidden="true" />方案记录</Link>}
+              {canSavePlans && <Link href="/recommendations" prefetch={false} className="button"><ClipboardList size={15} aria-hidden="true" />{t("方案记录")}</Link>}
               <button type="button" onClick={newConversation} disabled={busy || savingPlan || (!turns.length && !input.trim() && !criteriaLabels(criteria).length)}>
-                <Plus size={16} aria-hidden="true" />新对话
+                <Plus size={16} aria-hidden="true" />{t("新对话")}
               </button>
             </div>
           } />
 
-          {canSavePlans && <div className="agent-panel-switch" role="group" aria-label="工作区视图">
+          {canSavePlans && <div className="agent-panel-switch" role="group" aria-label={t("工作区视图")}>
             <button type="button" aria-pressed={panel === "chat"} onClick={() => setPanel("chat")} aria-controls="agent-chat-panel">
-              <MessageCircle size={16} aria-hidden="true" />对话
+              <MessageCircle size={16} aria-hidden="true" />{t("对话")}
             </button>
             <button type="button" aria-pressed={panel === "draft"} onClick={() => setPanel("draft")} aria-controls="agent-draft-panel">
-              <ClipboardList size={16} aria-hidden="true" />方案草稿{selectedSchoolCount ? ` · ${selectedSchoolCount} 所` : ""}
+              <ClipboardList size={16} aria-hidden="true" />{t("方案草稿")}{selectedSchoolCount ? ` · ${tv("{count} 所", { count: selectedSchoolCount })}` : ""}
             </button>
           </div>}
 
           <div className={`agent-workbench${canSavePlans ? " has-draft" : ""}`} data-panel={panel}>
-            <section className="agent-chat-panel" id="agent-chat-panel" aria-label="选校对话">
+            <section className="agent-chat-panel" id="agent-chat-panel" aria-label={t("选校对话")}>
               <header className="agent-chat-head">
-                <strong><MessageCircle size={16} aria-hidden="true" /> 选校对话</strong>
+                <strong><MessageCircle size={16} aria-hidden="true" /> {t("选校对话")}</strong>
                 <details className="agent-controls" ref={toolRef}>
-                  <summary><SlidersHorizontal size={15} aria-hidden="true" /> 条件与资料{criteriaLabels(criteria).length ? ` · ${criteriaLabels(criteria).length}` : ""} <ChevronDown size={14} aria-hidden="true" /></summary>
+                  <summary><SlidersHorizontal size={15} aria-hidden="true" /> {t("条件与资料")}{criteriaLabels(criteria).length ? ` · ${criteriaLabels(criteria).length}` : ""} <ChevronDown size={14} aria-hidden="true" /></summary>
                   <div className="agent-control-body">
                     <CriteriaBar criteria={criteria} busy={busy} onApply={(next) => {
                       setCriteria(next);
@@ -723,21 +778,21 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
                       void run("按已更新的申请条件重新筛选。", criteria, false, sensitiveContext, focusSchool, next);
                     }} />
                     <WorkbookManager canManage={canManageWorkbook} refreshKey={latest?.result ? latest.id : 0} />
-                    {canManageWorkbook && <Link className="agent-settings-link" href="/settings"><Settings2 size={14} aria-hidden="true" />API 设置</Link>}
+                    {canManageWorkbook && <Link className="agent-settings-link" href="/settings"><Settings2 size={14} aria-hidden="true" />{t("API 设置")}</Link>}
                   </div>
                 </details>
               </header>
 
-              <div className="agent-thread" ref={threadRef} tabIndex={0} aria-label="对话消息">
+              <div className="agent-thread" ref={threadRef} tabIndex={0} aria-label={t("对话消息")}>
                 {!turns.length ? (
                   <section className="agent-intro" aria-labelledby="agent-intro-title">
                     <span className="agent-intro-icon"><GraduationCap size={24} aria-hidden="true" /></span>
-                    <h2 id="agent-intro-title">想找什么样的院校项目？</h2>
-                    <p>说出学历、专业或预算即可开始。结果会区分已知匹配和需要核实的条件。</p>
-                    <div className="agent-suggestions" aria-label="常用提问">
+                    <h2 id="agent-intro-title">{t("想找什么样的院校项目？")}</h2>
+                    <p>{t("说出学历、专业或预算即可开始。结果会区分已知匹配和需要核实的条件。")}</p>
+                    <div className="agent-suggestions" aria-label={t("常用提问")}>
                       {suggestedQueries.map(({ label, prompt }) => (
                         <button key={label} type="button" onClick={() => { setInput(prompt); inputRef.current?.focus(); }}>
-                          {label}<ArrowRight size={14} aria-hidden="true" />
+                          {t(label)}<ArrowRight size={14} aria-hidden="true" />
                         </button>
                       ))}
                     </div>
@@ -746,17 +801,17 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
                   <div className="agent-conversation" aria-live="polite">
                     {turns.map((turn, index) => (
                       <article id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}>
-                        <p className="agent-user"><span className="sr-only">顾问：</span>{turn.question}</p>
+                        <p className="agent-user"><span className="sr-only">{t("顾问：")}</span>{turn.question}</p>
                         <div className="agent-response">
-                          <p className="agent-response-label"><GraduationCap size={16} aria-hidden="true" /> 选校助手</p>
+                          <p className="agent-response-label"><GraduationCap size={16} aria-hidden="true" /> {t("选校助手")}</p>
                           <SearchTrace steps={turn.steps} busy={busy && index === turns.length - 1} />
                           {(turn.result || turn.error) && <SearchHistory steps={turn.steps} source={turn.result?.source} />}
                           {turn.error && <div className="agent-error" role="alert">
-                            <strong>{turn.error === "已停止检索。" ? "检索已停止" : "这次没有完成"}</strong>
-                            {turn.error !== "已停止检索。" && <p>{turn.error}</p>}
+                            <strong>{t(turn.error === "已停止检索。" ? "检索已停止" : "这次没有完成")}</strong>
+                            {turn.error !== "已停止检索。" && <p>{tm(turn.error)}</p>}
                             <div className="agent-error-actions">
-                              {!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore, turn.providedCriteria ?? null)} disabled={busy}>重试检索</button>}
-                              <button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>修改输入</button>
+                              {!/移除|输入内容无效/.test(turn.error) && <button type="button" onClick={() => void run(turn.question, turn.criteriaBefore, turn.showOther, turn.sensitiveBefore, turn.focusBefore, turn.providedCriteria ?? null)} disabled={busy}>{t("重试检索")}</button>}
+                              <button type="button" onClick={() => { setInput(turn.question); inputRef.current?.focus(); }} disabled={busy}>{t("修改输入")}</button>
                             </div>
                           </div>}
                           {turn.result && <ActiveResultContext.Provider value={turn.result}>
@@ -772,29 +827,29 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
 
               <div className="agent-compose-area">
                 {draftNotice && <div className={`agent-compose-notice${draftNotice.error ? " is-error" : ""}`} role={draftNotice.error ? "alert" : "status"}>
-                  <span>{draftNotice.message}</span>
-                  {selectedIds.size > 0 && <button type="button" className="agent-mobile-view-draft" onClick={() => setPanel("draft")}>查看草稿 <ArrowRight size={13} aria-hidden="true" /></button>}
+                  <span>{tm(draftNotice.message)}</span>
+                  {selectedIds.size > 0 && <button type="button" className="agent-mobile-view-draft" onClick={() => setPanel("draft")}>{t("查看草稿")} <ArrowRight size={13} aria-hidden="true" /></button>}
                 </div>}
-                {feedbackStatus && <p className="agent-feedback-status" role="status">{feedbackStatus}</p>}
+                {feedbackStatus && <p className="agent-feedback-status" role="status">{tm(feedbackStatus)}</p>}
                 <form className="agent-composer" method="post" onSubmit={submit}>
-                  <label className="sr-only" htmlFor="agent-input">输入学生申请需求</label>
+                  <label className="sr-only" htmlFor="agent-input">{t("输入学生申请需求")}</label>
                   <textarea ref={inputRef} id="agent-input" aria-describedby="agent-input-help" value={input}
-                    onChange={(event) => setInput(event.target.value)} placeholder={turns.length ? "继续提问，或调整申请条件…" : "描述申请需求，例如：英文授课的计算机硕士…"}
+                    onChange={(event) => setInput(event.target.value)} placeholder={t(turns.length ? "继续提问，或调整申请条件…" : "描述申请需求，例如：英文授课的计算机硕士…")}
                     rows={2} maxLength={1500}
                     onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}
                   />
                   <div className="agent-composer-actions">
-                    <span id="agent-input-help">Enter 发送 · Shift+Enter 换行</span>
-                    {busy ? <button className="agent-stop" type="button" aria-label="停止检索" title="停止检索" onClick={() => running.current?.abort()}>
+                    <span id="agent-input-help">{t("Enter 发送 · Shift+Enter 换行")}</span>
+                    {busy ? <button className="agent-stop" type="button" aria-label={t("停止检索")} title={t("停止检索")} onClick={() => running.current?.abort()}>
                       <Square size={13} fill="currentColor" aria-hidden="true" />
-                    </button> : <button className="primary" type="submit" disabled={!input.trim()} aria-label="发送" title="发送"><ArrowUp size={19} aria-hidden="true" /></button>}
+                    </button> : <button className="primary" type="submit" disabled={!input.trim()} aria-label={t("发送")} title={t("发送")}><ArrowUp size={19} aria-hidden="true" /></button>}
                   </div>
                 </form>
-                <p className="agent-privacy"><ShieldAlert size={13} aria-hidden="true" />对话会发送到模型服务，请使用脱敏案例。</p>
+                <p className="agent-privacy"><ShieldAlert size={13} aria-hidden="true" />{t("对话会发送到模型服务，请使用脱敏案例。")}</p>
               </div>
             </section>
 
-            {canSavePlans && <aside className="agent-draft-panel" id="agent-draft-panel" aria-label="选校方案草稿">
+            {canSavePlans && <aside className="agent-draft-panel" id="agent-draft-panel" aria-label={t("选校方案草稿")}>
               <PlanDraftPane draft={draft} saved={savedPlan} saving={savingPlan}
                 onChange={(fields) => setDraft((current) => current ? { ...current, ...fields } : null)}
                 onRemove={(programId) => { setDraft((current) => removePlanCandidate(current, programId)); setDraftNotice(null); }}
@@ -803,7 +858,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
                 onSaving={setSavingPlan}
                 onSaved={(plan) => { setSavedPlan(plan); setDraft(null); setDraftNotice({ message: "已保存到方案记录。" }); }}
               />
-              <Link href="/recommendations" prefetch={false} className="agent-draft-records">查看方案记录 <ArrowRight size={15} aria-hidden="true" /></Link>
+              <Link href="/recommendations" prefetch={false} className="agent-draft-records">{t("查看方案记录")} <ArrowRight size={15} aria-hidden="true" /></Link>
             </aside>}
           </div>
         </div>
