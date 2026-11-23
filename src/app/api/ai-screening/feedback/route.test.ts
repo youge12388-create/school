@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   db: null as DatabaseSync | null,
 }));
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.user }));
 vi.mock("@/lib/audit", () => ({ writeAudit: mocks.audit }));
 vi.mock("@/lib/db", () => ({
@@ -38,7 +39,11 @@ beforeEach(() => {
     CREATE TABLE programs (id TEXT PRIMARY KEY, archived INTEGER NOT NULL);
     INSERT INTO programs VALUES ('program-1', 0), ('archived', 1);
   `);
-  mocks.user.mockReset().mockResolvedValue({ id: "advisor-1" });
+  mocks.user.mockReset().mockResolvedValue({
+    id: "advisor-1",
+    role: "ADVISOR",
+    authProvider: "LOCAL",
+  });
   mocks.audit.mockReset();
 });
 

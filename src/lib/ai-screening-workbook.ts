@@ -106,11 +106,33 @@ export async function currentWorkbookInfo(): Promise<WorkbookInfo> {
   catch (error) { if (isMissing(error)) return { name: basename(file), version: null, updatedAt: null, schools: null, available: false, canRestore: false }; throw new WorkbookError("无法读取合作名单，请联系管理员检查。"); }
 }
 
+let parsedWorkbookCache: {
+  file: string;
+  name: string;
+  mtimeMs: number;
+  size: number;
+  parsed: ReturnType<typeof parseWorkbook>;
+} | null = null;
+
 export async function loadCurrentWorkbook() {
   const info = await currentWorkbookInfo();
   if (!info.available) throw new WorkbookError("找不到合作院校名单，请联系管理员更新。");
   const file = info.version ? join(storageDirectory(), `workbook-${info.version}.xlsx`) : configuredFile();
-  try { return parseWorkbook(await readFile(file), info.name); }
+  try {
+    const fileStat = await stat(file);
+    if (
+      parsedWorkbookCache &&
+      parsedWorkbookCache.file === file &&
+      parsedWorkbookCache.name === info.name &&
+      parsedWorkbookCache.mtimeMs === fileStat.mtimeMs &&
+      parsedWorkbookCache.size === fileStat.size
+    ) {
+      return parsedWorkbookCache.parsed;
+    }
+    const parsed = parseWorkbook(await readFile(file), info.name);
+    parsedWorkbookCache = { file, name: info.name, mtimeMs: fileStat.mtimeMs, size: fileStat.size, parsed };
+    return parsed;
+  }
   catch (error) { if (error instanceof WorkbookError) throw error; throw new WorkbookError("无法读取合作院校名单，请联系管理员检查。"); }
 }
 
@@ -131,15 +153,35 @@ export async function previewWorkbook(buffer: Buffer, name: string, expectedVers
   };
 }
 
+const STALE_LOCK_MS = 5 * 60 * 1000;
+
 async function withUpdateLock<T>(run: () => Promise<T>): Promise<T> {
   const directory = storageDirectory();
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const lockPath = join(directory, "update.lock");
   let lock;
-  try { lock = await open(lockPath, "wx", 0o600); }
-  catch (error) { if (typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST") throw new WorkbookError("已有名单更新正在进行，请稍后重试。"); throw new WorkbookError("无法写入名单，请联系管理员检查目录权限。"); }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      lock = await open(lockPath, "wx", 0o600);
+      break;
+    } catch (error) {
+      const isExists = typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST";
+      if (!isExists) throw new WorkbookError("无法写入名单，请联系管理员检查目录权限。");
+      if (attempt === 0) {
+        try {
+          const info = await stat(lockPath);
+          if (Date.now() - info.mtimeMs > STALE_LOCK_MS) {
+            await unlink(lockPath);
+            continue;
+          }
+        } catch { /* Lock removed concurrently; retry once. */ continue; }
+      }
+      throw new WorkbookError("已有名单更新正在进行，请稍后重试。");
+    }
+  }
+  if (!lock) throw new WorkbookError("已有名单更新正在进行，请稍后重试。");
   try { return await run(); }
-  finally { await lock.close(); await unlink(lockPath); }
+  finally { await lock.close(); await unlink(lockPath).catch(() => {}); }
 }
 
 async function writePointer(active: string | null) {

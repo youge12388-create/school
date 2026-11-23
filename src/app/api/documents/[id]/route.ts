@@ -8,6 +8,7 @@ import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documents } from "@/lib/db/schema";
 import { decryptBuffer } from "@/lib/file-crypto";
+import { isPathWithinRoot } from "@/lib/request-security";
 
 export async function GET(
   _request: Request,
@@ -25,7 +26,7 @@ export async function GET(
   }
   const uploadRoot = resolve(/* turbopackIgnore: true */ process.env.UPLOAD_DIR ?? "./data/uploads");
   const storagePath = resolve(document.storagePath);
-  if (!storagePath.startsWith(uploadRoot)) {
+  if (!isPathWithinRoot(uploadRoot, storagePath)) {
     return new Response("文件路径异常", { status: 400 });
   }
   const plain = decryptBuffer(

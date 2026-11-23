@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
+import { isSameOrigin } from "@/lib/http";
 import { asText } from "@/lib/utils";
 
 // 机密字段 → 表列名映射：合作关系、招生计划、考核安排、合作收费
@@ -27,6 +28,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_EDIT_CONFIDENTIAL");
   const { id } = await context.params;
   const school = sqlite
@@ -35,7 +39,16 @@ export async function PATCH(
   if (!school) {
     return Response.json({ error: "学校不存在" }, { status: 404 });
   }
-  const body = (await request.json()) as Record<string, unknown>;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "请求体格式无效" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const keys = Object.keys(body).filter((key) => key in CONFIDENTIAL_COLUMNS);
   if (!keys.length) {
     return Response.json({ error: "没有可保存的机密字段" }, { status: 400 });

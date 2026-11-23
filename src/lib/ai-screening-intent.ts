@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getAiProviderConfig, requestAiCompletion } from "@/lib/ai-provider";
+import { extractJsonObject, getAiProviderConfig, requestAiCompletion } from "@/lib/ai-provider";
 import { criteriaSchema, mergeCriteria, type ChatCriteria } from "@/lib/ai-screening";
 
 export const screeningHistorySchema = z
@@ -121,7 +121,7 @@ export async function extractScreeningIntent(
         message: input.message,
       }),
     },
-  ], { timeoutMs: options.timeoutMs ?? 25_000, signal: options.signal, fetchImpl: options.fetchImpl });
+  ], { timeoutMs: options.timeoutMs ?? 25_000, maxTokens: 512, signal: options.signal, fetchImpl: options.fetchImpl });
   const content = payload?.choices?.[0]?.message?.content;
   if (
     typeof content !== "string" ||
@@ -132,7 +132,7 @@ export async function extractScreeningIntent(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = extractJsonObject(content);
   } catch {
     throw new Error("模型返回格式错误，请重试。");
   }

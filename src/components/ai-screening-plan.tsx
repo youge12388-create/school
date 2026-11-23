@@ -55,8 +55,8 @@ export function PlanDraftPane({ draft, saved, saving, onChange, onRemove, onMove
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...payload, requestId: previousRequest.current.id }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "保存未完成，请重试。");
+      const data = (await response.json().catch(() => null)) as { id?: string; error?: string } | null;
+      if (!response.ok || !data?.id) throw new Error(data?.error || "保存未完成，请重试。");
       previousRequest.current = null;
       onSaved({ id: data.id, title: payload.title });
     } catch (cause) {

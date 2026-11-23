@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
   }
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "请先登录。" }, { status: 401 });
+  if (!userHasPermission(user, "SCREENING_VIEW")) {
+    return Response.json({ error: "当前账号无权提交选校反馈。" }, { status: 403 });
+  }
   let parsed: ReturnType<typeof feedbackSchema.safeParse>;
   try {
     parsed = feedbackSchema.safeParse(await request.json());

@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/auth";
 import { sqlite } from "@/lib/db";
+import { isSameOrigin } from "@/lib/http";
 import { saveProgramFields } from "@/lib/program-editor";
 import { asText } from "@/lib/utils";
 
@@ -22,6 +23,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
   const { id } = await context.params;
   const program = sqlite
@@ -30,7 +34,16 @@ export async function PATCH(
   if (!program) {
     return Response.json({ error: "项目不存在" }, { status: 404 });
   }
-  const body = (await request.json()) as Record<string, unknown>;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "请求体格式无效" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const name = asText(body.name);
   const programType = asText(body.programType);
   const teachingLanguage = asText(body.teachingLanguage);

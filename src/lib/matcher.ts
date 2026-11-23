@@ -143,15 +143,15 @@ export function matchesSchoolTier(
 
 
 /** 检测生源地招生偏好 */
-const ENROLLMENT_REGIONS = /非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲|缅甸|菲律宾|委内瑞拉|塔吉克|土库曼|阿富汗|朝鲜|韩国|越南|泰国|马来西亚|印度尼西亚|印巴|斯坦|尼日利亚/u;
+const ENROLLMENT_REGIONS = /非洲|东南亚|中亚|南亚|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲|缅甸|菲律宾|委内瑞拉|塔吉克|土库曼|阿富汗|朝鲜|韩国|越南|泰国|马来西亚|印度尼西亚|印巴|斯坦|尼日利亚/u;
 export function getEnrollmentRegionPreference(program: MatchProgram): "HAS_PREFERENCE" | "NO_PREFERENCE" {
   const text = (program.requirementsText ?? "") + (program.sourceText ?? "");
   if (!ENROLLMENT_REGIONS.test(text)) return "NO_PREFERENCE";
   // 明确招生偏好：招/不招/开放/限制 + 地区（跨行匹配）
-  if (/(不?招|不?开放|考虑|限制|倾向|侧重|偏向|可招|已招|推荐|鼓励)[\s\S]{0,200}(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)/u.test(text)) return "HAS_PREFERENCE";
-  if (/(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)[\s\S]{0,50}(不?招|不?开放|考虑|限制|不对|不予)/u.test(text)) return "HAS_PREFERENCE";
+  if (/(不?招|不?开放|考虑|限制|倾向|侧重|偏向|可招|已招|推荐|鼓励)[\s\S]{0,200}(非洲|东南亚|中亚|南亚|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)/u.test(text)) return "HAS_PREFERENCE";
+  if (/(非洲|东南亚|中亚|南亚|拉美|中东|东欧|一带一路|欠发达|巴基斯坦|印度|孟加拉|俄罗斯|大洋洲)[\s\S]{0,50}(不?招|不?开放|考虑|限制|不对|不予)/u.test(text)) return "HAS_PREFERENCE";
   // 招生对象 + 地区
-  if (/(面向|针对|优先|招生对象|国别|生源|生源地)[\s\S]{0,100}(非州|东南亚|中亚|南亚|非洲|拉美|中东|东欧|一带一路|欠发达)/u.test(text)) return "HAS_PREFERENCE";
+  if (/(面向|针对|优先|招生对象|国别|生源|生源地)[\s\S]{0,100}(非洲|东南亚|中亚|南亚|拉美|中东|东欧|一带一路|欠发达)/u.test(text)) return "HAS_PREFERENCE";
   // 重点面向留学生
   if (/(主要|重点)[\s\S]{0,30}(招收|面向)[\s\S]{0,30}(留学生|国际学生)/u.test(text)) return "HAS_PREFERENCE";
   return "NO_PREFERENCE";

@@ -65,6 +65,7 @@ describe("school update excel import api", () => {
     );
     return new Request("http://localhost/api/school-updates/import", {
       method: "POST",
+      headers: { origin: "http://localhost" },
       body: formData,
     });
   }

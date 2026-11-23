@@ -2,12 +2,16 @@ import { ZodError } from "zod";
 
 import { requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/access-control";
+import { isSameOrigin } from "@/lib/http";
 import { createManualEntry } from "@/lib/import-service";
 import {
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("DATA_IMPORT");
   try {
     const body = (await request.json()) as Record<string, unknown>;

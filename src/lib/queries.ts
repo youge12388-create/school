@@ -42,7 +42,7 @@ export async function getDashboardData(options: { includeAudit?: boolean } = {})
   const [reviewCount] = await db
     .select({ value: count() })
     .from(programs)
-    .where(eq(programs.reviewStatus, "NEEDS_REVIEW"));
+    .where(and(eq(programs.archived, false), eq(programs.reviewStatus, "NEEDS_REVIEW")));
   const dueCustomers = await db
     .select({
       id: customers.id,
@@ -70,6 +70,8 @@ export async function getDashboardData(options: { includeAudit?: boolean } = {})
     .innerJoin(schools, eq(schools.id, programs.schoolId))
     .where(
       and(
+        eq(programs.archived, false),
+        eq(schools.archived, false),
         eq(programs.deadlineStatus, "OPEN"),
         lte(programs.deadlineDate, thirtyDays),
       ),

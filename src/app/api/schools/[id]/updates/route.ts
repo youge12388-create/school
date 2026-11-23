@@ -1,7 +1,8 @@
-import { requirePermission, requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { sqlite } from "@/lib/db";
+import { isSameOrigin } from "@/lib/http";
 import { getSchoolUpdates } from "@/lib/queries";
 import {
   serializeSchoolUpdate,
@@ -32,15 +33,16 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireUser();
+  const user = await requirePermission("SCHOOL_VIEW_PUBLIC");
   const { id } = await context.params;
   const items = await getSchoolUpdates(id);
+  const canViewConfidential = userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL");
   return Response.json(
     items.map((item) =>
       serializeSchoolUpdate(
         item.update,
         item.attachments,
-        userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
+        canViewConfidential,
       ),
     ),
   );
@@ -50,6 +52,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const { id } = await context.params;
   const school = sqlite
@@ -58,7 +63,16 @@ export async function POST(
   if (!school) {
     return Response.json({ error: "学校不存在" }, { status: 404 });
   }
-  const body = (await request.json()) as Record<string, unknown>;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "请求体格式无效" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const input = stripSchoolUpdateInput(
     body,
     userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),

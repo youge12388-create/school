@@ -6,12 +6,16 @@ import { requireUser } from "@/lib/auth";
 import { userHasPermission } from "@/lib/access-control";
 import { sqlite } from "@/lib/db";
 import { decryptBuffer } from "@/lib/file-crypto";
+import { isPathWithinRoot } from "@/lib/request-security";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const user = await requireUser();
+  if (!userHasPermission(user, "SCHOOL_VIEW_PUBLIC")) {
+    return new Response("无权访问", { status: 403 });
+  }
   const { id } = await context.params;
   const attachment = sqlite
     .prepare(
@@ -48,7 +52,7 @@ export async function GET(
     process.env.UPLOAD_DIR ?? "./data/uploads",
   );
   const storagePath = resolve(attachment.storagePath);
-  if (!storagePath.startsWith(uploadRoot)) {
+  if (!isPathWithinRoot(uploadRoot, storagePath)) {
     return new Response("文件路径异常", { status: 400 });
   }
   const plain = decryptBuffer(

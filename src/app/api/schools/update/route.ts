@@ -87,8 +87,8 @@ export async function POST(request: Request) {
     );
   }
 
+  const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
   try {
-    const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
     const canVerify =
       user.role === "ADMIN" || user.role === "DATA_MANAGER";
     const updatedAt = Date.now();
@@ -185,6 +185,12 @@ export async function POST(request: Request) {
       for (let i = 0; ; i++) {
         const programId = asText(formData.get(`program_${i}_id`));
         if (!programId) break;
+        const ownedProgram = sqlite
+          .prepare("SELECT id FROM programs WHERE id = ? AND school_id = ? AND archived = 0")
+          .get(programId, id);
+        if (!ownedProgram) {
+          throw new Error("包含不属于当前学校的项目，无法保存");
+        }
         const name = asText(formData.get(`program_${i}_name`));
         const programType = asText(formData.get(`program_${i}_programType`));
         const teachingLanguage = asText(formData.get(`program_${i}_teachingLanguage`));

@@ -1,9 +1,13 @@
 import { requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/access-control";
+import { isSameOrigin } from "@/lib/http";
 import { confirmImport } from "@/lib/import-service";
 import { sqlite } from "@/lib/db";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("DATA_IMPORT");
   try {
     const body = (await request.json()) as { batchId?: string };

@@ -11,8 +11,8 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
   }
+  const user = await requirePermission("CUSTOMER_EDIT");
   try {
-    const user = await requirePermission("CUSTOMER_EDIT");
     const formData = await request.formData();
     const name = asText(formData.get("name"));
     if (!name) {

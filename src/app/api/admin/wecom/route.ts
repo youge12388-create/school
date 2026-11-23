@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { appUrl } from "@/lib/http";
+import { appUrl, isSameOrigin } from "@/lib/http";
 import {
   syncWeComOrganization,
   updateWeComDepartmentRole,
@@ -17,6 +17,9 @@ function usersUrl(request: Request, params: Record<string, string>) {
 }
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const admin = await getCurrentUser();
   if (!admin) return NextResponse.redirect(appUrl(request, "/login"), 303);
   if (admin.role !== "ADMIN") {
@@ -71,7 +74,7 @@ export async function POST(request: Request) {
     }
     throw new WeComAccessError("企业微信管理操作无效");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "企业微信操作失败";
+    const message = error instanceof WeComAccessError ? error.message : "企业微信操作失败";
     return NextResponse.redirect(usersUrl(request, { wecomError: message }), 303);
   }
 }

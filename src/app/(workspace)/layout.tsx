@@ -32,7 +32,7 @@ export default async function WorkspaceLayout({
           <SidebarShell brand={(
             <div className="brand">
               <div className="brand-mark" aria-hidden="true">SYT</div>
-              <div className="brand-name">{t("高校访查与申请管理")}</div>
+              <div className="brand-name">{t("高校筛查与申请管理")}</div>
             </div>
           )}>
             <AppNav role={user.role} permissions={permissions} />

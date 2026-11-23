@@ -1,10 +1,14 @@
 import { requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/access-control";
+import { isSameOrigin } from "@/lib/http";
 import { createImportPreview } from "@/lib/import-service";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("DATA_IMPORT");
   try {
     const formData = await request.formData();

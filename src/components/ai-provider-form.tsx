@@ -39,9 +39,9 @@ export function AiProviderForm({ initial, allowedUrls }: { initial: Settings; al
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ intent, baseUrl, model, apiKey, revision: current.revision }),
       });
-      const result = await response.json() as { error?: string; ok?: true; settings?: Settings };
-      if (!response.ok || !result.ok) {
-        setFeedback({ tone: "error", message: result.error ?? "操作未完成，请刷新页面后重试。" });
+      const result = (await response.json().catch(() => null)) as { error?: string; ok?: true; settings?: Settings } | null;
+      if (!response.ok || !result?.ok) {
+        setFeedback({ tone: "error", message: result?.error ?? "操作未完成，请刷新页面后重试。" });
         return;
       }
       if (intent === "save" && result.settings) {

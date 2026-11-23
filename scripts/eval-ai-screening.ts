@@ -118,7 +118,7 @@ async function main() {
   }
 
   console.log(
-    `真实模型验收：${cases.length} 个用例，模型 ${process.env.DEEPSEEK_MODEL || "deepseek-flash"}`,
+    `真实模型验收：${cases.length} 个用例，模型 ${process.env.DEEPSEEK_MODEL || "deepseek-chat"}`,
   );
   let passed = 0;
   const results: Array<{

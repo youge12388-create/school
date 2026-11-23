@@ -86,7 +86,6 @@
 .agent-compare-card dd { margin: 0; color: #35485e; font-size: 12.5px; line-height: 1.55; overflow-wrap: anywhere; }
 .agent-compare-note { margin: 10px 0 0; color: #718094; font-size: 11.5px; line-height: 1.55; }
 .agent-page button:focus-visible, .agent-page summary:focus-visible, .agent-composer:focus-within { outline: 2px solid #397ee3; outline-offset: 2px; }
-@media (max-width: 440px) { .agent-profile-form, .agent-compare-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .agent-spin { animation: none; } }
 @media (max-width: 760px) {
   .agent-result-heading, .agent-school-heading { flex-wrap: wrap; }

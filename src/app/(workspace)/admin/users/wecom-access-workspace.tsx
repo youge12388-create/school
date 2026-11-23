@@ -194,7 +194,9 @@ function PermissionPicker({
         </select>
       </label>
       <input type="hidden" name="permissionSource" value={source} />
-      <input type="hidden" name="permissions" value="WORKSPACE_VIEW" />
+      {[...new Set<PermissionKey>(["WORKSPACE_VIEW", ...permissions])].map((permission) => (
+        <input key={permission} type="hidden" name="permissions" value={permission} />
+      ))}
       <div className="wecom-permission-groups">
         {PERMISSION_GROUPS.map((group) => {
           const selected = group.keys.filter((permission) => permissions.includes(permission)).length;
@@ -233,7 +235,6 @@ function PermissionPicker({
                       >
                         <input
                           type="checkbox"
-                          name="permissions"
                           value={permission}
                           checked={checked}
                           disabled={disabled || mandatory}

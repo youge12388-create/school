@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -181,13 +182,12 @@ export function MajorPicker({
     setQuery("");
     setOpen(false);
     setActiveIndex(-1);
-    inputRef.current?.focus();
   }
 
+  const listboxId = useId();
   function clearMouseDown(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     e.stopPropagation();
-    clear();
   }
 
   function handleInput(e: FormEvent<HTMLInputElement>) {
@@ -202,7 +202,7 @@ export function MajorPicker({
   }
 
   function handleClick() {
-    setOpen((prev) => !prev);
+    if (!open) setOpen(true);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -254,7 +254,12 @@ export function MajorPicker({
           aria-label={t("目标专业")}
           aria-expanded={open}
           aria-autocomplete="list"
-          aria-controls="major-picker-listbox"
+          aria-controls={listboxId}
+          aria-activedescendant={
+            open && activeIndex >= 0 && options[activeIndex]
+              ? `${listboxId}-option-${activeIndex}`
+              : undefined
+          }
         />
         {query ? (
           <button
@@ -264,6 +269,7 @@ export function MajorPicker({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              clear();
             }}
             aria-label={t("清除")}
           >
@@ -281,7 +287,7 @@ export function MajorPicker({
       </div>
       {open && options.length > 0 ? (
         <div
-          id="major-picker-listbox"
+          id={listboxId}
           role="listbox"
           ref={listRef}
           className="major-picker-panel"
@@ -297,6 +303,7 @@ export function MajorPicker({
                 return (
                   <button
                     key={`${option.group}-${option.value}`}
+                    id={`${listboxId}-option-${idx}`}
                     type="button"
                     data-index={idx}
                     className={`major-picker-option ${

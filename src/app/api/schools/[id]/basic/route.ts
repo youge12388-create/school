@@ -4,6 +4,7 @@ import { writeAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { RULE_STATUSES } from "@/lib/constants";
 import { sqlite } from "@/lib/db";
+import { isSameOrigin } from "@/lib/http";
 import { asText } from "@/lib/utils";
 
 function optionalText(value: unknown) {
@@ -36,6 +37,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_EDIT_PUBLIC");
   const { id } = await context.params;
   const school = sqlite
@@ -44,7 +48,16 @@ export async function PATCH(
   if (!school) {
     return Response.json({ error: "学校不存在" }, { status: 404 });
   }
-  const body = (await request.json()) as Record<string, unknown>;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "请求体格式无效" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const nameZh = asText(body.nameZh);
   if (!nameZh) {
     return Response.json({ error: "学校中文名不能为空" }, { status: 400 });
@@ -58,6 +71,13 @@ export async function PATCH(
     return Response.json({ error: "合作星级必须在 0 到 5 之间" }, { status: 400 });
   }
 
+  const oldSchool = sqlite
+    .prepare(
+      "SELECT name_zh AS nameZh, name, category, province, city, website, partnership_rating AS partnershipRating, csca_status AS cscaStatus, qs_ranking AS qsRanking, ranking_info AS rankingInfo, tags, description, cooperation_programs AS cooperationPrograms, review_status AS reviewStatus FROM schools WHERE id = ?",
+    )
+    .get(id) as Record<string, unknown>;
+
+  const canVerify = user.role === "ADMIN" || user.role === "DATA_MANAGER";
   const updates = {
     nameZh,
     name: optionalText(body.name) || nameZh,
@@ -72,13 +92,8 @@ export async function PATCH(
     tags: optionalText(body.tags),
     description: optionalText(body.description),
     cooperationPrograms: optionalText(body.cooperationPrograms),
-    reviewStatus: "VERIFIED",
+    reviewStatus: canVerify ? "VERIFIED" : String(oldSchool.reviewStatus ?? "NEEDS_REVIEW"),
   };
-  const oldSchool = sqlite
-    .prepare(
-      "SELECT name_zh AS nameZh, name, category, province, city, website, partnership_rating AS partnershipRating, csca_status AS cscaStatus, qs_ranking AS qsRanking, ranking_info AS rankingInfo, tags, description, cooperation_programs AS cooperationPrograms, review_status AS reviewStatus FROM schools WHERE id = ?",
-    )
-    .get(id) as Record<string, unknown>;
 
   sqlite
     .prepare(

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getAiProviderConfig, requestAiCompletion } from "@/lib/ai-provider";
+import { extractJsonObject, getAiProviderConfig, requestAiCompletion } from "@/lib/ai-provider";
 import type { ChatCriteria, EvidencePoint, ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse } from "@/lib/ai-screening-events";
 import { admissionListLabel, isCandidate, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
@@ -246,25 +246,32 @@ function safeDraft(candidate: Candidate, criteria: ChatCriteria, text: string | 
   return true;
 }
 
-async function verifyDrafts(config: ReturnType<typeof getAiProviderConfig>, input: ReturnType<typeof anonymousNarrativeInput>, plan: z.infer<typeof planSchema>, result: ScreeningResponse, signal: AbortSignal, pool = candidatePool(result)): Promise<Plan> {
+function logNarrativeMetric(event: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "test") return;
+  console.info("[ai-screening:narrative]", JSON.stringify(event));
+}
+
+async function verifyDrafts(config: ReturnType<typeof getAiProviderConfig>, input: ReturnType<typeof anonymousNarrativeInput>, plan: z.infer<typeof planSchema>, result: ScreeningResponse, signal: AbortSignal, pool = candidatePool(result), timeoutMs = 10_000): Promise<Plan> {
   const candidates = plan.selections.flatMap((selection) => {
     const candidate = pool.find((item) => item.slot === selection.slot);
     const evidence = input.candidates.find((item) => item.slot === selection.slot);
     return candidate && evidence && safeDraft(candidate, result.criteria, selection.text, input.sharedCore, input.sharedIntake) ? [{ ...evidence, text: selection.text }] : [];
   });
   const accepted = new Set<Slot>();
-  if (candidates.length) {
+  if (candidates.length && timeoutMs >= 1500) {
     try {
       const payload = await requestAiCompletion(config, [
           { role: "system", content: `你是选校回答的事实审校员。输入只含匿名候选的证据类别、状态和拟写的解释；{{M编号}}是已核验的单项匹配原句，{{C1}}是 covers 中各项匹配依据的合并说明，{{N编号}}是已核验的待核实或过期原句。占位符内容无需你再次证明，服务端会替换为原句。你的任务是检查占位符之外的自由措辞是否新增事实、把待核实说成已满足、弱化过期风险、承诺录取，或把备选说成优先于合作候选。DEGREE 只表示项目学历，LANGUAGE 只表示授课语言。只要事实均由占位符承载，自由措辞仅作取舍判断、谨慎提醒和行动建议，就应判为 grounded=true；不要因为匿名摘要缺少学校、金额或原文而拒绝。只返回 JSON：{"reviews":[{"slot":"A","grounded":true}]}，每个候选只输出一项。` },
           { role: "user", content: JSON.stringify({ supplied: input.supplied, sharedCore: input.sharedCore, sharedIntake: input.sharedIntake, candidates }) },
-      ], { signal, timeoutMs: 10_000 });
+      ], { signal, timeoutMs, maxTokens: 384, retries: 0 });
       const content = payload?.choices?.[0]?.message?.content;
       if (typeof content === "string" && payload?.choices?.[0]?.finish_reason !== "length") {
-        const parsed = reviewSchema.safeParse(JSON.parse(content));
+        const parsed = reviewSchema.safeParse(extractJsonObject(content));
         if (parsed.success) for (const review of parsed.data.reviews) if (review.grounded && parsed.data.reviews.filter((item) => item.slot === review.slot).length === 1) accepted.add(review.slot);
       }
-    } catch { /* A draft without independent review is not displayed. */ }
+    } catch (error) {
+      logNarrativeMetric({ stage: "verify_error", message: error instanceof Error ? error.message : "unknown" });
+    }
   }
   return { selections: plan.selections.map((selection) => {
     const candidate = pool.find((item) => item.slot === selection.slot);
@@ -272,16 +279,17 @@ async function verifyDrafts(config: ReturnType<typeof getAiProviderConfig>, inpu
   }) };
 }
 
-async function rewriteSelected(config: ReturnType<typeof getAiProviderConfig>, input: ReturnType<typeof anonymousNarrativeInput>, plan: z.infer<typeof planSchema>, selected: Candidate[], signal: AbortSignal): Promise<z.infer<typeof planSchema>> {
+async function rewriteSelected(config: ReturnType<typeof getAiProviderConfig>, input: ReturnType<typeof anonymousNarrativeInput>, plan: z.infer<typeof planSchema>, selected: Candidate[], signal: AbortSignal, timeoutMs = 12_000): Promise<z.infer<typeof planSchema>> {
+  if (timeoutMs < 2000) return plan;
   try {
     const payload = await requestAiCompletion(config, [
         { role: "system", content: `你是留学选校顾问，为顾问写简短、自然、有判断的推荐说明。sharedCore 为 true 时，共同匹配的专业、授课语言和成绩已在页面开头统一说明；否则各校必须用占位符说明自己的匹配依据。sharedIntake 为 true 时，目标入学时间的共同不确定性也已在开头说明，各校不要重复。每所只保留最有用的一段判断，先说这所值得还是不值得跟进，再说唯一的下一步；不要使用“费用上”“先核实费用：”这类字段式开头，不要连续几所使用同一个开头，不要把同一项风险换句话再说一次。其他院校只能作为备选。
 你只知道匿名类别，不知道学校、具体金额和原始资料。所有具体事实必须原样引用该候选 required 中的占位符，例如 {{M2}}、{{N1}}，系统会替换为已核实的完整事实；每项 required 都必须出现，不要添加任何数字、校名、排名或未经提供的条件。未知信息不能说成已经符合，不要承诺录取。每所最多两句，最终替换后尽量控制在 80 个汉字以内，语气像在向同事解释。只返回 JSON：{"selections":[{"slot":"A","text":"这所值得先联系：{{M2}}。不过，{{N1}}，建议先核实后再推进。"}]}，每个候选一项。` },
         { role: "user", content: JSON.stringify(input) },
-    ], { signal, timeoutMs: 12_000 });
+    ], { signal, timeoutMs, maxTokens: 512, retries: 0 });
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || payload?.choices?.[0]?.finish_reason === "length") return plan;
-    const parsed = rewriteSchema.safeParse(JSON.parse(content));
+    const parsed = rewriteSchema.safeParse(extractJsonObject(content));
     if (!parsed.success) return plan;
     const selections = [...plan.selections];
     for (const candidate of selected) {
@@ -292,10 +300,15 @@ async function rewriteSelected(config: ReturnType<typeof getAiProviderConfig>, i
       else selections.push({ slot: candidate.slot, reasons: [], caution: null, text: replacements[0].text });
     }
     return { selections };
-  } catch { return plan; }
+  } catch (error) {
+    logNarrativeMetric({ stage: "rewrite_error", message: error instanceof Error ? error.message : "unknown" });
+    return plan;
+  }
 }
 
 export async function chooseNarrativeFocus(result: ScreeningResponse, signal: AbortSignal, message = ""): Promise<Plan | null> {
+  const startedAt = Date.now();
+  const budgetDeadline = startedAt + 24_000;
   const input = anonymousNarrativeInput(result, emphasizedCodes(message, result.criteria));
   if (!input.candidates.length || input.candidates.every((candidate) => !candidate.matches.length && !candidate.needs.length)) return null;
   try {
@@ -305,16 +318,38 @@ export async function chooseNarrativeFocus(result: ScreeningResponse, signal: Ab
 你不知道学校名称、具体成绩、金额或原始资料，绝不能猜测具体事实。只返回 JSON：{"selections":[{"slot":"A","reasons":["MAJOR"],"caution":"INTAKE","text":"这所值得先联系：{{M1}}，{{M2}}。不过，{{N1}}，建议先核实清楚再推进。"}]}。
 reasons 最多三个，从 matches 选；caution 从 needs 选，没有时为 null。优先回应 emphasis 本轮提及的条件。text 必须用当前候选 evidence 的占位符引用事实，系统会替换为完整的核验原句，并引用 required 的所有编号；有未共享的 needs 时至少引用一个 N。sharedCore=true 时，系统会在开头统一说明各校共有的专业与语言匹配信息，各校 text 不要重复这部分，允许没有 M；sharedIntake=true 时，目标入学时间的共同风险也已在开头说明，不要重复。sharedCore=false 时，有 matches 至少引用一个 M 或 C1；若有 C1，它会概括多项匹配，不要再重复它 covers 里的 M 编号。预算、专业、语言、成绩或学历是否符合都必须使用对应占位符，不要在占位符以外另写这些事实；DEGREE 指项目的申请学历，不是学生已有学位，LANGUAGE 指授课语言，不是语言成绩达标。占位符外可写自然的判断和建议，但不得增加具体事实，不得将未知说成符合；不得承诺录取、写数字或猜测排名、地区。role=alternative 的候选只能作为备选；state=expired 必须提醒核实新批次。每个候选返回一项。` },
         { role: "user", content: JSON.stringify(input) },
-    ], { signal, timeoutMs: 15_000 });
+    ], { signal, timeoutMs: 14_000, maxTokens: 900, retries: 0 });
     const content = payload?.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || payload?.choices?.[0]?.finish_reason === "length") return null;
-    const parsed = planSchema.safeParse(JSON.parse(content));
-    if (!parsed.success) return null;
+    if (typeof content !== "string" || payload?.choices?.[0]?.finish_reason === "length") {
+      logNarrativeMetric({ stage: "focus_incomplete", latencyMs: Date.now() - startedAt, candidates: input.candidates.length });
+      return null;
+    }
+    const parsed = planSchema.safeParse(extractJsonObject(content));
+    if (!parsed.success) {
+      logNarrativeMetric({ stage: "focus_schema_invalid", latencyMs: Date.now() - startedAt });
+      return null;
+    }
     const selected = displayCandidates(result, parsed.data);
     const selectedInput = anonymousInputFor(result, input.emphasis, selected);
-    const plan = (selectedInput.sharedCore !== input.sharedCore || selectedInput.sharedIntake !== input.sharedIntake) ? await rewriteSelected(config, selectedInput, parsed.data, selected, signal) : parsed.data;
-    return await verifyDrafts(config, selectedInput, plan, result, signal);
-  } catch { return null; }
+    const needsRewrite = selectedInput.sharedCore !== input.sharedCore || selectedInput.sharedIntake !== input.sharedIntake;
+    const plan = needsRewrite
+      ? await rewriteSelected(config, selectedInput, parsed.data, selected, signal, Math.min(8_000, budgetDeadline - Date.now()))
+      : parsed.data;
+    const verified = await verifyDrafts(config, selectedInput, plan, result, signal, candidatePool(result), Math.min(8_000, budgetDeadline - Date.now()));
+    logNarrativeMetric({
+      stage: "complete",
+      latencyMs: Date.now() - startedAt,
+      candidates: input.candidates.length,
+      selected: selected.length,
+      rewritten: needsRewrite,
+      verifiedCount: verified.selections.filter((item) => item.verified).length,
+      totalTokens: payload?.usage?.total_tokens ?? null,
+    });
+    return verified;
+  } catch (error) {
+    logNarrativeMetric({ stage: "focus_error", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "unknown" });
+    return null;
+  }
 }
 
 // The model can choose and arrange evidence but cannot add unverified facts to a result.
@@ -352,10 +387,10 @@ export async function createAdvisorExplanation(result: ScreeningResponse, school
 先用一句话说清它为什么值得先看，再点出最关键的未确认事项和具体下一步。可以结合 comparison 的费用明确度、风险类别和角色说明相对取舍；不要在正文判断学校是否合作，合作状态由系统单独说明。不得猜测排名、地区、就业、录取机会或具体金额，不得把待核实说成已经满足。不要使用“费用上”“先核实费用：”这类字段式开头，也不要把同一项风险换句话重复。
 事实只能通过候选 required 中的占位符引用，所有 required 编号都必须出现；每项占位符会在服务端替换为核验原句。{{C1}} 可概括多项条件，若使用它就不要重复它 covers 的 M 编号。最多两句、最终约 80 个汉字，避免“首先、其次、此外”式罗列。只返回 JSON：{"selections":[{"slot":"${target.slot}","text":"这所更适合先核对：{{C1}}，{{M2}}。目前最需要向学校核实的是{{N1}}；先问清招生批次，再决定是否继续推进。"}]}。` },
         { role: "user", content: JSON.stringify(writerInput) },
-    ], { signal, timeoutMs: 12_000 });
+    ], { signal, timeoutMs: 12_000, maxTokens: 384, retries: 0 });
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || payload?.choices?.[0]?.finish_reason === "length") return null;
-    const parsed = rewriteSchema.safeParse(JSON.parse(content));
+    const parsed = rewriteSchema.safeParse(extractJsonObject(content));
     if (!parsed.success) return null;
     const drafts = parsed.data.selections.filter((selection) => selection.slot === target.slot);
     if (drafts.length !== 1) return null;

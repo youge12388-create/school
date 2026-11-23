@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 
 import { requirePermission } from "@/lib/auth";
@@ -7,9 +7,14 @@ import { writeAudit } from "@/lib/audit";
 import { ALLOWED_DOCUMENT_TYPES } from "@/lib/constants";
 import { sqlite } from "@/lib/db";
 import { encryptBuffer } from "@/lib/file-crypto";
+import { isSameOrigin } from "@/lib/http";
+import { getMaxUploadBytes, isPathWithinRoot } from "@/lib/request-security";
 import { asText, newId } from "@/lib/utils";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const formData = await request.formData();
   const file = formData.get("file");
@@ -41,48 +46,56 @@ export async function POST(request: Request) {
   ) {
     return Response.json({ error: "不支持的文件类型" }, { status: 400 });
   }
-  const maxBytes = Number(process.env.MAX_UPLOAD_MB ?? 20) * 1024 * 1024;
+  const maxBytes = getMaxUploadBytes(20);
   if (file.size > maxBytes) {
     return Response.json({ error: "文件超过上传上限" }, { status: 413 });
   }
 
   const id = newId();
-  const encrypted = encryptBuffer(Buffer.from(await file.arrayBuffer()));
   const uploadRoot = resolve(
     /* turbopackIgnore: true */
     process.env.UPLOAD_DIR ?? "./data/uploads",
   );
   const updateDir = resolve(uploadRoot, "school-updates", schoolUpdateId);
-  if (!updateDir.startsWith(uploadRoot)) {
+  if (!isPathWithinRoot(uploadRoot, updateDir)) {
     return Response.json({ error: "无效附件目录" }, { status: 400 });
   }
+  const encrypted = encryptBuffer(Buffer.from(await file.arrayBuffer()));
   mkdirSync(updateDir, { recursive: true });
   const storagePath = resolve(updateDir, `${id}.enc`);
+  if (!isPathWithinRoot(updateDir, storagePath)) {
+    return Response.json({ error: "无效附件路径" }, { status: 400 });
+  }
   writeFileSync(storagePath, encrypted.encrypted, { flag: "wx" });
 
   const createdAt = Date.now();
-  sqlite
-    .prepare(
-      `INSERT INTO school_update_attachments
-       (id, school_update_id, group_name, original_name, mime_type, size,
-        storage_path, encryption_iv, encryption_tag, checksum,
-        uploaded_by, archived, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-    )
-    .run(
-      id,
-      schoolUpdateId,
-      groupName,
-      file.name,
-      file.type,
-      file.size,
-      storagePath,
-      encrypted.iv,
-      encrypted.tag,
-      encrypted.checksum,
-      user.id,
-      createdAt,
-    );
+  try {
+    sqlite
+      .prepare(
+        `INSERT INTO school_update_attachments
+         (id, school_update_id, group_name, original_name, mime_type, size,
+          storage_path, encryption_iv, encryption_tag, checksum,
+          uploaded_by, archived, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      )
+      .run(
+        id,
+        schoolUpdateId,
+        groupName,
+        file.name,
+        file.type,
+        file.size,
+        storagePath,
+        encrypted.iv,
+        encrypted.tag,
+        encrypted.checksum,
+        user.id,
+        createdAt,
+      );
+  } catch (error) {
+    try { unlinkSync(storagePath); } catch { /* ignore cleanup failure */ }
+    throw error;
+  }
   writeAudit({
     userId: user.id,
     action: "SCHOOL_UPDATE_ATTACHMENT_UPLOADED",

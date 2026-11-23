@@ -343,15 +343,16 @@ export default async function ScreeningPage({
                     ))}
                   </select>
                 </label>
-                <label>
-                  {t("目标专业")}
+                <div className="field-group" style={{ display: "grid", gap: 6, fontSize: 14, color: "var(--muted)" }}>
+                  <span>{t("目标专业")}</span>
                   <MajorPicker
+                    key={params.major ?? ""}
                     name="major"
                     defaultValue={params.major ?? ""}
                     catalog={majorCatalog as MajorCatalog}
                     placeholder={t("输入或选择专业...")}
                   />
-                </label>
+                </div>
                 <label>{t("国籍")}<input name="nationality" defaultValue={params.nationality} placeholder={t("例如：泰国")} /></label>
                 <label>
                   {t("年龄")}

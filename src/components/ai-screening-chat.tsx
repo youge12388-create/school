@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUp, Check, ChevronDown, ClipboardList, GraduationCap, LoaderCircle, MessageCircle, PencilLine, Plus, Settings2, ShieldAlert, SlidersHorizontal, Square } from "lucide-react";
 import { PlanDraftPane, type SavedPlan } from "@/components/ai-screening-plan";
@@ -551,12 +551,12 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
   const threadRef = useRef<HTMLDivElement>(null);
   const toolRef = useRef<HTMLDetailsElement>(null);
   const latest = turns[turns.length - 1];
-  const selectedIds = new Set(draft?.items.map((item) => item.programId));
-  const selectedSchoolCount = new Set(draft?.items.map((item) => item.schoolId)).size;
+  const selectedIds = useMemo(() => new Set(draft?.items.map((item) => item.programId)), [draft?.items]);
+  const selectedSchoolCount = useMemo(() => new Set(draft?.items.map((item) => item.schoolId)).size, [draft?.items]);
   const profileKey = `${PROFILE_STORAGE_KEY}.${userId}`;
   const snapshotRef = useRef<ConversationSnapshot>({ input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan });
   const restoring = useRef(false);
-  const profileRestored = useRef(false);
+  const [profileHydrated, setProfileHydrated] = useState(false);
 
   useEffect(() => {
     if (conversationSnapshot?.userId === userId) {
@@ -569,15 +569,20 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
         setSavedPlan(canSavePlans ? saved.savedPlan : null);
         sequence.current = Math.max(0, ...saved.turns.map((turn) => turn.id));
         restoring.current = false;
+        setProfileHydrated(true);
       });
     } else {
       try {
         const raw = window.sessionStorage.getItem(profileKey);
         const parsed = raw ? criteriaSchema.safeParse(JSON.parse(raw)) : null;
-        if (parsed?.success) queueMicrotask(() => setCriteria(parsed.data));
-      } catch { /* Criteria storage is optional. */ }
+        queueMicrotask(() => {
+          if (parsed?.success) setCriteria(parsed.data);
+          setProfileHydrated(true);
+        });
+      } catch {
+        queueMicrotask(() => setProfileHydrated(true));
+      }
     }
-    profileRestored.current = true;
     return () => {
       running.current?.abort();
       const current = snapshotRef.current;
@@ -591,7 +596,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
   }, [input, criteria, sensitiveContext, focusSchool, turns, draft, savedPlan]);
 
   useEffect(() => {
-    if (!profileRestored.current) return;
+    if (!profileHydrated) return;
     try {
       if (Object.values(criteria).some((value) => value != null && value !== "")) {
         window.sessionStorage.setItem(profileKey, JSON.stringify(criteria));
@@ -601,7 +606,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
     } catch {
       // Storage can be unavailable in private or restricted browser contexts.
     }
-  }, [criteria, profileKey]);
+  }, [criteria, profileHydrated, profileKey]);
 
   useEffect(() => {
     if (!latest || !threadRef.current?.clientHeight) return;
@@ -655,10 +660,17 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
       const previousProgramIds = providedCriteria ? [] : (lastSearch?.shown?.programIds ?? lastSearch?.narrative?.highlights.flatMap((item) => item.programId ? [item.programId] : []) ?? []);
       const seenProgramIds = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => [...presentedProgramIds(turn.result), ...(turn.revealed?.programIds ?? [])]))].slice(-200);
       const seenSchoolNames = providedCriteria ? [] : [...new Set(turns.flatMap((turn) => [...presentedSchoolNames(turn.result), ...(turn.revealed?.schoolNames ?? [])]))].slice(-200);
-      const history = providedCriteria ? [] : turns.filter((turn) => turn.result).flatMap((turn) => [
-        { role: "user" as const, content: turn.question.slice(0, 500) },
-        ...(turn.result?.conversation && turn.result.answer?.lead ? [{ role: "assistant" as const, content: turn.result.answer.lead.slice(0, 500) }] : []),
-      ]).slice(-8);
+      const history = providedCriteria ? [] : turns.filter((turn) => turn.result).flatMap((turn) => {
+        const assistantSummary = turn.result?.answer?.lead
+          ? turn.result.answer.lead
+          : turn.result?.narrative?.lead
+            ? `${turn.result.narrative.lead.split("\n")[0]}${turn.result.narrative.highlights.length ? `（已展示 ${turn.result.narrative.highlights.length} 所候选）` : ""}`
+            : null;
+        return [
+          { role: "user" as const, content: turn.question.slice(0, 500) },
+          ...(assistantSummary ? [{ role: "assistant" as const, content: assistantSummary.slice(0, 500) }] : []),
+        ];
+      }).slice(-8);
       const response = await fetch("/api/ai-screening", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" }, body: JSON.stringify({ message, criteria: providedCriteria ?? previous, ...(providedCriteria ? { criteriaOverride: providedCriteria } : {}), showOther: providedCriteria ? false : showOther, sensitiveContext: previousSensitive, hasPrevious: providedCriteria ? false : Boolean(lastResult), previousOtherRequested: providedCriteria ? false : lastResult?.otherRequested ?? false, focusSchool: providedCriteria ? null : previousFocus, previousProgramIds, seenProgramIds, seenSchoolNames, history }) });
       if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || "请求没有完成，请重试。"); }
       if (!response.body) throw new Error("没有收到完整的检索结果，请重试。");
@@ -685,7 +697,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
       const message = controller.signal.aborted ? "已停止检索。" : error instanceof Error && !/failed to fetch|networkerror|load failed|unexpected token|json/i.test(error.message) ? error.message : "暂时无法连接选校服务，请检查网络后重试。";
       if (!receivedResult) update((turn) => ({ ...turn, error: message }));
     } finally {
-      controller.abort();
+      if (!receivedResult) controller.abort();
       running.current = null;
       setBusy(false);
     }
@@ -699,7 +711,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
     void run(message, criteria);
   }
 
-  async function submitFeedback(programId: string, value: "relevant" | "not_relevant") {
+  const submitFeedback = useCallback(async (programId: string, value: "relevant" | "not_relevant") => {
     if (feedbackPending.has(programId) || feedbackSaved[programId] === value) return;
     setFeedbackPending((old) => new Set(old).add(programId));
     setFeedbackStatus("");
@@ -709,7 +721,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ programId, value }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "反馈未保存。");
       setFeedbackSaved((old) => ({ ...old, [programId]: value }));
       setFeedbackStatus("已记录反馈，后续检索会参考你的选择调整排序。");
@@ -722,7 +734,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
         return next;
       });
     }
-  }
+  }, [feedbackPending, feedbackSaved]);
 
   function newConversation() {
     setTurns([]);
@@ -736,16 +748,27 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
     inputRef.current?.focus();
   }
 
-  function selectCandidate(card: ResultCard, result: ScreeningResponse) {
+  const selectCandidate = useCallback((card: ResultCard, result: ScreeningResponse) => {
     if (savingPlan) return;
-    const next = togglePlanCandidate(draft, card, result);
-    setDraft(next.draft);
-    setDraftNotice({ message: next.notice, error: next.error });
-  }
+    setDraft((current) => {
+      const next = togglePlanCandidate(current, card, result);
+      setDraftNotice({ message: next.notice, error: next.error });
+      return next.draft;
+    });
+  }, [savingPlan]);
+
+  const feedbackContextValue = useMemo(
+    () => ({ saved: feedbackSaved, pending: feedbackPending, submit: (programId: string, value: "relevant" | "not_relevant") => void submitFeedback(programId, value) }),
+    [feedbackSaved, feedbackPending, submitFeedback],
+  );
+  const planSelectionContextValue = useMemo(
+    () => (canSavePlans ? { selectedIds, saving: savingPlan, toggle: selectCandidate } : null),
+    [canSavePlans, selectedIds, savingPlan, selectCandidate],
+  );
 
   return (
-    <FeedbackContext.Provider value={{ saved: feedbackSaved, pending: feedbackPending, submit: (programId, value) => void submitFeedback(programId, value) }}>
-      <PlanSelectionContext.Provider value={canSavePlans ? { selectedIds, saving: savingPlan, toggle: selectCandidate } : null}>
+    <FeedbackContext.Provider value={feedbackContextValue}>
+      <PlanSelectionContext.Provider value={planSelectionContextValue}>
         <div className="agent-page">
           <PageHeading title={t("AI 选校")} description={t("查找院校项目，比较匹配依据，把选定的项目整理成方案。")} action={
             <div className="agent-page-actions">
@@ -798,7 +821,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
                     </div>
                   </section>
                 ) : (
-                  <div className="agent-conversation" aria-live="polite">
+                  <div className="agent-conversation">
                     {turns.map((turn, index) => (
                       <article id={`agent-turn-${turn.id}`} className="agent-turn" key={turn.id}>
                         <p className="agent-user"><span className="sr-only">{t("顾问：")}</span>{turn.question}</p>

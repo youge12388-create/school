@@ -2,6 +2,7 @@ import { requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/access-control";
 import { writeAudit } from "@/lib/audit";
 import { sqlite } from "@/lib/db";
+import { isSameOrigin } from "@/lib/http";
 import { stripSchoolUpdateInput } from "@/lib/school-updates";
 import { safeHttpUrl } from "@/lib/utils";
 
@@ -45,6 +46,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const { id } = await context.params;
   const existing = sqlite
@@ -57,7 +61,16 @@ export async function PATCH(
   if (!existing) {
     return Response.json({ error: "更新记录不存在" }, { status: 404 });
   }
-  const body = (await request.json()) as Record<string, unknown>;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Response.json({ error: "请求体格式无效" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const input = stripSchoolUpdateInput(
     body,
     userHasPermission(user, "SCHOOL_VIEW_CONFIDENTIAL"),
@@ -106,9 +119,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "请求来源不受信任。" }, { status: 403 });
+  }
   const user = await requirePermission("SCHOOL_UPDATE_MANAGE");
   const { id } = await context.params;
   const existing = sqlite
@@ -121,21 +137,28 @@ export async function DELETE(
   if (!existing) {
     return Response.json({ error: "更新记录不存在" }, { status: 404 });
   }
-  sqlite
-    .prepare("UPDATE school_updates SET archived = 1, updated_at = ? WHERE id = ?")
-    .run(Date.now(), id);
-  // 附件行一并归档，避免孤儿行累积且不可访问。
-  sqlite
-    .prepare(
-      "UPDATE school_update_attachments SET archived = 1 WHERE school_update_id = ? AND archived = 0",
-    )
-    .run(id);
-  writeAudit({
-    userId: user.id,
-    action: "SCHOOL_UPDATE_DELETED",
-    entityType: "SCHOOL_UPDATE",
-    entityId: id,
-    details: { nameZh: existing.nameZh, title: existing.title },
-  });
+  sqlite.exec("BEGIN IMMEDIATE");
+  try {
+    sqlite
+      .prepare("UPDATE school_updates SET archived = 1, updated_at = ? WHERE id = ?")
+      .run(Date.now(), id);
+    // 附件行一并归档，避免孤儿行累积且不可访问。
+    sqlite
+      .prepare(
+        "UPDATE school_update_attachments SET archived = 1 WHERE school_update_id = ? AND archived = 0",
+      )
+      .run(id);
+    writeAudit({
+      userId: user.id,
+      action: "SCHOOL_UPDATE_DELETED",
+      entityType: "SCHOOL_UPDATE",
+      entityId: id,
+      details: { nameZh: existing.nameZh, title: existing.title },
+    });
+    sqlite.exec("COMMIT");
+  } catch (error) {
+    sqlite.exec("ROLLBACK");
+    throw error;
+  }
   return Response.json({ id });
 }

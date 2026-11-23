@@ -1,7 +1,7 @@
 "use client";
 
 import { PencilLine } from "lucide-react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useT, useTv } from "@/lib/i18n/locale-context";
 
 type EditModeContextValue = {
@@ -28,6 +28,18 @@ export function EditModeProvider({ children }: { children: React.ReactNode }) {
   const [editingMode, setEditingMode] = useState(false);
   const [dirtyKeys, setDirtyKeys] = useState<Record<string, boolean>>({});
   const t = useT();
+
+  const dirtyCount = Object.keys(dirtyKeys).length;
+
+  useEffect(() => {
+    if (!editingMode || dirtyCount === 0) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [editingMode, dirtyCount]);
 
   const value = useMemo<EditModeContextValue>(
     () => ({

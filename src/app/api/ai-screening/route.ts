@@ -27,7 +27,15 @@ function errorMessage(error: unknown) {
   return error instanceof AiProviderError || error instanceof WorkbookError || error instanceof Error && (error.message.startsWith("模型") || error.message.startsWith("招生表")) ? error.message : "读取数据或模型请求失败，请检查配置后重试。";
 }
 
-async function search(data: z.infer<typeof requestSchema>, user: { id: string; role: string }, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
+function criteriaFingerprint(criteria: Record<string, unknown>) {
+  return JSON.stringify(
+    Object.entries(criteria)
+      .filter(([, value]) => value != null && value !== "")
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
+}
+
+async function search(data: z.infer<typeof requestSchema>, user: { id: string; role: string; authProvider?: string }, signal: AbortSignal, emit: (event: SearchEvent) => void): Promise<ScreeningResponse> {
   const step = (id: "understand" | "cooperation" | "alternatives" | "summary", status: "active" | "done" | "warning" | "skipped", message: string) => emit({ type: "progress", step: { id, status, message } });
   step("understand", "active", "正在理解学生的申请需求");
   const groupTopic = data.hasPrevious && !data.criteriaOverride ? shownGroupTopic(data.message) : null;
@@ -54,11 +62,13 @@ async function search(data: z.infer<typeof requestSchema>, user: { id: string; r
   const partnerConfigured = Boolean(process.env.AI_SCREENING_PARTNERS_PATH);
   let searchingOthers = false;
   const recognizedFact = data.hasPrevious ? factQuestion(data.message) : null;
-  const intent = groupTopic || recognizedFact ? "school_fact" : followUpIntent(data.message) ?? (extracted.intent === "chat" || extracted.intent === "school_fact" && !data.hasPrevious ? "search" : extracted.intent) ?? "search";
+  const criteriaUpdated = criteriaFingerprint(extracted.criteria) !== criteriaFingerprint(data.criteria);
+  const intent = groupTopic ? "school_fact" : (recognizedFact && !criteriaUpdated) ? "school_fact" : followUpIntent(data.message) ?? (extracted.intent === "chat" || extracted.intent === "school_fact" && !data.hasPrevious ? "search" : extracted.intent) ?? "search";
   const otherRequested = data.showOther || (otherPreference !== false && (otherPreference === true || Boolean(extracted.showOther) || (intent !== "search" && data.previousOtherRequested)));
   const evaluationCriteria = intent === "school_fact" ? data.criteria : extracted.criteria;
   const exclusions = otherRequested && intent === "search" ? { schoolKeys: data.seenSchoolNames, programIds: data.seenProgramIds } : undefined;
-  const results = buildResults(list.rows, searchPrograms, schools, partners, evaluationCriteria, user.role === "ADMIN" || user.role === "DATA_MANAGER", otherRequested, {
+  const privileged = userHasPermission(user as Parameters<typeof userHasPermission>[0], "SCHOOL_VIEW_CONFIDENTIAL");
+  const results = buildResults(list.rows, searchPrograms, schools, partners, evaluationCriteria, privileged, otherRequested, {
     onPartnerSearchComplete(state) {
       searchingOthers = state.searchingOthers;
       if (state.confirmed) step("cooperation", "done", `已检索合作院校名单，找到 ${state.confirmed} 个已知条件符合的项目；项目合作范围需核实`);

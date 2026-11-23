@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     const { list, partners, schools, programs } = await loadScreeningData();
     if (list.name !== source) return Response.json({ error: "合作名单已更新，请重新检索后再保存。" }, { status: 409 });
-    const results = buildResults(list.rows, programs, schools, partners, criteria, user.role === "ADMIN" || user.role === "DATA_MANAGER", showOther);
+    const results = buildResults(list.rows, programs, schools, partners, criteria, permissions.includes("SCHOOL_VIEW_CONFIDENTIAL"), showOther);
     const byId = new Map([...results.confirmed, ...results.pending, ...results.other].filter(isCandidate).map((card) => [card.programId, card]));
     const programsById = new Map(programs.map((program) => [program.id, program]));
     const snapshots = [];

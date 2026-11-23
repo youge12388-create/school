@@ -261,7 +261,8 @@ export async function updateSchoolAction(formData: FormData) {
       throw new Error("合作星级必须在 0 到 5 之间");
     }
 
-    const updates = {
+    const canVerify = user.role === "ADMIN" || user.role === "DATA_MANAGER";
+    const updates: Record<string, unknown> = {
       nameZh,
       name: optionalFormText(formData, "name") || nameZh,
       category: optionalFormText(formData, "category"),
@@ -287,7 +288,7 @@ export async function updateSchoolAction(formData: FormData) {
       cooperationNote: optionalFormText(formData, "cooperationNote"),
       specialCaseNote: optionalFormText(formData, "specialCaseNote"),
       applicationUpdateFrequency: optionalFormText(formData, "applicationUpdateFrequency"),
-      reviewStatus: manualReviewState(formData, "schoolVerified").reviewStatus,
+      ...(canVerify ? { reviewStatus: manualReviewState(formData, "schoolVerified").reviewStatus } : {}),
       updatedAt: new Date(),
     };
     const permittedUpdates = userHasPermission(user, "SCHOOL_EDIT_CONFIDENTIAL")
@@ -312,7 +313,7 @@ export async function updateSchoolAction(formData: FormData) {
     for (let i = 0; ; i++) {
       const programId = asText(formData.get(`program_${i}_id`));
       if (!programId) break;
-      await updateSingleProgram(user.id, formData, i, programId);
+      await updateSingleProgram(user.id, formData, i, programId, id, canVerify);
     }
   } catch (e) {
     // redirect/notFound 错误让框架处理
@@ -329,7 +330,14 @@ export async function updateSchoolAction(formData: FormData) {
   }
 }
 
-async function updateSingleProgram(userId: string, formData: FormData, index: number, programId: string) {
+async function updateSingleProgram(
+  userId: string,
+  formData: FormData,
+  index: number,
+  programId: string,
+  expectedSchoolId: string,
+  canVerify: boolean,
+) {
   const name = asText(formData.get(`program_${index}_name`));
   const programType = asText(formData.get(`program_${index}_programType`));
   const teachingLanguage = asText(formData.get(`program_${index}_teachingLanguage`));
@@ -391,12 +399,14 @@ async function updateSingleProgram(userId: string, formData: FormData, index: nu
     applicationTimeText: applicationTimeText || null,
     scholarshipContent: optionalFormText(formData, `program_${index}_scholarshipContent`),
     parsedJson: JSON.stringify(parsed),
-    ...manualReviewState(formData, `program_${index}_verified`),
+    ...(canVerify ? manualReviewState(formData, `program_${index}_verified`) : {}),
     updatedAt: new Date(),
   };
 
   const [oldProgram] = await db.select().from(programs).where(eq(programs.id, programId));
-  if (!oldProgram) throw new Error(`项目 ${name} 不存在`);
+  if (!oldProgram || oldProgram.schoolId !== expectedSchoolId) {
+    throw new Error(`项目 ${name} 不存在或不属于当前学校`);
+  }
   await db.update(programs).set(updates).where(eq(programs.id, programId));
   await db.delete(programMajors).where(eq(programMajors.programId, programId));
   const majorValues = splitMajors(majorText).map((major) => ({
@@ -485,7 +495,9 @@ export async function updateProgramAction(formData: FormData) {
     applicationTimeText: applicationTimeText || null,
     scholarshipContent: optionalFormText(formData, "scholarshipContent"),
     parsedJson: JSON.stringify(parsed),
-    ...manualReviewState(formData, "verified"),
+    ...(user.role === "ADMIN" || user.role === "DATA_MANAGER"
+      ? manualReviewState(formData, "verified")
+      : {}),
     updatedAt: new Date(),
   };
 
