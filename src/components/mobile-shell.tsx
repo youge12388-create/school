@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { isWorkspaceNavActive, workspaceNavGroups } from "@/components/workspace-navigation";
 import { useT } from "@/lib/i18n/locale-context";
 import type { PermissionKey } from "@/lib/permissions";
@@ -70,7 +71,7 @@ function MobileDrawer({
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="mobile-drawer-inner">
         <div className="mobile-drawer-header">
-          <div className="brand-mark" aria-hidden="true">SYT</div>
+          <BrandLogo size={32} className="brand-mark" />
           <strong>{t("留学项目工作台")}</strong>
           <button className="mobile-drawer-close" type="button" onClick={onClose} aria-label={t("关闭导航")}>
             <X size={19} aria-hidden="true" />

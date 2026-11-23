@@ -343,7 +343,7 @@ export default async function ScreeningPage({
                     ))}
                   </select>
                 </label>
-                <div className="field-group" style={{ display: "grid", gap: 6, fontSize: 14, color: "var(--muted)" }}>
+                <div className="field-group" style={{ display: "grid", gap: 7, fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" }}>
                   <span>{t("目标专业")}</span>
                   <MajorPicker
                     key={params.major ?? ""}

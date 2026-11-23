@@ -1,6 +1,7 @@
 import { ArrowRight, ClipboardList, GraduationCap, MessagesSquare, SearchCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { getCurrentUser } from "@/lib/auth";
 import { makeMessageT, translate } from "@/lib/i18n/dict";
@@ -27,7 +28,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className={styles.page}>
       <header className={styles.topline}>
         <div className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true">SYT</span>
+          <BrandLogo size={34} className={styles.brandMark} />
           <span>{t("高校访查与申请管理")}</span>
         </div>
         <LocaleToggle locale={locale} />

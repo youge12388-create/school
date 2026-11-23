@@ -6,6 +6,7 @@ import { getUiLocale } from "@/lib/i18n/server";
 import "./globals.css";
 import "./google-ui.css";
 import "./workspace.css";
+import "./studio-theme.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getUiLocale();

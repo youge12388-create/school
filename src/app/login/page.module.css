@@ -1,19 +1,21 @@
+/* Precision Studio Slate — Login Page */
 .page {
   display: flex;
   min-height: 100dvh;
   flex-direction: column;
-  background: var(--surface);
+  background: var(--bg);
 }
 
 .topline {
   display: flex;
-  min-height: 62px;
+  min-height: 60px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px clamp(18px, 4.5vw, 72px);
+  padding: 10px clamp(18px, 4.5vw, 64px);
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
 }
 
 .brand {
@@ -21,47 +23,52 @@
   min-width: 0;
   align-items: center;
   gap: 10px;
+  color: var(--text);
   font-size: 14px;
   font-weight: 680;
   line-height: 1.35;
 }
 
 .brandMark {
-  display: grid;
-  place-items: center;
   flex: 0 0 34px;
+  width: 34px;
   height: 34px;
-  border-radius: 8px;
-  background: var(--primary);
-  color: white;
-  font-size: 11px;
-  font-weight: 750;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
 }
 
 .layout {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) minmax(425px, 1fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(425px, 0.95fr);
 }
 
 .intro {
+  position: relative;
   display: grid;
   align-content: center;
   min-width: 0;
-  border-inline-end: 1px solid var(--border);
-  background: var(--primary-soft);
-  padding: clamp(30px, 7vw, 112px);
+  background:
+    radial-gradient(540px 380px at 18% 20%, rgba(59, 108, 246, 0.24), transparent 70%),
+    radial-gradient(420px 320px at 85% 85%, rgba(15, 118, 110, 0.16), transparent 72%),
+    #111622;
+  color: #f4f7fb;
+  padding: clamp(32px, 6.5vw, 96px);
+  overflow: hidden;
 }
 
-.introContent { max-width: 470px; }
+.introContent {
+  position: relative;
+  max-width: 470px;
+}
 
 .intro h2 {
-  max-width: 16ch;
+  max-width: 15ch;
   margin: 0;
-  color: #202b3a;
-  font-size: clamp(31px, 4vw, 52px);
-  font-weight: 740;
-  letter-spacing: -0.035em;
+  color: #ffffff;
+  font-size: clamp(30px, 3.6vw, 48px);
+  font-weight: 720;
+  letter-spacing: -0.03em;
   line-height: 1.18;
   text-wrap: balance;
 }
@@ -69,47 +76,81 @@
 .intro p {
   max-width: 420px;
   margin-top: 18px;
-  color: #405675;
+  color: #a5b0c2;
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.75;
 }
 
 .areas {
   display: grid;
-  max-width: 326px;
-  margin: 35px 0 0;
+  max-width: 340px;
+  margin: 34px 0 0;
   padding: 0;
-  border-top: 1px solid #c6d7ee;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   list-style: none;
 }
 
 .areas li {
   display: flex;
-  min-height: 48px;
+  min-height: 50px;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid #c6d7ee;
-  color: #2c4364;
-  font-size: 13px;
-  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  font-size: 13.5px;
+  font-weight: 550;
 }
 
-.areas svg { color: var(--primary-hover); }
+.areas svg {
+  color: #7aa2ff;
+}
 
-.panel { display: grid; min-width: 0; place-items: center; padding: 40px 32px; }
-.form { display: grid; width: min(100%, 352px); gap: 14px; }
-.formHeading { margin-bottom: 5px; }
+.panel {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  background: var(--bg);
+  padding: 40px 32px;
+}
+
+.form {
+  display: grid;
+  width: min(100%, 400px);
+  gap: 15px;
+  padding: 32px 30px 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.formHeading {
+  margin-bottom: 4px;
+}
+
 .formHeading h1 {
   margin: 0;
   color: var(--text);
-  font-size: clamp(27px, 3vw, 35px);
-  line-height: 1.2;
+  font-size: clamp(24px, 2.5vw, 30px);
+  line-height: 1.22;
   font-weight: 720;
   letter-spacing: -0.025em;
 }
-.formHeading p { margin-top: 8px; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
-.form .field { gap: 6px; color: var(--text); font-size: 13px; }
+
+.formHeading p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.form .field {
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
 .field input {
   min-height: 42px;
   padding: 9px 12px;
@@ -117,36 +158,88 @@
   background: var(--surface);
   font-size: 14px;
 }
+
 .form .submit {
   justify-content: center;
   min-height: 42px;
-  margin-top: 3px;
+  margin-top: 4px;
   border-radius: var(--control-radius);
   font-size: 14px;
 }
-.divider { display: flex; align-items: center; gap: 11px; color: var(--text-secondary); font-size: 12px; }
-.divider::before, .divider::after { flex: 1; height: 1px; background: var(--border-soft); content: ""; }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.divider::before,
+.divider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  content: "";
+}
+
 .form .wecomButton {
   justify-content: center;
   min-height: 41px;
   border-radius: var(--control-radius);
   color: var(--text);
+  font-size: 13.5px;
+}
+
+.wecomButton svg {
+  color: var(--green);
+}
+
+.helpText {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.error {
+  border: 1px solid rgba(190, 18, 60, 0.18);
+  border-radius: 9px;
+  background: var(--red-soft);
+  color: var(--red);
+  padding: 10px 12px;
   font-size: 13px;
 }
-.wecomButton svg { color: var(--green); }
-.helpText { color: var(--text-secondary); font-size: 12px; line-height: 1.55; text-align: center; }
-.error { border-radius: 7px; background: var(--red-soft); color: #a62720; padding: 9px 12px; font-size: 13px; }
 
 @media (max-width: 800px) {
-  .topline { min-height: 54px; }
-  .brand { font-size: 13px; }
-  .layout { display: block; }
-  .intro { display: none; }
-  .panel { padding: clamp(29px, 7vh, 54px) 22px 32px; }
+  .topline {
+    min-height: 54px;
+  }
+  .brand {
+    font-size: 13px;
+  }
+  .layout {
+    display: block;
+  }
+  .intro {
+    display: none;
+  }
+  .panel {
+    padding: clamp(24px, 6vh, 48px) 18px 32px;
+  }
+  .form {
+    padding: 24px 20px;
+  }
 }
 
 @media (max-width: 340px) {
-  .topline { padding-inline: 12px; }
-  .panel { padding-inline: 16px; }
-  .field input { font-size: 16px; }
+  .topline {
+    padding-inline: 12px;
+  }
+  .panel {
+    padding-inline: 14px;
+  }
+  .field input {
+    font-size: 16px;
+  }
 }

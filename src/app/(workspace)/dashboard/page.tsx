@@ -19,11 +19,11 @@ export default async function DashboardPage() {
   const canViewAudit = hasPermission(permissions, "AUDIT_VIEW");
   const { counts, deadlines, recentAudit } = await getDashboardData({ includeAudit: canViewAudit });
   const stats = [
-    { label: "学校", value: counts.schools },
-    { label: "项目", value: counts.programs },
+    { label: "学校", value: counts.schools, tone: "blue" },
+    { label: "项目", value: counts.programs, tone: "green" },
     ...(!marketManagerView ? [
-      { label: "有效客户", value: counts.customers },
-      { label: "待复核项目", value: counts.needsReview },
+      { label: "有效客户", value: counts.customers, tone: "indigo" },
+      { label: "待复核项目", value: counts.needsReview, tone: "amber" },
     ] : []),
   ];
 
@@ -42,8 +42,8 @@ export default async function DashboardPage() {
       <section className="dashboard-overview" aria-labelledby="dashboard-overview-title">
         <h2 id="dashboard-overview-title">{t("资源概览")}</h2>
         <dl className={`dashboard-metrics${marketManagerView ? " is-compact" : ""}`}>
-          {stats.map(({ label, value }) => (
-            <div key={label}>
+          {stats.map(({ label, value, tone }) => (
+            <div key={label} data-tone={tone}>
               <dt>{t(label)}</dt>
               <dd>{value.toLocaleString("en-US")}</dd>
             </div>

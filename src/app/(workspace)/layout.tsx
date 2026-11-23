@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 
 import { AppNav } from "@/components/app-nav";
+import { BrandLogo } from "@/components/brand-logo";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { MobileNav } from "@/components/mobile-nav";
 import { MobileShell } from "@/components/mobile-shell";
@@ -31,7 +32,7 @@ export default async function WorkspaceLayout({
         <div className="app-shell">
           <SidebarShell brand={(
             <div className="brand">
-              <div className="brand-mark" aria-hidden="true">SYT</div>
+              <BrandLogo size={34} className="brand-mark" />
               <div className="brand-name">{t("高校筛查与申请管理")}</div>
             </div>
           )}>
