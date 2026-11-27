@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  classifyScholarshipText,
   evaluateProgram,
   getEffectiveDeadlineStatus,
   getSupervisorAcceptanceStatus,
@@ -497,6 +498,22 @@ describe("screening matcher", () => {
 
     expect(result.fitLevel).toBe("MATCHED");
     expect(result.evidence.some((item) => item.label === "志愿者经历")).toBe(false);
+  });
+
+  it("低分成绩对 985/211 触发硬淘汰，支持学费全免全额口径及英文缩写单词边界", () => {
+    const eliteResult = evaluateProgram(
+      makeProgram({ schoolName: "清华大学", schoolTags: "985，211，双一流", gpaMin: null, gpaScale: null }),
+      { gpa: 2.1, gpaScale: 4, programType: "MASTER" },
+      now,
+    );
+    expect(eliteResult.fitLevel).toBe("NOT_MATCHED");
+    expect(eliteResult.evidence.find((item) => item.label === "GPA")?.level).toBe("FAIL");
+
+    expect(classifyScholarshipText("校长一等奖学金：学费100%减免")).toBe("full");
+    expect(classifyScholarshipText("学费半免")).toBe("available");
+
+    expect(majorMatches("人工智能", "Teacher Training Program").matched).toBe(false);
+    expect(majorMatches("AI", "AI and Data Science").matched).toBe(true);
   });
 });
 

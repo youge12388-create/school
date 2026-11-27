@@ -53,14 +53,14 @@ describe("有依据的自然回答", () => {
     expect(answer.highlights[0].body).not.toContain("年龄");
     expect(answer.highlights[0].body).toContain("计算机");
   });
-  it("模型从匿名候选中挑选和排序，但服务端始终保持合作优先与已确认优先", () => {
+  it("模型从匿名候选中挑选和排序，无评分时保持合作优先与已确认优先，并展示多于三所", () => {
     const value = response();
     const a = { ...card("合作甲大学"), programId: "a" }, b = { ...card("合作乙大学"), programId: "b" }, c = { ...card("合作丙大学"), programId: "c" }, d = { ...card("其他丁大学", "unknown"), programId: "d" };
     value.results.pending = [a, b, c];
     value.results.other = [d];
     const ordered = { selections: (["D", "C", "B", "A"] as const).map((slot) => ({ slot, reasons: ["MAJOR" as const], caution: "INTAKE" as const })) };
     const narrative = createNarrative(value, ordered);
-    expect(narrative.highlights.map((item) => item.programId)).toEqual(["c", "b", "a"]);
+    expect(narrative.highlights.map((item) => item.programId)).toEqual(["c", "b", "a", "d"]);
     expect(shownNarrativeCards(value, ["c", "b", "d"]).map((item) => item.name)).toEqual(["合作丙大学", "合作乙大学", "其他丁大学"]);
     value.results.confirmed = [a]; value.results.pending = [b, c]; value.results.other = [];
     expect(createNarrative(value, ordered).highlights.map((item) => item.programId)).toEqual(["a", "c", "b"]);
@@ -153,14 +153,17 @@ describe("有依据的自然回答", () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
     const value = response();
     value.criteria.teachingLanguage = "ENGLISH"; value.criteria.ielts = 6.5;
-    value.results.pending = [card("合作甲大学"), card("合作乙大学"), card("未展示大学")];
-    value.results.other = [card("其他丁大学", "unknown")];
+    value.results.pending = Array.from({ length: 6 }, (_, i) => card(`合作${i + 1}大学`));
+    value.results.other = Array.from({ length: 4 }, (_, i) => card(`其他${i + 1}大学`, "unknown"));
     for (const item of [...value.results.pending, ...value.results.other]) item.points.push({ label: "授课语言", level: "PASS", text: "项目为英文授课" }, { label: "英语", level: "PASS", text: "至少一项英语成绩达到要求" });
-    value.results.other[0].points = value.results.other[0].points.filter((point) => point.label !== "英语");
+    // 10th school lacks English pass, while top 9 selected schools all share it
+    value.results.other[3].points = value.results.other[3].points.filter((point) => point.label !== "英语");
     expect(anonymousNarrativeInput(value).sharedCore).toBe(false);
-    const initial = { selections: (["A", "B", "C", "D"] as const).map((slot) => ({ slot, reasons: ["BUDGET"], caution: "INTAKE" })) };
-    const rewrites = { selections: (["A", "B", "C"] as const).map((slot) => ({ slot, reasons: ["需要核实"], caution: "请确认批次", text: "可以继续了解：{{M2}}。" })) };
-    const reviews = { reviews: (["A", "B", "C"] as const).map((slot) => ({ slot, grounded: true })) };
+    const allSlots = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] as const;
+    const selectedSlots = ["A", "B", "C", "D", "E", "F", "G", "H", "I"] as const;
+    const initial = { selections: allSlots.map((slot) => ({ slot, reasons: ["BUDGET"], caution: "INTAKE" })) };
+    const rewrites = { selections: selectedSlots.map((slot) => ({ slot, reasons: ["需要核实"], caution: "请确认批次", text: "可以继续了解：{{M2}}。" })) };
+    const reviews = { reviews: selectedSlots.map((slot) => ({ slot, grounded: true })) };
     const reply = (value: unknown) => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(value) } }] });
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(reply(initial)).mockResolvedValueOnce(reply(rewrites)).mockResolvedValueOnce(reply(reviews));
     vi.stubGlobal("fetch", fetchMock);
@@ -168,10 +171,11 @@ describe("有依据的自然回答", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const answer = createNarrative(value, plan);
     expect(answer.lead).toContain("共同匹配计算机方向、英文授课和英语成绩");
-    expect(answer.highlights.map((item) => item.name)).toEqual(["合作甲大学", "合作乙大学", "未展示大学"]);
+    expect(answer.highlights).toHaveLength(9);
+    expect(answer.highlights[0].name).toBe("合作1大学");
     expect(answer.highlights[0].body).toContain("可以继续了解");
     expect(answer.highlights[0].body).not.toContain("授课语言");
-    for (const [, options] of fetchMock.mock.calls) expect(String(options?.body)).not.toContain("合作甲大学");
+    for (const [, options] of fetchMock.mock.calls) expect(String(options?.body)).not.toContain("合作1大学");
   });
   it("无候选时如实说明，可选项目不足三所时用其他院校补齐", () => {
     const empty = response();

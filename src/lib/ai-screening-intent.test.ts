@@ -132,4 +132,50 @@ describe("AI 选校意图解析", () => {
       ),
     ).rejects.toThrow("不完整");
   });
+
+  it("支持长筛选条件解析、数组字段容错归一化、未知键剥离及强制开关兜底", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      response(
+        JSON.stringify({
+          criteria: {
+            programType: "UG",
+            teachingLanguage: "ENGLISH",
+            targetMajors: "国际关系/外交/全球治理",
+            cities: "上海",
+            targetSchools: ["复旦大学", "华东政法大学"],
+            gpa: 4.83,
+            gpaScale: 5,
+            intakeYear: 2027,
+            intakeSeason: "AUTUMN",
+            plannedExams: "CSCA数学(2026年11月)、雅思目标7.0(2026年11月)",
+            unexpectedExtraField: "should be stripped cleanly",
+          },
+          intent: "search",
+        }),
+      ),
+    );
+    const result = await extractScreeningIntent(
+      {
+        message: "申请人只考虑位于上海的提供英语授课学士学位的公立大学。国际关系/外交/全球治理（如复旦大学、ECUPL）。直接2027年9月进入1年级（没有预科年）。GPA 4.83/5.0，计划考CSCA和雅思7.0，区分Reach/Target/Safe并过滤纯自费。",
+        criteria: {},
+        history: [],
+        hasPrevious: false,
+      },
+      { apiKey: "fixture-key", fetchImpl },
+    );
+    expect(result.intent).toBe("search");
+    expect(result.criteria).toMatchObject({
+      programType: "UG",
+      teachingLanguage: "ENGLISH",
+      targetMajors: ["国际关系", "外交", "全球治理"],
+      cities: ["上海"],
+      targetSchools: ["复旦大学", "华东政法大学"],
+      publicOnly: true,
+      noFoundation: true,
+      excludeSelfFunded: true,
+      wantTiering: true,
+      gpa: 4.83,
+      gpaScale: 5,
+    });
+  });
 });

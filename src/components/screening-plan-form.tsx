@@ -7,7 +7,13 @@ import Link from "next/link";
 import { saveScreeningPlanAction } from "@/app/recommendation-record-actions";
 import { PlanProfileFields } from "@/components/plan-profile-fields";
 import { useT, useTv } from "@/lib/i18n/locale-context";
-import { groupPlanSchools, MAX_PLAN_ITEMS, RECOMMENDED_SCHOOL_COUNT, RECOMMENDATION_FIELD_LIMITS } from "@/lib/recommendation-profile";
+import {
+  groupPlanSchools,
+  MAX_PLAN_ITEMS,
+  RECOMMENDATION_FIELD_LIMITS,
+  RECOMMENDED_PER_TIER_COUNT,
+  RECOMMENDED_SCHOOL_COUNT,
+} from "@/lib/recommendation-profile";
 import "./screening-plan-form.css";
 
 type Selection = { programId: string; schoolId: string; name: string };
@@ -67,7 +73,7 @@ export function ScreeningPlanForm({ children, criteriaJson, requestId, title, pr
         <div className="manual-plan-count">
           <ClipboardList size={17} aria-hidden="true" />
           <strong aria-live="polite">{tv("已选 {n} 所学校", { n: schools.length })}</strong>
-          <small>{tv("建议 {n} 所，可调整", { n: RECOMMENDED_SCHOOL_COUNT })}</small>
+          <small>{tv("冲稳保各 {perTier} 所（最多 {n} 所）", { perTier: RECOMMENDED_PER_TIER_COUNT, n: RECOMMENDED_SCHOOL_COUNT })}</small>
         </div>
         <div className="manual-plan-actions">
           <Link href="/recommendations">{t("方案记录")}</Link>

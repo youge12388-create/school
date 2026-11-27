@@ -1,4 +1,6 @@
-export const RECOMMENDED_SCHOOL_COUNT = 3;
+export const RECOMMENDED_PER_TIER_COUNT = 3;
+export const RECOMMENDED_SCHOOL_COUNT = 9;
+export const DEFAULT_DISPLAY_SCHOOL_COUNT = 9;
 export const MAX_PLAN_ITEMS = 30;
 
 export const RECOMMENDATION_FIELD_LIMITS = {

@@ -106,6 +106,12 @@ describe("后续提问", () => {
       value.results.confirmed[0],
       value.results.pending[0],
       card("展示丙大学", 1000),
+      card("展示丁大学", 2000),
+      card("展示戊大学", 3000),
+      card("展示己大学", 4000),
+      card("展示庚大学", 5000),
+      card("展示辛大学", 6000),
+      card("展示壬大学", 7000),
       card("未展示丁大学", 500),
     ];
     value.results.confirmed = [];

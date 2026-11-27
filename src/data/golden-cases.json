@@ -1,0 +1,294 @@
+[
+  {
+    "id": "C1",
+    "title": "顶尖学霸（德国反向制1.5 / 92%+高CSCA+雅思7.5）— 零误杀、不错配兜底校",
+    "category": "zero_false_reject",
+    "message": "德国籍，高中德国反向制1.5分，雅思7.5，CSCA数学92分，无挂科，预算10万元/年，想申请本科计算机",
+    "criteria": {
+      "nationality": "德国",
+      "programType": "UG",
+      "teachingLanguage": "ENGLISH",
+      "targetMajor": "计算机",
+      "gpa": 1.5,
+      "gpaScale": 5,
+      "gradeSystem": "DE_REVERSE",
+      "ielts": 7.5,
+      "cscaMathScore": 92,
+      "cscaMinSubjectScore": 92,
+      "failedCourseCount": 0,
+      "budget": 100000,
+      "age": 18,
+      "highestEducation": "HIGH_SCHOOL",
+      "consultationMonth": 1
+    },
+    "expected": {
+      "state": "NORMAL",
+      "finalTier": "T1",
+      "cscAllowed": true,
+      "mustAllowSchools": ["清华大学", "上海交通大学"],
+      "mustBlockSchools": ["广西工商职业技术学院", "红河学院"]
+    }
+  },
+  {
+    "id": "C2",
+    "title": "跨国优良防误杀（法语区14/20 & 英国2:1 65%）— 准确归一化至T2优良",
+    "category": "zero_false_reject",
+    "message": "摩洛哥籍，法语区20分制成绩14/20，雅思6.5，无挂科，预算8万，申英文授课计算机硕士",
+    "criteria": {
+      "nationality": "摩洛哥",
+      "programType": "MASTER",
+      "teachingLanguage": "ENGLISH",
+      "targetMajor": "计算机",
+      "gpa": 14,
+      "gpaScale": 20,
+      "gradeSystem": "FR_20",
+      "ielts": 6.5,
+      "failedCourseCount": 0,
+      "budget": 80000,
+      "age": 23,
+      "highestEducation": "BACHELOR_DEGREE",
+      "consultationMonth": 1
+    },
+    "expected": {
+      "state": "NORMAL",
+      "finalTier": "T2",
+      "cscAllowed": true,
+      "mustAllowSchools": ["上海大学", "南京航空航天大学"],
+      "mustBlockSchools": ["广西工商职业技术学院"]
+    }
+  },
+  {
+    "id": "C3",
+    "title": "中等工科本科生（均分72% + HSK4 + CSCA 72）— T3定档且CS提示转传统工科",
+    "category": "balanced_tier",
+    "message": "高中毕业，均分72%，HSK4 210分，CSCA 72分，无挂科，预算4万，申中文计算机本科",
+    "criteria": {
+      "programType": "UG",
+      "teachingLanguage": "CHINESE",
+      "targetMajor": "计算机",
+      "gpa": 72,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "hskLevel": 4,
+      "hskScore": 210,
+      "cscaScore": 72,
+      "cscaMinSubjectScore": 72,
+      "failedCourseCount": 0,
+      "budget": 40000,
+      "age": 19,
+      "highestEducation": "HIGH_SCHOOL"
+    },
+    "expected": {
+      "state": "NORMAL",
+      "finalTier": "T3",
+      "cscAllowed": false,
+      "mustAllowSchools": ["浙江科技大学", "南京工业大学"],
+      "mustBlockSchools": ["清华大学", "北京大学"]
+    }
+  },
+  {
+    "id": "C4",
+    "title": "高均分低CSCA（高中86%但CSCA数学42分<50）— 零越级，木桶短板强降T4锁1+4预科",
+    "category": "zero_escalation",
+    "message": "高中毕业，均分86%，HSK4 200分，但CSCA数学42分，预算4万，想读本科计算机，想冲CSC全奖",
+    "criteria": {
+      "programType": "UG",
+      "teachingLanguage": "CHINESE",
+      "targetMajor": "计算机",
+      "gpa": 86,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "hskLevel": 4,
+      "hskScore": 200,
+      "cscaMathScore": 42,
+      "cscaMinSubjectScore": 42,
+      "budget": 40000,
+      "scholarshipType": "full",
+      "age": 19,
+      "highestEducation": "HIGH_SCHOOL"
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "finalTier": "T4",
+      "cscAllowed": false,
+      "blockDirectDegree": true,
+      "mustBlockSchools": ["清华大学", "浙江大学", "上海大学", "浙江工业大学"]
+    }
+  },
+  {
+    "id": "C5",
+    "title": "多挂科零语言（均分58%+3门挂科+无HSK无雅思+预算2万）— 零越级，严禁本科直录与全奖",
+    "category": "zero_escalation",
+    "message": "高中毕业，均分58%，3门核心课挂科，无HSK无雅思，预算每年2万，想读本科计算机",
+    "criteria": {
+      "programType": "UG",
+      "targetMajor": "计算机",
+      "gpa": 58,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "failedCourseCount": 3,
+      "languageStatus": "CONFIRMED_NONE",
+      "budget": 20000,
+      "age": 19,
+      "highestEducation": "HIGH_SCHOOL"
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "finalTier": "T4",
+      "cscAllowed": false,
+      "blockDirectDegree": true,
+      "allowVocationalDiploma": true,
+      "mustBlockSchools": ["清华大学", "上海大学", "浙江工业大学", "深圳大学"]
+    }
+  },
+  {
+    "id": "C6",
+    "title": "中专超龄HSK3（中专学历+31岁+HSK3+预算2.5万）— 零越级，拦截普高限定与25岁限龄校",
+    "category": "zero_escalation",
+    "message": "中专毕业，31岁，HSK3级，预算2.5万元/年，想申请本科",
+    "criteria": {
+      "programType": "UG",
+      "teachingLanguage": "CHINESE",
+      "gpa": 66,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "hskLevel": 3,
+      "age": 31,
+      "budget": 25000,
+      "highestEducation": "VOCATIONAL_HS"
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "finalTier": "T4",
+      "cscAllowed": false,
+      "blockDirectDegree": true,
+      "allowVocationalDiploma": true,
+      "mustBlockSchools": ["清华大学", "上海大学", "南京工业大学"]
+    }
+  },
+  {
+    "id": "C7",
+    "title": "低分5,000元预算求全奖 — 硬熔断劝退 CIRCUIT_BREAKER，零院校泄露+禁打工红线",
+    "category": "zero_escalation",
+    "message": "高中毕业，均分60%，无HSK无雅思，预算每年5000元，必须申请全额奖学金读本科",
+    "criteria": {
+      "programType": "UG",
+      "targetMajor": "计算机",
+      "gpa": 60,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "languageStatus": "CONFIRMED_NONE",
+      "budget": 5000,
+      "scholarshipType": "full",
+      "age": 20,
+      "highestEducation": "HIGH_SCHOOL"
+    },
+    "expected": {
+      "state": "CIRCUIT_BREAKER",
+      "cscAllowed": false,
+      "mustBlockSchools": ["清华大学", "上海大学", "红河学院", "广西工商职业技术学院"]
+    }
+  },
+  {
+    "id": "C8",
+    "title": "低分16,000元预算（12,400–20,000区间）— 零误杀，精准挖出首年免学费高职洼地与红河半奖",
+    "category": "zero_false_reject",
+    "message": "高中毕业，均分60%，无HSK无雅思，预算每年16000元，想来华读书",
+    "criteria": {
+      "programType": "UG",
+      "targetMajor": "计算机",
+      "gpa": 60,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "languageStatus": "CONFIRMED_NONE",
+      "budget": 16000,
+      "age": 19,
+      "highestEducation": "HIGH_SCHOOL"
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "finalTier": "T4",
+      "cscAllowed": false,
+      "allowVocationalDiploma": true,
+      "mustIncludeFallbackSchools": ["广西工商职业技术学院", "红河学院"],
+      "mustBlockSchools": ["清华大学", "上海大学", "浙江工业大学"]
+    }
+  },
+  {
+    "id": "C9a",
+    "title": "无学位证申硕（仅本科毕业证且无HSK5）— 零越级，关闭常规硕士与CSC",
+    "category": "zero_escalation",
+    "message": "仅有本科毕业证无学士学位证，均分75%，雅思6.0，想申硕士和CSC全奖",
+    "criteria": {
+      "programType": "MASTER",
+      "teachingLanguage": "ENGLISH",
+      "targetMajor": "计算机",
+      "gpa": 75,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "ielts": 6.0,
+      "scholarshipType": "full",
+      "budget": 40000,
+      "age": 25,
+      "highestEducation": "BACHELOR_NO_DEGREE"
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "cscAllowed": false,
+      "blockDirectDegree": true,
+      "mustBlockSchools": ["清华大学", "上海大学", "浙江工业大学", "华侨大学"]
+    }
+  },
+  {
+    "id": "C9b",
+    "title": "大专满2年+HSK5 190分申中文硕士 — 精准放行华侨大学中文同等学力特例，拦截常规硕士",
+    "category": "zero_false_reject",
+    "message": "大专毕业满2年，HSK5级190分，均分75%，预算3万，想申中文硕士",
+    "criteria": {
+      "programType": "MASTER",
+      "teachingLanguage": "CHINESE",
+      "targetMajor": "工商管理",
+      "gpa": 75,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "hskLevel": 5,
+      "hskScore": 190,
+      "budget": 30000,
+      "age": 26,
+      "highestEducation": "ASSOCIATE",
+      "associateWorkYears": 2
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "cscAllowed": false,
+      "mustIncludeFallbackSchools": ["华侨大学"],
+      "mustAllowSchools": ["华侨大学"],
+      "mustBlockSchools": ["清华大学", "上海大学", "浙江工业大学"]
+    }
+  },
+  {
+    "id": "C10",
+    "title": "38岁自费硕（本科学位+均分75%+雅思6.5+预算6万）— 零误杀，精准落位45-50岁宽龄自费硕士池",
+    "category": "zero_false_reject",
+    "message": "38岁，有本科学位证，均分75%，雅思6.5，预算6万元/年，接受自费申请硕士",
+    "criteria": {
+      "programType": "MASTER",
+      "teachingLanguage": "ENGLISH",
+      "targetMajor": "工商管理",
+      "gpa": 75,
+      "gpaScale": 100,
+      "gradeSystem": "CN_100",
+      "ielts": 6.5,
+      "budget": 60000,
+      "age": 38,
+      "highestEducation": "BACHELOR_DEGREE"
+    },
+    "expected": {
+      "state": "DOWNGRADE_LOCK",
+      "cscAllowed": false,
+      "mustIncludeFallbackSchools": ["浙江科技大学", "三亚学院", "吉林外国语大学"],
+      "mustAllowSchools": ["浙江科技大学", "三亚学院", "吉林外国语大学"],
+      "mustBlockSchools": ["清华大学", "复旦大学"]
+    }
+  }
+]

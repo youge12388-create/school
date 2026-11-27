@@ -84,39 +84,121 @@ describe("AI 选校接口", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).answer.lead).toContain("学历或专业");
   });
-  it("近期对话中的敏感限制或联系方式也不会发送到模型", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    for (const content of ["学校不招某国籍", "电话：13812345678"]) {
-      const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "继续", history: [{ role: "user", content }] }) });
-      expect((await POST(request)).status).toBe(400);
-    }
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-  it("联系方式不会发送到模型", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const response = await POST(makeRequest("手机号：13812345678"));
-    expect(response.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-  it.each(["想申请硕士，学校不招某国籍", "想读本科，学校偏好白皮肤的学生", "申请硕士，招生限制：不接受某地区学生", "学校偏爱欧美学生", "学校更喜欢白皙的学生", "更喜欢欧美学生"])("敏感招生限制不会发送到模型：%s", async (message) => {
+  it("聊天中的手机号、邮箱和证件信息在发送给模型前自动脱敏，不会硬拦截报错", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
     vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", "Z:/nonexistent-test-workbook.xlsx");
-    const fetchMock = vi.fn(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"programType":"MASTER"}}' } }] }));
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ criteria: {}, intent: "chat", reply: "请告诉我学生的目标学历和专业。" }) } }] }));
     vi.stubGlobal("fetch", fetchMock);
-    const response = await POST(makeRequest(message));
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(response.status).toBe(400);
+    const response = await POST(new Request("http://localhost/api/ai-screening", {
+      method: "POST",
+      headers: { Origin: "http://localhost", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "学生电话：13812345678，邮箱 test@example.com，护照：E12345678",
+        history: [{ role: "user", content: "联系方式 13900001111" }],
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.redactedContact).toBe(true);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const sentBody = String(fetchMock.mock.calls[0][1]?.body);
+    expect(sentBody).not.toContain("13812345678");
+    expect(sentBody).not.toContain("test@example.com");
+    expect(sentBody).not.toContain("E12345678");
+    expect(sentBody).not.toContain("13900001111");
   });
-  it("已有条件中的敏感招生限制也不会发送到模型", async () => {
-    vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const request = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "继续查询", criteria: { targetMajor: "学校不招某国籍" } }) });
-    const response = await POST(request);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(response.status).toBe(400);
+  it("含俄罗斯国籍、优先城市、不要中文授课、过滤纯自费等真实长筛选指令不再被敏感限制拦截", async () => {
+    const path = join(tmpdir(), `school-ai-long-${randomUUID()}.xlsx`);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ["上海大学"]]), "Sheet1");
+    await writeFile(path, XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
+    const shanghaiProgram: MatchProgram = { id: "shu-m", schoolId: "s-shu", schoolName: "上海大学", schoolTags: "211，双一流", programName: "上海大学 · 硕士 · 英文授课", programType: "MASTER", teachingLanguage: "ENGLISH", majorText: "工商管理（全球本土 MBA）\n建筑学", requirementsText: null, sourceText: null, semesterText: "8月底-9月初开学", applicationTimeText: null, accommodationText: null, firstYearCostMax: 45000, costIncomplete: false, cscaStatus: "NOT_REQUIRED", gpaMin: null, gpaScale: null, hskLevelMin: null, hskScoreMin: null, ieltsMin: 6.5, toeflMin: null, duolingoMin: null, minAge: null, maxAge: null, deadlineDate: new Date("2026-05-15T00:00:00Z"), deadlineStatus: "EXPIRED", scholarshipCategory: "中国政府奖学金、上海市政府奖学金", province: "上海市", city: "宝山区", partnershipRating: 4, qsRanking: null, reviewStatus: "VERIFIED", manuallyVerified: true };
+    const longPrompt = `【来华留学院校匹配检索指令-学生Elmira Garapova】
+学生基础：俄罗斯国籍；2011萨马拉国立建筑土木工程大学，工程专家学位（等效本科，整体学历等效硕士），GPA3.02/4.0；无雅思托福、无HSK；2027秋季入学
+筛选强制条件：
+1.项目类型：硕士研究生，英文授课；专业方向：建筑国际MBA /绿色建筑 /可持续建筑；
+2.城市：仅限北京、上海（优先），如目标名校无匹配再看杭州（浙大）；
+3.资金条件：项目必须可申请奖学金，优先：中国政府奖学金CSC、MOFCOM商务部奖学金、院校Merit优秀/领导力奖学金；【过滤纯自费无奖学金项目，不返回自费项目】
+4.院校参考池：清华大学Global MBA、北京大学、复旦大学、同济大学、浙江大学、中欧CEIBS；
+输出要求：
+1.每条输出：学校｜项目名称｜授课语言｜学制｜奖学金类型是否可申请｜申请截止日期｜申请硬性语言要求｜官网链接
+2.区分Reach冲刺 / Target匹配 / Safe稳妥三档清单；
+3.标注哪些项目接受俄罗斯专家学位、是否需要GMAT/GRE；
+4.不要中文授课项目，不要本科、语言研修项目。`;
+    try {
+      vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
+      vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", path);
+      vi.stubEnv("AI_SCREENING_SHARED_DIR", join(tmpdir(), `school-ai-long-empty-${randomUUID()}`));
+      vi.stubEnv("AI_SCREENING_PARTNERS_PATH", "");
+      vi.mocked(getProgramsForScreening).mockResolvedValueOnce([shanghaiProgram]);
+      const fetchMock = vi.fn<typeof fetch>(async (_url, options) => {
+        const body = JSON.parse(String(options?.body));
+        const system = String(body.messages?.[0]?.content ?? "");
+        if (system.includes("匿名候选")) return Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"selections":[]}' } }] });
+        if (system.includes("内部库以外")) {
+          return Response.json({
+            usage: { server_tool_use: { tool_search: 2 } },
+            choices: [{
+              finish_reason: "stop",
+              message: {
+                annotations: [
+                  {
+                    type: "url_citation",
+                    url_citation: { url: "https://gmba.sem.tsinghua.edu.cn/", title: "Tsinghua Global MBA" },
+                  },
+                ],
+                content: JSON.stringify({
+                  summary: "已按北京/上海优先并过滤纯自费生成三档清单。",
+                  programs: [
+                    { schoolName: "清华大学", programName: "Global MBA", city: "北京", schoolNature: "公立 985", teachingLanguage: "英文授课", duration: "2年", scholarshipEligible: true, scholarshipSummary: "院校 Merit 奖学金 / 政府奖学金", deadline: "参考往年分批截止", languageRequirement: "需英语水平证明", degreeAndExamNotes: "接受俄罗斯专家学位认证；需 GMAT/GRE", officialUrl: "https://gmba.sem.tsinghua.edu.cn/", sourceUrls: ["https://gmba.sem.tsinghua.edu.cn/"], tier: "REACH", fitReason: "参考池首选顶尖商学院", caution: "需补考语言与 GMAT" },
+                  ],
+                  policyNotes: [{ title: "俄罗斯专家学位认可说明", content: "经认证的 5 年制专家学位可申请中国高校硕士项目。" }],
+                }),
+              },
+            }],
+          });
+        }
+        return Response.json({
+          choices: [{
+            finish_reason: "stop",
+            message: {
+              content: JSON.stringify({
+                criteria: {
+                  programType: "MASTER",
+                  teachingLanguage: "ENGLISH",
+                  targetMajors: ["建筑国际MBA", "绿色建筑", "可持续建筑"],
+                  cities: ["北京", "上海"],
+                  fallbackCities: ["杭州"],
+                  gpa: 3.02,
+                  gpaScale: 4,
+                  intakeYear: 2027,
+                  intakeSeason: "AUTUMN",
+                  scholarshipType: "any",
+                  excludeSelfFunded: true,
+                  scholarshipPreferences: ["CSC", "MOFCOM", "院校Merit奖学金"],
+                  targetSchools: ["清华大学", "北京大学", "复旦大学", "同济大学", "浙江大学", "中欧国际工商学院"],
+                  nationality: "俄罗斯",
+                  degreeBackground: "俄罗斯工程专家学位",
+                  wantTiering: true,
+                  customQuestions: ["标注哪些项目接受俄罗斯专家学位", "是否需要GMAT/GRE"],
+                },
+                intent: "search",
+              }),
+            },
+          }],
+        });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const response = await POST(makeRequest(longPrompt));
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.results.pending.some((c: { name: string }) => c.name === "上海大学")).toBe(true);
+      expect(data.external?.mode).toBe("web_search");
+      expect(data.external?.programs[0].schoolName).toBe("清华大学");
+      expect(data.external?.policyNotes[0].title).toContain("俄罗斯专家学位");
+    } finally {
+      await unlink(path);
+    }
   });
   it("上轮选中的学校只在服务端使用，不放入模型请求", async () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
@@ -239,45 +321,45 @@ describe("AI 选校接口", () => {
       expect(requesting.source).toContain(".xlsx");
     } finally { await unlink(path); }
   });
-  it("追问还有其他的吗时排除上一轮已展示院校，返回新的知识库候选", async () => {
+  it("追问还有其他的吗时排除上一轮已展示院校（默认最多 9 所），返回新的知识库候选", async () => {
     const path = join(tmpdir(), `school-ai-more-${randomUUID()}.xlsx`);
+    const names = Array.from({ length: 10 }, (_, i) => `测试第${String(i + 1).padStart(2, "0")}大学`);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ["甲大学"], ["乙大学"], ["丙大学"], ["丁大学"]]), "Sheet1");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ...names.map((n) => [n])]), "Sheet1");
     await writeFile(path, XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
-    const base: MatchProgram = { id: "base", schoolId: "s1", schoolName: "甲大学", schoolTags: null, programName: "计算机硕士", programType: "MASTER", teachingLanguage: "ENGLISH", majorText: "计算机", requirementsText: null, sourceText: null, semesterText: "2027年春季入学", applicationTimeText: null, accommodationText: null, firstYearCostMax: 37000, costIncomplete: false, cscaStatus: "UNKNOWN", gpaMin: null, gpaScale: null, hskLevelMin: null, hskScoreMin: null, ieltsMin: null, toeflMin: null, duolingoMin: null, minAge: null, maxAge: null, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN", scholarshipCategory: null, province: null, city: null, partnershipRating: 0, qsRanking: null, reviewStatus: "AUTO_PARSED" };
-    const first = { ...base, id: "p1", schoolId: "s1", schoolName: "甲大学", programName: "甲大学 · 计算机硕士" };
-    const second = { ...base, id: "p2", schoolId: "s2", schoolName: "乙大学", programName: "乙大学 · 计算机硕士" };
-    const extra = { ...base, id: "p3", schoolId: "s3", schoolName: "丙大学", programName: "丙大学 · 计算机硕士" };
-    const fourth = { ...base, id: "p4", schoolId: "s4", schoolName: "丁大学", programName: "丁大学 · 计算机硕士" };
+    const base: MatchProgram = { id: "base", schoolId: "s1", schoolName: names[0], schoolTags: null, programName: "计算机硕士", programType: "MASTER", teachingLanguage: "ENGLISH", majorText: "计算机", requirementsText: null, sourceText: null, semesterText: "2027年春季入学", applicationTimeText: null, accommodationText: null, firstYearCostMax: 37000, costIncomplete: false, cscaStatus: "UNKNOWN", gpaMin: null, gpaScale: null, hskLevelMin: null, hskScoreMin: null, ieltsMin: null, toeflMin: null, duolingoMin: null, minAge: null, maxAge: null, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN", scholarshipCategory: null, province: null, city: null, partnershipRating: 0, qsRanking: null, reviewStatus: "AUTO_PARSED" };
+    const allPrograms = names.map((name, index) => ({ ...base, id: `p${index + 1}`, schoolId: `s${index + 1}`, schoolName: name, programName: `${name} · 计算机硕士` }));
     try {
       vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
       vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", path);
       vi.stubEnv("AI_SCREENING_SHARED_DIR", join(tmpdir(), `school-ai-empty-${randomUUID()}`));
       vi.stubEnv("AI_SCREENING_PARTNERS_PATH", "");
-      vi.mocked(getProgramsForScreening).mockResolvedValueOnce([first, second, extra, fourth]).mockResolvedValueOnce([first, second, extra, fourth]);
-      vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (_url, options) => {
+      vi.mocked(getProgramsForScreening).mockResolvedValueOnce(allPrograms).mockResolvedValueOnce(allPrograms);
+      vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (url, options) => {
+        if (String(url).includes("/v1/tools/search")) return Response.json({ results: [] });
         const body = JSON.parse(String(options?.body));
         const system = String(body.messages?.[0]?.content ?? "");
         const content = system.includes("匿名候选")
           ? '{"selections":[]}'
-          : '{"criteria":{"programType":"MASTER","targetMajor":"计算机"},"intent":"search"}';
+          : system.includes("内部库以外")
+            ? '{"summary":"","programs":[],"policyNotes":[]}'
+            : '{"criteria":{"programType":"MASTER","targetMajor":"计算机"},"intent":"search"}';
         return Response.json({ choices: [{ finish_reason: "stop", message: { content } }] });
       }));
       const initial = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "想申请计算机硕士", criteria: {} }) }))).json();
-      expect(initial.shown.schoolNames).toHaveLength(3);
-      const allSchools = ["甲大学", "乙大学", "丙大学", "丁大学"];
-      const remainingSchool = allSchools.find((name) => !initial.shown.schoolNames.includes(name))!;
+      expect(initial.shown.schoolNames).toHaveLength(9);
+      const remainingSchool = names.find((name) => !initial.shown.schoolNames.includes(name))!;
       const more = await (await POST(new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "还有其他的吗", criteria: initial.criteria, hasPrevious: true, seenProgramIds: initial.shown.programIds, seenSchoolNames: initial.shown.schoolNames }) }))).json();
       expect(more.results.confirmed.map((card: { name: string }) => card.name)).toEqual([remainingSchool]);
       expect(more.results.pending).toHaveLength(0);
       expect(more.results.other).toHaveLength(0);
       expect(more.shown.schoolNames).toEqual([remainingSchool]);
-      expect(more.results.excludedSchoolCount).toBe(3);
+      expect(more.results.excludedSchoolCount).toBe(9);
       expect(more.narrative.lead).toContain("排除了前几轮已展示的院校");
       for (const name of initial.shown.schoolNames) expect(JSON.stringify(more.results)).not.toContain(name);
     } finally { await unlink(path); }
   });
-  it("说明重点分析超时后仍返回可信的自然回答，匿名请求不含内部资料", async () => {
+  it("说明重点分析超时后仍返回可信的自然回答，外部请求绝不含内部资料", async () => {
     const path = join(tmpdir(), `school-ai-narrative-${randomUUID()}.xlsx`);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["院校名称（中文）"], ["私有测试大学"]]), "Sheet1");
@@ -289,9 +371,15 @@ describe("AI 选校接口", () => {
       vi.stubEnv("AI_SCREENING_SHARED_DIR", join(tmpdir(), `school-ai-empty-${randomUUID()}`));
       vi.stubEnv("AI_SCREENING_PARTNERS_PATH", "");
       vi.mocked(getProgramsForScreening).mockResolvedValueOnce([program]);
-      const fetchMock = vi.fn<typeof fetch>()
-        .mockResolvedValueOnce(Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"programType":"MASTER","targetMajor":"计算机","budget":80000}}' } }] }))
-        .mockRejectedValueOnce(new DOMException("timeout", "TimeoutError"));
+      const fetchMock = vi.fn<typeof fetch>(async (url, options) => {
+        if (String(url).includes("/v1/tools/search")) return Response.json({ results: [] });
+        const body = JSON.parse(String(options?.body));
+        const system = String(body.messages?.[0]?.content ?? "");
+        if (system.includes("匿名候选") || system.includes("内部库以外")) {
+          throw new DOMException("timeout", "TimeoutError");
+        }
+        return Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"programType":"MASTER","targetMajor":"计算机","budget":80000}}' } }] });
+      });
       vi.stubGlobal("fetch", fetchMock);
       const response = await POST(makeRequest("想申请计算机硕士，预算 8 万"));
       expect(response.status).toBe(200);
@@ -300,9 +388,10 @@ describe("AI 选校接口", () => {
       expect(data.narrative.highlights[0].body).toContain("计算机");
       expect(data.narrative.highlights[0].body).toContain("适用年份尚未确认");
       expect(data.narrative.highlights[0].body).not.toContain("预算能覆盖");
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      const anonymousBody = String(fetchMock.mock.calls[1][1]?.body);
-      for (const privateText of ["私有测试大学", "私有测试项目", "某国籍", "37000", "计算机"]) expect(anonymousBody).not.toContain(privateText);
+      for (const [, options] of fetchMock.mock.calls) {
+        const callBody = String(options?.body);
+        for (const privateText of ["私有测试大学", "私有测试项目", "某国籍", "37000"]) expect(callBody).not.toContain(privateText);
+      }
       vi.mocked(getProgramsForScreening).mockResolvedValueOnce([{ ...program, ieltsMin: 6 }]);
       fetchMock.mockResolvedValueOnce(Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"criteria":{"ielts":5},"intent":"school_fact","topic":"LANGUAGE"}' } }] }));
       const follow = new Request("http://localhost/api/ai-screening", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ message: "私有测试大学雅思 5 分够吗？", criteria: { programType: "MASTER", targetMajor: "计算机", ielts: 6.5 }, hasPrevious: true, focusSchool: "私有测试大学" }) });
@@ -351,5 +440,74 @@ describe("AI 选校接口", () => {
         expect(body).not.toContain("测试项目");
       }
     } finally { await unlink(path); }
+  });
+
+  it("支持模式三（合作库快检）秒查合作院校并在普通顾问账号下脱敏对接人及风控原文", async () => {
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
+    vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", "Z:/nonexistent-test-workbook.xlsx");
+    vi.mocked(getCurrentUser).mockResolvedValueOnce({
+      id: "advisor-1",
+      username: "advisor",
+      displayName: "顾问",
+      role: "ADVISOR",
+      authProvider: "LOCAL",
+      active: true,
+      sessionId: "s1",
+    });
+
+    const advisorRes = await POST(new Request("http://localhost/api/ai-screening", {
+      method: "POST",
+      headers: { Origin: "http://localhost", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "只查合作库：本科合作院校，学生孟加拉籍，预算 20000 元",
+        runMode: "partner_quick",
+        criteria: { programType: "UG", nationality: "孟加拉", budget: 20000 },
+      }),
+    }));
+    expect(advisorRes.status).toBe(200);
+    const advisorData = await advisorRes.json();
+    expect(advisorData.runMode).toBe("partner_quick");
+    expect(advisorData.partnerQuick.totalMatched).toBeGreaterThan(0);
+    expect(advisorData.partnerQuick.redactedForPrivilege).toBe(true);
+    expect(advisorData.partnerQuick.results.some((r: { partnerBadgeText: string }) => r.partnerBadgeText.includes("Julia") || r.partnerBadgeText.includes("Young"))).toBe(false);
+    expect(advisorData.partnerQuick.blockedByPolicy.every((b: { reason: string }) => !b.reason.includes("孟加拉"))).toBe(true);
+  });
+
+  it("C7 硬熔断劝退场景（低分 5000 元预算求全奖）：API 路由零院校泄露且不触发全网检索", async () => {
+    vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
+    vi.stubEnv("AI_SCREENING_WORKBOOK_PATH", "Z:/nonexistent-test-workbook.xlsx");
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({
+      choices: [{
+        finish_reason: "stop",
+        message: {
+          content: JSON.stringify({
+            intent: "search",
+            criteria: {
+              programType: "UG",
+              targetMajor: "计算机",
+              gpa: 60,
+              gpaScale: 100,
+              languageStatus: "CONFIRMED_NONE",
+              budget: 5000,
+              scholarshipType: "full",
+            },
+          }),
+        },
+      }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(makeRequest("高中均分60%，无HSK无雅思，预算5000元，求全额奖学金读本科计算机"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(fetchMock).toHaveBeenCalledOnce(); // Only intent extraction; external search strictly skipped
+    expect(data.diagnostic?.state).toBe("CIRCUIT_BREAKER");
+    expect(data.results.confirmed).toEqual([]);
+    expect(data.results.pending).toEqual([]);
+    expect(data.results.other).toEqual([]);
+    expect(data.external).toBeNull();
+    expect(data.answer.lead).toContain("硬熔断劝退");
+    expect(data.answer.note).toContain("大一新生依法严禁校外勤工助学");
+    expect(data.v31Gates?.allPassed).toBe(true);
   });
 });

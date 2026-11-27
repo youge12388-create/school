@@ -7,7 +7,12 @@ import { ArrowDown, ArrowRight, ArrowUp, Check, ClipboardList, LoaderCircle, X }
 import { useT, useTv, useTm } from "@/lib/i18n/locale-context";
 import { PlanProfileFields } from "@/components/plan-profile-fields";
 import type { DraftPlan, DraftPlanFields } from "@/lib/ai-screening-plan";
-import { groupPlanSchools, RECOMMENDED_SCHOOL_COUNT, RECOMMENDATION_FIELD_LIMITS } from "@/lib/recommendation-profile";
+import {
+  groupPlanSchools,
+  RECOMMENDATION_FIELD_LIMITS,
+  RECOMMENDED_PER_TIER_COUNT,
+  RECOMMENDED_SCHOOL_COUNT,
+} from "@/lib/recommendation-profile";
 
 export type SavedPlan = { id: string; title: string };
 
@@ -81,12 +86,12 @@ export function PlanDraftPane({ draft, saved, saving, onChange, onRemove, onMove
       </div>}
       {!draft || !schools.length ? <div className="agent-draft-empty">
         <strong>{t("还没有选定院校")}</strong>
-        <p>{tv("从结果点「加入方案」。建议选 {count} 所，可按需要调整。", { count: RECOMMENDED_SCHOOL_COUNT })}</p>
+        <p>{tv("从结果点「加入方案」。建议按冲/稳/保各选 {perTier} 所（共最多 {count} 所），实在不足可留空。", { perTier: RECOMMENDED_PER_TIER_COUNT, count: RECOMMENDED_SCHOOL_COUNT })}</p>
       </div> : (
         <form method="post" className="agent-draft-form" onSubmit={save} aria-busy={saving}>
           <div className="agent-draft-count">
             <strong>{tv("已选 {count} 所学校", { count: schools.length })}</strong>
-            <span>{tv("建议 {count} 所，可调整", { count: RECOMMENDED_SCHOOL_COUNT })}</span>
+            <span>{tv("冲稳保各 {perTier} 所（最多 {count} 所）", { perTier: RECOMMENDED_PER_TIER_COUNT, count: RECOMMENDED_SCHOOL_COUNT })}</span>
           </div>
           <ol className="agent-draft-items" aria-label={t("已选学校及项目")}>
             {schools.map((projects, index) => {

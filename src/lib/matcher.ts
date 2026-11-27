@@ -1,6 +1,7 @@
 import type { RuleStatus } from "@/lib/constants";
 import { DEFAULT_MAJOR_SYNONYMS } from "@/lib/constants";
 import { parseAgeRequirement } from "@/lib/program-parser";
+import { evaluateAcademicTierEligibility, type AcademicLevel } from "@/lib/screening-ranking";
 import {
   parseProgramSoftRequirements,
   type SoftRequirement,
@@ -18,6 +19,7 @@ export type ScreeningCriteria = {
   programType?: string;
   teachingLanguage?: string;
   targetMajor?: string;
+  targetMajors?: string[];
   schoolTier?: SchoolTier;
   schoolQuery?: string;
   intakeYear?: number | null;
@@ -26,6 +28,8 @@ export type ScreeningCriteria = {
   hasCsca?: boolean | null;
   gpa?: number | null;
   gpaScale?: number | null;
+  gradeSystem?: "CN_100" | "GPA_4" | "GPA_5" | "FR_20" | "UK_HONOURS" | "DE_REVERSE" | "CUSTOM" | null;
+  academicLevel?: AcademicLevel | null;
   hskLevel?: number | null;
   hskScore?: number | null;
   ielts?: number | null;
@@ -37,6 +41,11 @@ export type ScreeningCriteria = {
   nationality?: string;
   province?: string;
   city?: string;
+  cities?: string[];
+  fallbackCities?: string[];
+  publicOnly?: boolean;
+  excludeSelfFunded?: boolean;
+  scholarshipPreferences?: string[];
   scholarshipType?: string; // "full" | "any" | "none"
   accommodationRequired?: boolean;
   supervisorAcceptance?: SupervisorAcceptanceMode | null;
@@ -179,6 +188,8 @@ function compareExact(label: string, actual: string, expected?: string): MatchEv
     : { label, level: "FAIL", detail: "与筛选条件不一致" };
 }
 
+const MUNICIPALITIES = new Set(["北京", "上海", "天津", "重庆"]);
+
 function normalizeLocation(value: string) {
   return normalizeKeyword(value).replace(
     /(壮族自治区|回族自治区|维吾尔自治区|自治区|特别行政区|省|市)$/u,
@@ -186,11 +197,41 @@ function normalizeLocation(value: string) {
   );
 }
 
+function splitLocationTokens(values: Array<string | null | undefined>): string[] {
+  const result: string[] = [];
+  for (const raw of values) {
+    if (!raw) continue;
+    for (const part of raw.split(/[、,，/／;；|\s]+/u)) {
+      const trimmed = part.trim();
+      if (trimmed) result.push(trimmed);
+    }
+  }
+  return [...new Set(result)];
+}
+
 function locationMatches(expected: string, actual: string | null) {
   if (!actual) return false;
   const normalizedExpected = normalizeLocation(expected);
   const normalizedActual = normalizeLocation(actual);
+  if (!normalizedExpected || !normalizedActual) return false;
   return normalizedActual.includes(normalizedExpected) || normalizedExpected.includes(normalizedActual);
+}
+
+/**
+ * Matches a city/municipality/province token against a program.
+ * For direct-administered municipalities (北京/上海/天津/重庆), local DB records
+ * frequently store the district (e.g. 徐汇区/松江区/海淀区) in `city` and the
+ * municipality in `province`, so checking both prevents false exclusions.
+ */
+export function programMatchesLocation(expected: string, program: Pick<MatchProgram, "province" | "city" | "schoolName">) {
+  const normalizedExpected = normalizeLocation(expected);
+  if (!normalizedExpected) return true;
+  if (locationMatches(expected, program.city)) return true;
+  if (locationMatches(expected, program.province)) return true;
+  if (MUNICIPALITIES.has(normalizedExpected) && !program.province && !program.city) {
+    return normalizeKeyword(program.schoolName).startsWith(normalizedExpected);
+  }
+  return false;
 }
 
 export type MajorMatchResult = {
@@ -198,17 +239,71 @@ export type MajorMatchResult = {
   matchType: "exact" | "synonym" | "semantic" | "none";
   synonymKeyword?: string;
   semanticKeyword?: string;
+  matchedQuery?: string;
 };
 
 const SEMANTIC_MAJOR_HINTS: Record<string, string[]> = {
   人工智能: ["智能", "机器学习", "深度学习", "算法", "AI"],
   计算机: ["电脑", "编程", "信息技术", "软件", "数据"],
   新能源: ["能源", "储能", "光伏", "电气"],
-  环境: ["生态", "资源", "可持续"],
+  环境: ["生态", "资源", "可持续", "绿色"],
+  建筑: ["建筑学", "绿色建筑", "可持续建筑", "城乡规划", "城市设计", "土木工程"],
+  MBA: ["工商管理", "企业管理", "国际MBA", "Global MBA", "IMBA", "国际商务"],
+  国际关系: ["外交", "外交学", "全球治理", "国际政治", "政治学", "公共管理", "公共政策", "国际法", "国际商法"],
   传媒: ["新闻", "传播", "广告"],
   国际贸易: ["商贸", "贸易", "商务", "经济"],
   教育: ["教学", "教师", "课程"],
 };
+
+export function splitMajorQueries(targetMajor?: string | null, targetMajors?: string[] | null): string[] {
+  const parts: string[] = [];
+  for (const item of targetMajors ?? []) {
+    const trimmed = item.trim();
+    if (trimmed) parts.push(trimmed);
+  }
+  if (targetMajor?.trim()) {
+    const split = targetMajor
+      .split(/[\/／、,，;；|]+|\s+或\s+|\s+or\s+/iu)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    parts.push(...(split.length > 1 ? split : [targetMajor.trim()]));
+  }
+  return [...new Set(parts)];
+}
+
+export function classifyScholarshipText(text: string | null | undefined): "full" | "available" | "none" | "unknown" {
+  const raw = (text ?? "").trim();
+  if (!raw) return "unknown";
+  if (/^(?:无|暂无|无奖学金|不提供奖学金|纯自费|自费)$/u.test(raw)) return "none";
+  if (/(?:无奖学金|不提供(?:任何)?奖学金|仅自费|纯自费)/u.test(raw) && !/(?:部分|政府奖学金|中国政府|CSC|校奖|新生奖|优秀|减免)/iu.test(raw)) {
+    return "none";
+  }
+  if (/(?:不提供全额|非全额|无全额)/u.test(raw)) {
+    return /(?:部分|奖学金|资助|减免|政府|校奖|新生)/u.test(raw) ? "available" : "unknown";
+  }
+  if (
+    /(?:全额|全奖|完全奖学金|full\s*scholarship|中国政府奖学金|CSC|商务部奖学金|MOFCOM|A类)/iu.test(raw)
+    || (/(?:学费全免|免全部学费|免除全部学费|100%\s*学费(?:减免)?|学费\s*100%\s*减免|tuition[- ]?free)/iu.test(raw)
+      && !/(?:半免|部分免|部分减免)/u.test(raw))
+  ) {
+    return "full";
+  }
+  if (/(?:奖学金|scholarship|减免|资助|免学费|半免|减半|津贴|merit|校长|新生|政府)/iu.test(raw)) {
+    return "available";
+  }
+  return "unknown";
+}
+
+export function isLikelyNonPublicSchool(program: Pick<MatchProgram, "schoolName" | "schoolTags" | "sourceText" | "programType">): boolean {
+  const tags = program.schoolTags ?? "";
+  if (/985|211|双一流|公办|公立|教育部直属/u.test(tags)) return false;
+  const name = program.schoolName;
+  if (/民办|独立学院/u.test(tags) || /民办/u.test(name)) return true;
+  if (program.programType === "UG" && /(?:职业技术学院|职业学院|工商外国语学院|专修学院|高等专科学校)$/u.test(name)) {
+    return true;
+  }
+  return false;
+}
 
 function bigramDice(left: string, right: string) {
   const grams = (value: string) =>
@@ -221,13 +316,27 @@ function bigramDice(left: string, right: string) {
   return (2 * overlap) / (leftGrams.size + rightGrams.size);
 }
 
+function rawTextNormalized(value: string): string {
+  return value.normalize("NFKC").toLowerCase();
+}
+
+function termMatchesText(normalizedTerm: string, normalizedText: string, rawText?: string): boolean {
+  if (!normalizedTerm || !normalizedText) return false;
+  if (/^[a-z0-9-]+$/i.test(normalizedTerm) && normalizedTerm.length <= 4) {
+    const escaped = normalizedTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const target = rawText != null ? rawTextNormalized(rawText) : normalizedText;
+    return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, "i").test(target);
+  }
+  return normalizedText.includes(normalizedTerm);
+}
+
 function semanticMajorMatch(query: string, text: string) {
   const normalizedQuery = normalizeKeyword(query);
   const normalizedText = normalizeKeyword(text);
   const terms = new Set([normalizedQuery]);
   for (const [topic, aliases] of Object.entries(SEMANTIC_MAJOR_HINTS)) {
     const vocabulary = [topic, ...aliases].map(normalizeKeyword);
-    if (vocabulary.some((term) => normalizedQuery.includes(term) || term.includes(normalizedQuery))) {
+    if (vocabulary.some((term) => termMatchesText(term, normalizedQuery, query) || termMatchesText(normalizedQuery, term))) {
       for (const term of vocabulary) terms.add(term);
     }
   }
@@ -237,7 +346,7 @@ function semanticMajorMatch(query: string, text: string) {
     .filter((value) => value.length >= 2);
   for (const term of terms) {
     if (term.length < 2) continue;
-    if (normalizedText.includes(term)) return { keyword: term, score: 1 };
+    if (termMatchesText(term, normalizedText, text)) return { keyword: term, score: 1 };
     for (const candidate of candidates) {
       if (term.includes(candidate) && candidate.length >= Math.max(2, term.length * 0.5)) {
         return { keyword: candidate, score: candidate.length / term.length };
@@ -259,13 +368,13 @@ export function majorMatches(
   if (!majorText) return { matched: false, matchType: "none" };
   const normalizedQuery = normalizeKeyword(query);
   const normalizedText = normalizeKeyword(majorText);
-  if (normalizedText.includes(normalizedQuery)) {
+  if (termMatchesText(normalizedQuery, normalizedText, majorText)) {
     return { matched: true, matchType: "exact" };
   }
   for (const keywords of Object.values(groups)) {
-    const queryHit = keywords.find((k) => normalizedQuery.includes(normalizeKeyword(k)));
+    const queryHit = keywords.find((k) => termMatchesText(normalizeKeyword(k), normalizedQuery, query));
     if (queryHit) {
-      const textHit = keywords.find((k) => normalizedText.includes(normalizeKeyword(k)));
+      const textHit = keywords.find((k) => termMatchesText(normalizeKeyword(k), normalizedText, majorText));
       if (textHit) {
         return { matched: true, matchType: "synonym", synonymKeyword: textHit };
       }
@@ -470,6 +579,7 @@ function supervisorAcceptanceEvidence(
   mode?: SupervisorAcceptanceMode | null,
 ): MatchEvidence | null {
   if (!mode) return null;
+  if (program.programType === "UG" && mode !== "required") return null;
 
   const status = getSupervisorAcceptanceStatus(program);
   if (mode === "required") {
@@ -585,19 +695,32 @@ export function evaluateProgram(
   if (programType) evidence.push(programType);
   if (teachingLanguage) evidence.push(teachingLanguage);
 
-  if (criteria.targetMajor) {
-    const match = majorMatches(
-      criteria.targetMajor,
-      [program.majorText, program.directionText]
-        .filter(Boolean)
-        .join(" "),
-    );
-    if (match.matchType === "exact") {
-      evidence.push({ label: "专业", level: "PASS", detail: "有匹配的专业" });
-    } else if (match.matchType === "synonym") {
-      evidence.push({ label: "专业", level: "NEED", detail: "可能同类的专业" + (match.synonymKeyword ? "（命中\"" + match.synonymKeyword + "\"）" : "") });
-    } else if (match.matchType === "semantic") {
-      evidence.push({ label: "专业", level: "NEED", detail: "可能与目标专业相关" + (match.semanticKeyword ? "（语义召回\"" + match.semanticKeyword + "\"）" : "") + "，需核实" });
+  const majorQueries = splitMajorQueries(criteria.targetMajor, criteria.targetMajors);
+  if (majorQueries.length) {
+    const majorSource = [program.majorText, program.directionText]
+      .filter(Boolean)
+      .join(" ");
+    const rankOrder = { exact: 3, synonym: 2, semantic: 1, none: 0 } as const;
+    let best: MajorMatchResult = { matched: false, matchType: "none" };
+    const matchedQueries: string[] = [];
+    for (const query of majorQueries) {
+      const res = majorMatches(query, majorSource);
+      if (res.matched) matchedQueries.push(query);
+      if (rankOrder[res.matchType] > rankOrder[best.matchType]) {
+        best = { ...res, matchedQuery: query };
+      }
+    }
+    if (best.matchType === "exact") {
+      const labelDetail = matchedQueries.length > 1
+        ? `有匹配的专业（命中“${matchedQueries.slice(0, 3).join("、")}”）`
+        : best.matchedQuery && majorQueries.length > 1
+          ? `有匹配的专业（命中“${best.matchedQuery}”）`
+          : "有匹配的专业";
+      evidence.push({ label: "专业", level: "PASS", detail: labelDetail });
+    } else if (best.matchType === "synonym") {
+      evidence.push({ label: "专业", level: "NEED", detail: "可能同类的专业" + (best.synonymKeyword ? "（命中\"" + best.synonymKeyword + "\"）" : "") });
+    } else if (best.matchType === "semantic") {
+      evidence.push({ label: "专业", level: "NEED", detail: "可能与目标专业相关" + (best.semanticKeyword ? "（语义召回\"" + best.semanticKeyword + "\"）" : "") + "，需核实" });
     } else if (program.majorText) {
       evidence.push({ label: "专业", level: "FAIL", detail: "未找到相关专业" });
     } else {
@@ -643,13 +766,48 @@ export function evaluateProgram(
     );
   }
 
-  if (criteria.gpa != null) {
-    if (program.gpaMin == null || program.gpaScale == null) {
-      evidence.push({ label: "GPA", level: "UNKNOWN", detail: "数据库未有相关信息" });
-    } else if (criteria.gpaScale !== program.gpaScale) {
-      evidence.push({ label: "GPA", level: "UNKNOWN", detail: "计分制不同，需要人工复核" });
+  if (criteria.gpa != null || criteria.academicLevel != null) {
+    const officialThreshold =
+      criteria.gpa != null && program.gpaMin != null && program.gpaScale != null && criteria.gpaScale === program.gpaScale
+        ? compareThreshold("GPA", criteria.gpa, program.gpaMin)
+        : null;
+    if (officialThreshold?.level === "FAIL") {
+      evidence.push(officialThreshold);
     } else {
-      evidence.push(compareThreshold("GPA", criteria.gpa, program.gpaMin));
+      const tierEligibility = evaluateAcademicTierEligibility(
+        {
+          gpa: criteria.gpa,
+          gpaScale: criteria.gpaScale,
+          gradeSystem: criteria.gradeSystem,
+          academicLevel: criteria.academicLevel,
+          programType: criteria.programType ?? program.programType,
+          hasPaperPatent: criteria.hasPaperPatent,
+        },
+        {
+          schoolName: program.schoolName,
+          schoolTags: program.schoolTags,
+          qsRanking: program.qsRanking,
+        },
+      );
+      if (!tierEligibility.eligible) {
+        evidence.push({
+          label: "GPA",
+          level: "FAIL",
+          detail: tierEligibility.reason ?? "成绩档位与该校录取档位差距较大，不予推荐",
+        });
+      } else if (officialThreshold) {
+        evidence.push(officialThreshold);
+      } else if (criteria.gpa != null) {
+        if (program.gpaMin == null || program.gpaScale == null) {
+          evidence.push({ label: "GPA", level: "UNKNOWN", detail: "数据库未有相关信息" });
+        } else {
+          evidence.push({ label: "GPA", level: "UNKNOWN", detail: "计分制不同，需要人工复核" });
+        }
+      } else if (tierEligibility.gapBands >= 1) {
+        evidence.push({ label: "GPA", level: "NEED", detail: "成绩略低于该校常规录取档位，建议作冲刺参考（内部评估）" });
+      } else {
+        evidence.push({ label: "GPA", level: "PASS", detail: "成绩档位符合该校范围（内部评估）" });
+      }
     }
   }
 
@@ -680,21 +838,42 @@ export function evaluateProgram(
   ];
   for (const item of optionalEvidence) if (item) evidence.push(item);
 
-  if (criteria.province || criteria.city) {
-    const provinceMatches = !criteria.province || locationMatches(criteria.province, program.province);
-    const cityMatches = !criteria.city || locationMatches(criteria.city, program.city);
+  const primaryCities = splitLocationTokens([...(criteria.cities ?? []), criteria.city]);
+  const fallbackCities = splitLocationTokens(criteria.fallbackCities ?? []);
+  const hasLocationFilter = Boolean(criteria.province || primaryCities.length || fallbackCities.length);
+  if (hasLocationFilter) {
     const hasLocation = Boolean(program.province || program.city);
-    evidence.push(
-      !hasLocation
-        ? { label: "地区", level: "UNKNOWN", detail: "数据库未有相关信息" }
-        : provinceMatches && cityMatches
-          ? { label: "地区", level: "PASS", detail: [program.province, program.city].filter(Boolean).join(" · ") }
-          : {
-              label: "地区",
-              level: "FAIL",
-              detail: `项目位于 ${[program.province, program.city].filter(Boolean).join(" · ") || "未知地区"}`,
-            },
-    );
+    const areaLabel = [program.province, program.city].filter(Boolean).join(" · ") || "未知地区";
+    if (!hasLocation && !primaryCities.some((city) => programMatchesLocation(city, program)) && !fallbackCities.some((city) => programMatchesLocation(city, program))) {
+      evidence.push({ label: "地区", level: "UNKNOWN", detail: "数据库未有相关信息" });
+    } else {
+      const provinceOk = !criteria.province || programMatchesLocation(criteria.province, program);
+      const matchedPrimary = primaryCities.find((city) => programMatchesLocation(city, program));
+      const matchedFallback = !matchedPrimary ? fallbackCities.find((city) => programMatchesLocation(city, program)) : undefined;
+      if (primaryCities.length || fallbackCities.length) {
+        if (matchedPrimary && (provinceOk || MUNICIPALITIES.has(normalizeLocation(matchedPrimary)))) {
+          evidence.push({ label: "地区", level: "PASS", detail: areaLabel });
+        } else if (matchedFallback) {
+          evidence.push({ label: "地区", level: "PASS", detail: `备选城市：${areaLabel}` });
+        } else {
+          evidence.push({ label: "地区", level: "FAIL", detail: `项目位于 ${areaLabel}` });
+        }
+      } else if (provinceOk) {
+        evidence.push({ label: "地区", level: "PASS", detail: areaLabel });
+      } else {
+        evidence.push({ label: "地区", level: "FAIL", detail: `项目位于 ${areaLabel}` });
+      }
+    }
+  }
+
+  if (criteria.publicOnly) {
+    if (isLikelyNonPublicSchool(program)) {
+      evidence.push({ label: "办学性质", level: "FAIL", detail: "院校可能为民办或非公立本科" });
+    } else if (/985|211|双一流|公办|公立|教育部直属/u.test(program.schoolTags ?? "")) {
+      evidence.push({ label: "办学性质", level: "PASS", detail: "公立高校" });
+    } else {
+      evidence.push({ label: "办学性质", level: "UNKNOWN", detail: "库内未标明公立属性，需核实" });
+    }
   }
 
   if (criteria.schoolTier) {
@@ -721,29 +900,43 @@ export function evaluateProgram(
     );
   }
 
-  if (criteria.scholarshipType) {
-    const cat = program.scholarshipCategory ?? "";
-    const isFull = /全额|全奖|完全|full/i.test(cat);
-    const hasAny = cat.length > 0;
+  if (criteria.scholarshipType || criteria.excludeSelfFunded || criteria.scholarshipPreferences?.length) {
+    const cat = [program.scholarshipCategory, program.scholarshipContent].filter(Boolean).join(" ").trim();
+    const shortCat = (program.scholarshipCategory ?? "").trim();
+    const availability = classifyScholarshipText(cat);
+    const isFull = availability === "full" || /全额|全奖|完全|full/i.test(shortCat);
+    const hasAny = availability === "full" || availability === "available";
+    const matchedPrefs = (criteria.scholarshipPreferences ?? []).filter((pref) => {
+      const normalized = normalizeKeyword(pref);
+      const normCat = normalizeKeyword(cat);
+      if (!normalized || !normCat) return false;
+      if (normCat.includes(normalized)) return true;
+      if (/csc|中国政府/iu.test(pref) && /中国政府奖学金|csc/iu.test(cat)) return true;
+      if (/mofcom|商务部/iu.test(pref) && /商务部|mofcom/iu.test(cat)) return true;
+      if (/上海政府|上海市政府|sgs/iu.test(pref) && /上海市.*政府奖学金|上海政府奖学金/iu.test(cat)) return true;
+      if (/merit|优秀|领导力|校|新生/iu.test(pref) && /新生|优秀|校长|择优|入学|校奖|merit/iu.test(cat)) return true;
+      return false;
+    });
+    const prefSuffix = matchedPrefs.length ? `（匹配：${matchedPrefs.join("、")}）` : "";
     if (criteria.scholarshipType === "full") {
       evidence.push(
         isFull
-          ? { label: "奖学金", level: "PASS", detail: `全额奖学金：${cat}` }
+          ? { label: "奖学金", level: "PASS", detail: `全额奖学金：${shortCat || "可申请"}${prefSuffix}` }
           : hasAny
-            ? { label: "奖学金", level: "NEED", detail: `非全额奖学金：${cat}` }
+            ? { label: "奖学金", level: "NEED", detail: `非全额奖学金：${shortCat}${prefSuffix}` }
             : { label: "奖学金", level: "FAIL", detail: "数据库未有奖学金信息" },
       );
-    } else if (criteria.scholarshipType === "any") {
+    } else if (criteria.scholarshipType === "any" || criteria.excludeSelfFunded || criteria.scholarshipPreferences?.length) {
       evidence.push(
         hasAny
-          ? { label: "奖学金", level: "PASS", detail: `有奖学金：${cat}` }
-          : { label: "奖学金", level: "FAIL", detail: "数据库未有奖学金信息" },
+          ? { label: "奖学金", level: "PASS", detail: `有奖学金：${shortCat || "详见项目说明"}${prefSuffix}` }
+          : { label: "奖学金", level: "FAIL", detail: availability === "none" ? "纯自费无奖学金项目" : "数据库未有奖学金信息" },
       );
     } else if (criteria.scholarshipType === "none") {
       evidence.push(
         !hasAny
           ? { label: "奖学金", level: "PASS", detail: "该项目无奖学金（自费）" }
-          : { label: "奖学金", level: "NEED", detail: `该项目有奖学金信息：${cat}` },
+          : { label: "奖学金", level: "NEED", detail: `该项目有奖学金信息：${shortCat}` },
       );
     }
   }
@@ -773,7 +966,7 @@ const effectiveDeadlineStatus = getEffectiveDeadlineStatus(program, now);
   const score =
     passes * 20 - failures * 100 - needs * 25 - unknowns * 8 +
     program.partnershipRating * 3 +
-    (program.qsRanking ? Math.max(0, 5 - program.qsRanking / 250) : 0) +
+    (program.qsRanking && program.qsRanking > 0 ? Math.max(0, 5 - program.qsRanking / 250) : 0) +
     (program.reviewStatus === "VERIFIED" ? 5 : 0);
 
   return { evidence, fitLevel, score, effectiveDeadlineStatus };

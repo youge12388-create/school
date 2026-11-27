@@ -1,0 +1,5727 @@
+{
+ "_meta": {
+  "description": "内部合作院校结构化搜索引擎库（提取自内部合作院校表，按合作等级 SS>S>A>B>C>D>未标级 优先匹配）。严禁将本文件中的合作级别/对接人/内部渠道价写入官网事实库 university_db.json。",
+  "updated_at": "2026-11-26",
+  "source_rows": 87,
+  "active_partner_count": 68,
+  "suspended_partner_count": 3,
+  "excluded_empty_rows": [
+   {
+    "row_id": 3,
+    "school": "北京大学"
+   },
+   {
+    "row_id": 5,
+    "school": "北京理工大学"
+   },
+   {
+    "row_id": 6,
+    "school": "北京航空航天大学"
+   },
+   {
+    "row_id": 8,
+    "school": "复旦大学"
+   },
+   {
+    "row_id": 9,
+    "school": "中山大学"
+   },
+   {
+    "row_id": 20,
+    "school": "南方科技大学"
+   },
+   {
+    "row_id": 23,
+    "school": "广西民族大学"
+   },
+   {
+    "row_id": 24,
+    "school": "杭州电子科技大学"
+   },
+   {
+    "row_id": 28,
+    "school": "景德镇陶瓷大学"
+   },
+   {
+    "row_id": 30,
+    "school": "湖北中医药"
+   },
+   {
+    "row_id": 33,
+    "school": "华东政法大学"
+   },
+   {
+    "row_id": 35,
+    "school": "上海戏剧学院"
+   },
+   {
+    "row_id": 38,
+    "school": "河北中医药大学"
+   }
+  ],
+  "tier_weights": {
+   "SS": 6,
+   "S": 5,
+   "A": 4,
+   "B": 3,
+   "C": 2,
+   "D": 1,
+   "UNRATED": 0.5
+  }
+ },
+ "_non_partner_warnings": {
+  "山东大学": "原合作表第80行明确标注【不合作，不开帐户】；注意其威海校区（山东大学（威海））为 C级(Young) 合作校区，请勿混淆。",
+  "湖南师范大学": "原合作表第84行明确标注【不合作，不开团账号】。"
+ },
+ "schools": {
+  "哈尔滨工业大学": {
+   "row_ids": [
+    1
+   ],
+   "school_name": "哈尔滨工业大学",
+   "name_en": "HIT, Harbin Institute of Technology",
+   "aliases": [],
+   "city": "哈尔滨",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "7300/学期\n14600/年\n春秋季招生",
+     "min_yearly_rmb": 14600,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "英文18000\n中文24600/年",
+     "min_yearly_rmb": 24600,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "中文20000/年\n英文26000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "master": {
+     "tuition_text": "中文28000/年\n英文34000/年",
+     "min_yearly_rmb": 28000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "phd": {
+     "tuition_text": "中文36000/年\n英文42000/年",
+     "min_yearly_rmb": 36000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "800-1,000元/月/床",
+   "scholarship_summary": "校奖；CSC",
+   "has_scholarship": true,
+   "deadline_summary": "春季语言申请截止日期：1月15日；秋季语言申请截止日期：7月15日；本科7月15日；硕博5月31日",
+   "requirements_summary": "预科、学历自费、CSC申请费400元；校奖申请费600元；语言申请费500元",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：已出"
+  },
+  "东南大学": {
+   "row_ids": [
+    2
+   ],
+   "school_name": "东南大学",
+   "name_en": "SEU, Southeast University",
+   "aliases": [],
+   "city": "南京",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "16000/年\n春秋季招生",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "中授16000-20000\n英授30000-50000\nMBBS-32000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "master": {
+     "tuition_text": "中授18000-30000\n英授30000-40000",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "28000-50000",
+     "min_yearly_rmb": 28000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "MBBS",
+    "语言"
+   ],
+   "dormitory": "9000/年双人间",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "本科11-6月；硕士11-5月；语言春季9-12月；语言秋季3-6月",
+   "requirements_summary": "申请费800元",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：已出 | 注：原合作表含截图单元格未导出文字，具体奖学金/要求须直连官网核实"
+  },
+  "浙江大学": {
+   "row_ids": [
+    4
+   ],
+   "school_name": "浙江大学",
+   "name_en": "ZJU, Zhejiang University",
+   "aliases": [],
+   "city": "杭州",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "9000/学期",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "英文37800元-47800元/年\n中文29800元-39800元/年",
+     "min_yearly_rmb": 39800,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "中国政府奖学金： 申请时间一般为1月初至4月初 国际中文教师奖学金： 7 月入学：学生申请截止日期为 4 月 15 日，推荐机构、接收院校审核截止日期为 4 月 25 日； 9 月入学：学生申请截止日期为 5 月 15 日，推荐机构、接收院校审核截止日期为 5 月 25 日； 12 月入学：学生申请截止日期为 9 月 15 日，推荐机构、接收院校审核截止日期为 9 月 25 日； 2026 年 3 月入学：学生申请截止日期为 10 月 31 日，推荐机构、接收院校审核截止日期为 11 月 10 日。",
+   "requirements_summary": "语言年龄18至65周岁，申请费400元",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 65
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "同济大学": {
+   "row_ids": [
+    7
+   ],
+   "school_name": "同济大学",
+   "name_en": "Tongji University",
+   "aliases": [],
+   "city": "上海",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8200人民币/学期；16400人民币/年\n春秋季招生",
+     "min_yearly_rmb": 16400,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "14500元人民币/秋季学期 19350元人民币/春季学期",
+     "min_yearly_rmb": 29000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "MBBS-45000/年\n土木工程35000\n建筑学33800",
+     "min_yearly_rmb": 45000,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS",
+      "土木工程",
+      "建筑学"
+     ]
+    },
+    "master": {
+     "tuition_text": "22960-32800/年",
+     "min_yearly_rmb": 22960,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "22960-32800/年",
+     "min_yearly_rmb": 22960,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "MBBS",
+    "土木工程",
+    "建筑学",
+    "语言"
+   ],
+   "dormitory": "住宿有限",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "本科-1月20-3月31日；csc-高水平研究生项目、自费： 2025年10月25日——2025年12月20日；上海市政府奖学金、自费：2026年1月10日——2026年3月20日；语言春季9月10日-12月20日；秋季3月10日-6月20日；预科春季11-12月，秋季3-6月",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：学历已出27春季简章；语言未出"
+  },
+  "西安交通大学": {
+   "row_ids": [
+    10
+   ],
+   "school_name": "西安交通大学",
+   "name_en": "Xi'an Jiaotong University",
+   "aliases": [],
+   "city": "西安",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8000元/学期\n15000/年\n春秋季",
+     "min_yearly_rmb": 15000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "英文25000/年（含双人住宿费）\n春秋季",
+     "min_yearly_rmb": 25000,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "MBBS40000元/年",
+     "min_yearly_rmb": 40000,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "master": {
+     "tuition_text": "30000-50000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "30000-50000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "MBBS",
+    "中文",
+    "语言"
+   ],
+   "dormitory": "8000-19000/年",
+   "scholarship_summary": "中国政府奖学金-商务部奖学金-国际中文教师奖学金-西安交通大学本科国际学生新生奖学金-西安市 “一带一路” 外国留学生奖学金-其它奖学金-西安交通大学硕博国际学生新生奖学金-“中亚五国” 奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "本科6月30日；语言/预科7月15日；春季语言1月15日",
+   "requirements_summary": "语言报名费500元（自费），800元（奖学金）；注册费400元",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：非学历已出27春季简章"
+  },
+  "华南理工大学": {
+   "row_ids": [
+    11
+   ],
+   "school_name": "华南理工大学",
+   "name_en": "South China University of Technology",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8500/学期\n16200/年\n春秋季招生",
+     "min_yearly_rmb": 16200,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "中文23000/年\n英文18000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "中文18200-25000\n英文26000/95000",
+     "min_yearly_rmb": 18200,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "master": {
+     "tuition_text": "中文23000-28000\n英文32000-44500",
+     "min_yearly_rmb": 23000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "phd": {
+     "tuition_text": "34000-40000",
+     "min_yearly_rmb": 34000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "五山：9800/年（2人间）；大学城：3500/8000（4人/2人）；国际：5000/10000/20000(4人/2人/1人）",
+   "scholarship_summary": "csc；广东省来粤奖；校奖",
+   "has_scholarship": true,
+   "deadline_summary": "春季学期：每年12月31日；秋季学期：本科生、语言生每年6月30日，硕博生每年6月15日；CSC：每年10月1日至次年2月；广东省政府来粤留学生奖学金(新生）：每年6月30日；华南理工大学优秀外国留学生奖学金（新生）：每年6月30日",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "郑州大学": {
+   "row_ids": [
+    12
+   ],
+   "school_name": "郑州大学",
+   "name_en": "ZZU, Zhengzhou University",
+   "aliases": [],
+   "city": "郑州",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "武汉理工大学": {
+   "row_ids": [
+    13
+   ],
+   "school_name": "武汉理工大学",
+   "name_en": "WUT, Wuhan University of Technology",
+   "aliases": [],
+   "city": "武汉",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "17000元/年\n只秋季",
+     "min_yearly_rmb": 17000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "23000元/年\n只秋季",
+     "min_yearly_rmb": 23000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "英授专业：土木工程、工商管理、计算机科学与技术、经济学、采矿工程、机械工程、物流工程\n英授费用：20000-30000/年\n中授费用：18000-25000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "土木工程",
+      "工商管理",
+      "计算机科学与技术",
+      "计算机",
+      "经济学",
+      "采矿工程",
+      "机械工程",
+      "物流工程"
+     ]
+    },
+    "master": {
+     "tuition_text": "英授专业：应用经济学；工商管理；计算机科学与技术；材料科学与工程；机械工程；土木工程；交通运输工程；矿业工程；车辆工程；法学；建筑学；数学；物理学；化学工程与技术\n英授费用：27000-38000/年\n中授费用：23000-33000/年",
+     "min_yearly_rmb": 23000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "土木工程",
+      "建筑学",
+      "工商管理",
+      "计算机科学与技术",
+      "计算机",
+      "经济学",
+      "应用经济学",
+      "矿业工程",
+      "机械工程",
+      "材料科学与工程",
+      "交通运输工程",
+      "车辆工程",
+      "法学",
+      "数学",
+      "物理学",
+      "化学工程与技术"
+     ]
+    },
+    "phd": {
+     "tuition_text": "英授33000-45000/年\n中授：30000-41000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "土木工程",
+    "建筑学",
+    "工商管理",
+    "计算机科学与技术",
+    "计算机",
+    "经济学",
+    "应用经济学",
+    "采矿工程",
+    "矿业工程",
+    "机械工程",
+    "物流工程",
+    "材料科学与工程",
+    "交通运输工程",
+    "车辆工程",
+    "法学",
+    "数学",
+    "物理学",
+    "化学工程与技术",
+    "语言"
+   ],
+   "dormitory": "8400/12000/年；2人/1人",
+   "scholarship_summary": "武汉理工大学 “丝绸之路” 中国政府奖学金；中国政府奖学金国别双边项目；商务部 MOFCOM 奖学金；武汉理工大学中国政府奖学金高水平研究生项目",
+   "has_scholarship": true,
+   "deadline_summary": "本科：2025年10月10日-2026年6月30日；语言/预科/本硕博：2025年10月10日-2026年6月30日；CSC为2026年1月1至4月30",
+   "requirements_summary": "报名费500元；汉语进修生年龄一般不超过25周岁,预科生计划进入本硕博层次学习的年龄分别不超过23、33和38周岁。未满18周岁的申请人须同时提交监护人保证书。；本科年龄18至25周岁；未满18周岁的申请人须同时提交监护人担保书；硕士申请者年龄一般不超过35周岁，博士申请者年龄一般不超过40周岁",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 25
+    },
+    "bachelor": {
+     "min": 18,
+     "max": 25
+    },
+    "master": {
+     "min": 18,
+     "max": 35
+    },
+    "phd": {
+     "min": 18,
+     "max": 40
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "大连理工大学": {
+   "row_ids": [
+    14
+   ],
+   "school_name": "大连理工大学",
+   "name_en": "",
+   "aliases": [],
+   "city": "大连",
+   "raw_category": "双一流/985/211院校",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8500/学期\n16000/年\n春秋季招生",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "9月入学，一学年学费28000元；申请费800元\n3月入学，一学期学费15000元；申请费800元",
+     "min_yearly_rmb": 28000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "英授25500/年\n中授19500-25000/年",
+     "min_yearly_rmb": 19500,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "英授28000-29500/年\n中授23000-28000/年",
+     "min_yearly_rmb": 23000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "600-1800/月",
+   "scholarship_summary": "CSC；辽宁省政府奖学金（仅博士）；大连理工大学校长奖学金（本硕博）本科偏向预科连申本校；国际中文奖",
+   "has_scholarship": true,
+   "deadline_summary": "本科11月1日开始，宜在次年6月底前",
+   "requirements_summary": "语言年龄在16-60周岁、具有高中毕业学历    ；预科年龄在17-34周岁、具有高中毕业学历，具备大学申请资格。秋季学期，可汉语零基础，一学年课程。春季学期，HSK3及以上水平，一学期课程；本科18-25周岁，未满18岁提供大连监护人、CSCA、托福80分或以上、雅思5.5分或以上、多邻国100分或以上；",
+   "age_limits": {
+    "language": {
+     "min": 16,
+     "max": 60
+    },
+    "preparatory": {
+     "min": 17,
+     "max": 34
+    },
+    "bachelor": {
+     "min": 18,
+     "max": 25
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：已出27春季简章"
+  },
+  "西南财经大学": {
+   "row_ids": [
+    15
+   ],
+   "school_name": "西南财经大学",
+   "name_en": "SWUFE，Southwestern University of Finance and Economics",
+   "aliases": [],
+   "city": "成都",
+   "raw_category": "双一流/211院校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8000元/学期\n春秋季招生",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "中文16000/年\n英文20000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "master": {
+     "tuition_text": "中文20000/年\n英文25000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "phd": {
+     "tuition_text": "中文25000/年\n英文30000/年",
+     "min_yearly_rmb": 25000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "1200元/月单人；宿舍押金1000/人现金",
+   "scholarship_summary": "csc；校一带一路奖",
+   "has_scholarship": true,
+   "deadline_summary": "语言春季2025年10月20日—2026年1月20日；语言秋季2026年4月1日—2026年7月31日；本科2025年11月1日—2026年6月30日；校奖学金2026年1月1日—4月30日；csc2025年11月1日—2026年2月28日",
+   "requirements_summary": "申请费为400/600元人民币；语言16-59岁；本科18—35周岁；硕士学位：18—40周岁。；博士学位：18—45周岁。",
+   "age_limits": {
+    "language": {
+     "min": 16,
+     "max": 59
+    },
+    "bachelor": {
+     "min": 18,
+     "max": 35
+    },
+    "master": {
+     "min": 18,
+     "max": 40
+    },
+    "phd": {
+     "min": 18,
+     "max": 45
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "对外经济贸易大学": {
+   "row_ids": [
+    16
+   ],
+   "school_name": "对外经济贸易大学",
+   "name_en": "UIBE, University of International Business and Economics",
+   "aliases": [],
+   "city": "北京",
+   "raw_category": "双一流/211院校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "人民币 9900元/人/学期\n人民币 19000元/人/学年",
+     "min_yearly_rmb": 19800,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "人民币15600元/人/学期 人民币30300元/人/学年",
+     "min_yearly_rmb": 31200,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "24800-35000/年（原表3500疑似漏零，以官网为准）",
+     "min_yearly_rmb": 24800,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "CSC；市奖；校奖；国际中文教师奖",
+   "has_scholarship": true,
+   "deadline_summary": "语言秋季学期：4月1日至6月30日（额满为止）；春季学期：10月1日至12月31日（额满为止）；预科秋季学期：4月1日至7月30日（额满为止）；春季学期：10月1日至12月31日（额满为止）；本科3月20日至6月30日",
+   "requirements_summary": "不满18周岁者，须经学校同意，并办理监护人公证书等相关文件",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "长安大学": {
+   "row_ids": [
+    17
+   ],
+   "school_name": "长安大学",
+   "name_en": "Chang’an University",
+   "aliases": [],
+   "city": "西安",
+   "raw_category": "双一流/211院校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "一学期：8000元（春秋季)\n一学年：14000元仅秋季",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "16000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "21000/年",
+     "min_yearly_rmb": 21000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "30000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "600元/月；7200元/年（双人间）",
+   "scholarship_summary": "西安市“中亚五国”留学生专项奖学金2026年3月31日；西安市“一带一路”外国留学生奖学金2026年5月31日；校奖2026年5月31日；csc:B（自主招生项目第一批）：2026年2月28日,第二批3月31日",
+   "has_scholarship": true,
+   "deadline_summary": "语言春季学期入学：2025年12月25日；语言秋季学期入学：2026年6月15日；本科自费：6月15日",
+   "requirements_summary": "注册费：400元（无论录取与否，费用均不予退还）；本科年龄不超过25周岁者；自费语言：16-45周岁",
+   "age_limits": {
+    "language": {
+     "min": 16,
+     "max": 45
+    },
+    "bachelor": {
+     "min": 18,
+     "max": 25
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "云南大学": {
+   "row_ids": [
+    18
+   ],
+   "school_name": "云南大学",
+   "name_en": "Yunnan university",
+   "aliases": [],
+   "city": "昆明",
+   "raw_category": "双一流/211院校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "5800元/人/学期；11600元/人/学年",
+     "min_yearly_rmb": 11600,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "master": {
+     "tuition_text": "8000-12000/年\n全英文授课专业的学费每人每学年增加 5000 元",
+     "min_yearly_rmb": 8000,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "phd": {
+     "tuition_text": "10000/年\n全英文授课专业的学费每人每学年增加 5000 元",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "语言6月30日；硕博5月15日",
+   "requirements_summary": "硕士20-40岁；博士22-45岁",
+   "age_limits": {
+    "master": {
+     "min": 20,
+     "max": 40
+    },
+    "phd": {
+     "min": 22,
+     "max": 45
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：语言"
+  },
+  "辽宁工业大学": {
+   "row_ids": [
+    19
+   ],
+   "school_name": "辽宁工业大学",
+   "name_en": "LUT, Liaoning University of Technology",
+   "aliases": [],
+   "city": "锦州",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体学费未录入（需查官网）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体学费未录入（需查官网）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "具体学费未录入（需查官网）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：长期语言/本/硕"
+  },
+  "深圳大学": {
+   "row_ids": [
+    21
+   ],
+   "school_name": "深圳大学",
+   "name_en": "Shenzhen university",
+   "aliases": [],
+   "city": "深圳",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "11000元人民币/学期",
+     "min_yearly_rmb": 22000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "26000-40000/年",
+     "min_yearly_rmb": 26000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "30000-45000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "34000-52000/年\n春秋季",
+     "min_yearly_rmb": 34000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "粤海校区宿舍设有单人间和双人间可供选择，费用为2400-8000RMB/人/学期；丽湖校区宿舍为四人间，费用为750RMB/人/学期。",
+   "scholarship_summary": "广东省来粤奖学金；深圳市大运奖学金；深圳大学奖学金；国际中文教师奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "6/30；语言春季2026年10月26日—2026年12月30日（预计）",
+   "requirements_summary": "申请费：400元人民币/60美金，申请费一经支付，一律不予退还",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：已出27春季简章：语言，博士"
+  },
+  "江苏大学": {
+   "row_ids": [
+    22
+   ],
+   "school_name": "江苏大学",
+   "name_en": "Jiangsu University",
+   "aliases": [],
+   "city": "镇江",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "preparatory": {
+     "tuition_text": "9500/学期\n18000/年\n春秋季招生",
+     "min_yearly_rmb": 18000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "16000-34000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "master": {
+     "tuition_text": "20000-38000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "phd": {
+     "tuition_text": "26000-42000/年",
+     "min_yearly_rmb": 26000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    }
+   },
+   "featured_majors": [
+    "MBBS",
+    "中文"
+   ],
+   "dormitory": "双人间：3000元/床/学期，4900元/床/学年",
+   "scholarship_summary": "CSC；国际中文教师奖学金；校奖",
+   "has_scholarship": true,
+   "deadline_summary": "春季入学:；11月1日申请截止日期:2026年1月1日；秋季入学:2026年4月1日申请截止日期:2026年6月30日",
+   "requirements_summary": "仅限第一年：；；申请费: 200元；；注册费: 400元",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：MBBS | 台账备注：未出，11月1出"
+  },
+  "湖北工业大学": {
+   "row_ids": [
+    25
+   ],
+   "school_name": "湖北工业大学",
+   "name_en": "HBUT, Hubei University of Technology",
+   "aliases": [],
+   "city": "武汉",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "12000/年",
+     "min_yearly_rmb": 12000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "18000-20000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "21000-23000/年",
+     "min_yearly_rmb": 21000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "全额奖",
+     "min_yearly_rmb": null,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "4000/6000、10000/年",
+   "scholarship_summary": "省奖；校奖",
+   "has_scholarship": true,
+   "deadline_summary": "仅秋季",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "广西医科大学": {
+   "row_ids": [
+    26
+   ],
+   "school_name": "广西医科大学",
+   "name_en": "GXMU, Guangxi Medical University",
+   "aliases": [],
+   "city": "南宁",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "bachelor"
+   ],
+   "programs": {
+    "bachelor": {
+     "tuition_text": "具体学费未录入（主打MBBS，需查官网）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS",
+      "临床医学"
+     ]
+    }
+   },
+   "featured_majors": [
+    "MBBS"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：MBBS"
+  },
+  "武昌理工学院": {
+   "row_ids": [
+    27
+   ],
+   "school_name": "武昌理工学院",
+   "name_en": "WUT, Wuchang University of Technology",
+   "aliases": [],
+   "city": "武汉",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "bachelor"
+   ],
+   "programs": {
+    "bachelor": {
+     "tuition_text": "15000/年",
+     "min_yearly_rmb": 15000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "三人间3000元/人/学年双人间5000元/人/学年单人间12000元/人/学年",
+   "scholarship_summary": "校奖",
+   "has_scholarship": true,
+   "deadline_summary": "招满为止",
+   "requirements_summary": "申请费：500元/人（仅在申请时一次性缴纳，如最终未被录取，则退还该费用；如被录取，则报到时抵扣学费；如被录取后放弃报到，则该费用不退。）",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "广西外国语学院": {
+   "row_ids": [
+    29
+   ],
+   "school_name": "广西外国语学院",
+   "name_en": "GXUFL, Guangxi University of Foreign Languages",
+   "aliases": [],
+   "city": "南宁",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体学费未录入（需查官网）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体学费未录入（需查官网）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "不招南亚",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [
+     "南亚"
+    ],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：长期语言/本科；可大批量；不招孟加拉"
+  },
+  "广东外语外贸大学": {
+   "row_ids": [
+    31,
+    87
+   ],
+   "school_name": "广东外语外贸大学",
+   "name_en": "GDUFS, Guangdong University of Foreign Studies",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "人民币8600 元/人.学期；17200元/人.学年；补充：8600元/学期；17200元/学年\n春秋季",
+     "min_yearly_rmb": 17200,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn",
+      "spring"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "中文11500元/人/学期；23000元/人/学年\n英文18000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "中文20000/年\n英文33800/年；补充：英授国际商务33800/年\n中授20000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn",
+      "spring"
+     ],
+     "featured_majors": [
+      "中文",
+      "国际商务"
+     ]
+    },
+    "master": {
+     "tuition_text": "23500-54000/年；补充：25000-36000/年",
+     "min_yearly_rmb": 23500,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn",
+      "spring"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "30000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn",
+      "spring"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "国际商务",
+    "语言"
+   ],
+   "dormitory": "双人间:   4800 元/学期/床；四人间:   2400 元/学期/床",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "2026-06-30 | 春季12月10日",
+   "requirements_summary": "预科报名费：人民币500 元/人(仅首次报名时需要) | 报名费：人民币500 元/人(仅首次报名时需要)；语言18-35 周岁；限制国家：尼日利亚",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 35
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "尼日利亚"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：+86-20-36207141、36207142 | 台账备注：已出27春季简章"
+  },
+  "北京服装学院": {
+   "row_ids": [
+    32
+   ],
+   "school_name": "北京服装学院",
+   "name_en": "BIFT, Beijing Institute Of Fashion Technology",
+   "aliases": [],
+   "city": "北京",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8200元/学期\n16400元/年",
+     "min_yearly_rmb": 16400,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "两人间，每人每天50元（没有厨房） 。 三人间，每人每天60元（有厨房），宿舍费按月缴纳。",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "语言滚动招生，招满为止",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "内蒙古财经大学": {
+   "row_ids": [
+    34
+   ],
+   "school_name": "内蒙古财经大学",
+   "name_en": "Inner Mongolia University of Finance and Economics",
+   "aliases": [],
+   "city": "呼和浩特",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "14000/年",
+     "min_yearly_rmb": 14000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "master": {
+     "tuition_text": "18000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "4000/年",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "8月",
+   "requirements_summary": "希望大量俄罗斯生源",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [
+     "俄罗斯"
+    ],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：语言可大批量"
+  },
+  "郑州航空工业管理学院": {
+   "row_ids": [
+    36
+   ],
+   "school_name": "郑州航空工业管理学院",
+   "name_en": "ZUA, Zhengzhou University of Aeronautics",
+   "aliases": [],
+   "city": "郑州",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "master"
+   ],
+   "programs": {
+    "master": {
+     "tuition_text": "学硕17000/年\n专硕18000/年",
+     "min_yearly_rmb": 17000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "4800-9600/年",
+   "scholarship_summary": "河南省政法奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "2026-05-31",
+   "requirements_summary": "自费45岁以下，英授雅思6，托福80分。；奖学金40岁以下，英授雅思6，托福80分。",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：硕士；不招孟加拉"
+  },
+  "广州航海学院": {
+   "row_ids": [
+    37
+   ],
+   "school_name": "广州航海学院",
+   "name_en": "GZMTU, Guangzhou Maritime University",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "春秋季14000/年\n7500/学期",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "1500-3000/学期；2人/单人",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "2026-07-17",
+   "requirements_summary": "18-45岁，不招战乱国",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 45
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [
+     "战乱国"
+    ],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "河南中医药大学": {
+   "row_ids": [
+    39
+   ],
+   "school_name": "河南中医药大学",
+   "name_en": "HUCM, Henan University of Chinese Medicine",
+   "aliases": [],
+   "city": "郑州",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "bachelor": {
+     "tuition_text": "非医学16000/年\n医学26000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中医学",
+      "语言"
+     ]
+    },
+    "master": {
+     "tuition_text": "32,000 元/年",
+     "min_yearly_rmb": 32000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中医学",
+      "语言"
+     ]
+    },
+    "phd": {
+     "tuition_text": "35,000 元/年",
+     "min_yearly_rmb": 35000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中医学",
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中医学",
+    "中文",
+    "语言"
+   ],
+   "dormitory": "4800-9600/年",
+   "scholarship_summary": "本科：河南省政府奖学金”或“河南中医药大学；仲景国际奖学金”，两类奖学金均资助全部学费和报名费；硕士还有CSC",
+   "has_scholarship": true,
+   "deadline_summary": "CSC3月10日；6/20",
+   "requirements_summary": "本科中授，不超过30岁，不满18岁可委托。（HSK）四级，CSCA，；硕士不超过 40 周岁（中国政府奖学金申请人年龄不超过 35 周岁），中文授课需达到 HSK 四级；英文授课需托福（TOEFL）成绩不低于 80 分，或；雅思不低于 6.0 分；博士不超过 45 周岁（中国政府奖学金申请人年龄不超过 40周岁）",
+   "age_limits": {
+    "bachelor": {
+     "min": 18,
+     "max": 30
+    },
+    "master": {
+     "min": 18,
+     "max": 40
+    },
+    "phd": {
+     "min": 18,
+     "max": 45
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉；1年语言+本科中医学（如果学生符合要求，本科有奖学金覆盖5年学费）"
+  },
+  "河南医药大学（新乡医学院）": {
+   "row_ids": [
+    40
+   ],
+   "school_name": "河南医药大学（新乡医学院）",
+   "name_en": "Henan Medical University",
+   "aliases": [],
+   "city": "新乡",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "suspended",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "bachelor": {
+     "tuition_text": "临床医学专业（中文授课，学制6年）\n第一年10000/年\n第二年起20000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "临床医学",
+      "中文"
+     ]
+    },
+    "master": {
+     "tuition_text": "20000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "临床医学",
+    "中文"
+   ],
+   "dormitory": "4000/年",
+   "scholarship_summary": "硕士：河南省外国留学生政府奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "2026-07-31",
+   "requirements_summary": "本科、硕士18-35周岁，HSK4级，本科申请人须在已获得的各学习阶段各科考试成绩均为B及以上或学业平均分达到80分及以上或者中国来华留学本科入学学业水平测试（CSCA）50分以上（含50分）；硕士须在已获得的各学习阶段（本科及以上）各科考试成绩均为B及以上或学业平均分达到80分及以上",
+   "age_limits": {
+    "bachelor": {
+     "min": 18,
+     "max": 35
+    },
+    "master": {
+     "min": 18,
+     "max": 35
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：今年不招留学生"
+  },
+  "豫北医学院": {
+   "row_ids": [
+    41
+   ],
+   "school_name": "豫北医学院",
+   "name_en": "North Henan Medical University",
+   "aliases": [],
+   "city": "新乡",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "20000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "临床医学",
+    "语言"
+   ],
+   "dormitory": "4500/年",
+   "scholarship_summary": "本科：河南省政府奖学金：15000元/年、临床医学专项奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "2026-09-30",
+   "requirements_summary": "学历生年龄不超过23周岁；语言生年龄不超过25岁；雅思5.5，(HSK) 4级，CSCA，",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 25
+    },
+    "diploma": {
+     "min": 18,
+     "max": 23
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "嘉兴大学": {
+   "row_ids": [
+    42
+   ],
+   "school_name": "嘉兴大学",
+   "name_en": "Jiaxing University",
+   "aliases": [],
+   "city": "嘉兴",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "15000/年",
+     "min_yearly_rmb": 15000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "16000-21000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "20000-27000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "3600/年",
+   "scholarship_summary": "浙江省政府奖学金、校级奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "6月",
+   "requirements_summary": "语言18-35岁；本科18-30岁，英授雅思5.5，托福61，；硕士18-35岁，英授雅思6，托福80，",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 35
+    },
+    "bachelor": {
+     "min": 18,
+     "max": 30
+    },
+    "master": {
+     "min": 18,
+     "max": 35
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "广东外语外贸大学南国商学院": {
+   "row_ids": [
+    43
+   ],
+   "school_name": "广东外语外贸大学南国商学院",
+   "name_en": "Guangdong University of Foreign Studies South China Business College",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "26000/年",
+     "min_yearly_rmb": 26000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "26000/年",
+     "min_yearly_rmb": 26000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "2500-4500/学期",
+   "scholarship_summary": "语言奖学金16000元/年；学历奖学金13000元/年",
+   "has_scholarship": true,
+   "deadline_summary": "7月20",
+   "requirements_summary": "本科英授：英语，雅思5.5.中授HSK5级；18-25；非洲/深肤色生源从严控招（女生可酌情个案审核）",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "非洲/深肤色生源从严控招（女生可酌情个案审核）"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：语言"
+  },
+  "辽宁科技学院": {
+   "row_ids": [
+    44
+   ],
+   "school_name": "辽宁科技学院",
+   "name_en": "Liaoning Institute of Science and Technology",
+   "aliases": [],
+   "city": "本溪",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "14000/年",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "4000/年",
+   "scholarship_summary": "语言生都会有奖学金4000元。",
+   "has_scholarship": true,
+   "deadline_summary": "2026-06-30",
+   "requirements_summary": "不招未成年；语言项目年龄;18-25；国别，非洲、大洋洲的就先不考虑了；中亚、俄罗斯可以招收；南亚（除印度和孟加拉）可以招生。",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 99
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "印度",
+     "孟加拉"
+    ],
+    "excluded_regions": [
+     "大洋洲",
+     "非洲"
+    ],
+    "only_regions": [],
+    "preferred_regions": [
+     "中亚",
+     "俄罗斯"
+    ],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：长期语言"
+  },
+  "广州商学院": {
+   "row_ids": [
+    45
+   ],
+   "school_name": "广州商学院",
+   "name_en": "Guangzhou College of Commerce",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "5000/学期\n春秋季",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "29800/年",
+     "min_yearly_rmb": 29800,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "国际商务",
+    "语言"
+   ],
+   "dormitory": "3000/学期",
+   "scholarship_summary": "本科奖学金最高17800/年",
+   "has_scholarship": true,
+   "deadline_summary": "7月31",
+   "requirements_summary": "18岁以上，对宗教背景（穆斯林/伊斯兰教生源）有收生限制；本科中英：国际商务",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 99
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "对宗教背景（穆斯林/伊斯兰教生源）有收生限制",
+     "18岁以上，对宗教背景（穆斯林/伊斯兰教生源）有收生限制"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：语言+本科；对宗教背景（穆斯林/伊斯兰教生源）有收生限制 | 台账备注：未出"
+  },
+  "广州工商学院": {
+   "row_ids": [
+    46
+   ],
+   "school_name": "广州工商学院",
+   "name_en": "Guangzhou College of Technology and Business",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "64000元/年",
+     "min_yearly_rmb": 64000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "8700-10000/年",
+   "scholarship_summary": "语言奖学金48000元/年",
+   "has_scholarship": true,
+   "deadline_summary": "7月23",
+   "requirements_summary": "18-35岁，不招伊拉克、阿富汗、南苏丹、利比亚、索马里；非洲/深肤色生源严格限控（仅极少数个案审核）",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 35
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "伊拉克",
+     "利比亚",
+     "南苏丹",
+     "索马里",
+     "苏丹",
+     "阿富汗"
+    ],
+    "excluded_regions": [
+     "非洲"
+    ],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "18-35岁，不招伊拉克、阿富汗、南苏丹、利比亚、索马里；非洲/深肤色生源严格限控（仅极少数个案审核）"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：语言；不招非洲"
+  },
+  "衡阳师范学院": {
+   "row_ids": [
+    47
+   ],
+   "school_name": "衡阳师范学院",
+   "name_en": "Hengyang Normal University",
+   "aliases": [],
+   "city": "衡阳",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "11000/年\n春秋季招生",
+     "min_yearly_rmb": 11000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "13000-18000/年",
+     "min_yearly_rmb": 13000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "1500-3000/年",
+   "scholarship_summary": "湖南省一带一路语言奖学金15000；校奖",
+   "has_scholarship": true,
+   "deadline_summary": "2026-06-10",
+   "requirements_summary": "报名费500元；18-30岁，国籍无限制；本科中授，HSK4级180分",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 30
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：语言春秋季招生 | 台账备注：未出"
+  },
+  "深圳职业技术大学": {
+   "row_ids": [
+    48
+   ],
+   "school_name": "深圳职业技术大学",
+   "name_en": "Shenzhen Polytechnic University",
+   "aliases": [],
+   "city": "深圳",
+   "raw_category": "优秀院校",
+   "school_level": "vocational_ug",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "14000/年",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "12000-20000/年",
+     "min_yearly_rmb": 12000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "6月30",
+   "requirements_summary": "本科中授，HSK4级",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "广西物流职业技术学院": {
+   "row_ids": [
+    49
+   ],
+   "school_name": "广西物流职业技术学院",
+   "name_en": "Guangxi Logistics Vocational and Technical College",
+   "aliases": [],
+   "city": "贵港",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "6000/年",
+     "min_yearly_rmb": 6000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "diploma": {
+     "tuition_text": "12000元/年",
+     "min_yearly_rmb": 12000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "2000/年",
+   "scholarship_summary": "学历入学减免7000元；第二学年起，奖学金用于奖励品学兼优的国际学生，考过HSK4级及以上等级证书或综合排名在专业前30%，可获得一等奖全额奖学金(免除学费和住宿费);考过HSK3级或每门课成绩达80分以上学生获二等奖学金7000元，抵扣学费后需缴纳5000元人民币/学年",
+   "has_scholarship": true,
+   "deadline_summary": "7月",
+   "requirements_summary": "满 18 周岁以上；主要想招东南亚，其他国家也可以收三五个；学历中授，需中文一定基础",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 99
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [
+     "南亚"
+    ],
+    "only_regions": [],
+    "preferred_regions": [
+     "东南亚"
+    ],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：语言+大专；不招南亚 | 台账备注：语言满30人开班，26年人数不够，暂未开班，协议暂未推进 | 开班风险：语言需满30人开班，26年因人数不够暂未开班，合作协议暂未推进"
+  },
+  "广西工商职业技术学院": {
+   "row_ids": [
+    50
+   ],
+   "school_name": "广西工商职业技术学院",
+   "name_en": "Guangxi technology and business Vocational college",
+   "aliases": [],
+   "city": "南宁",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "diploma"
+   ],
+   "programs": {
+    "diploma": {
+     "tuition_text": "12000元/年",
+     "min_yearly_rmb": 12000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "2000/年",
+   "scholarship_summary": "一等奖学金免学费和住宿费，考过HSK4级及以上等级证书或综合排名在专业前30%或每门课成绩达到80分及以上；二等奖学金抵扣学费后需缴纳4000元/学年",
+   "has_scholarship": true,
+   "deadline_summary": "6月10",
+   "requirements_summary": "主要东南亚；18-30岁，学历中授，HSK3级",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 30
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [
+     "东南亚"
+    ],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：只招东南亚 | 台账备注：https://www.gxgsxy.edu.cn/info/1716/147181.htm"
+  },
+  "广西机电职业技术学院": {
+   "row_ids": [
+    51
+   ],
+   "school_name": "广西机电职业技术学院",
+   "name_en": "Guangxi Technological College of Machinery and Electricity",
+   "aliases": [],
+   "city": "南宁",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "diploma"
+   ],
+   "programs": {
+    "diploma": {
+     "tuition_text": "具体学费未录入（仅限高职大专）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [
+     "东南亚"
+    ],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：只招东南亚"
+  },
+  "广西卫生职业技术学院": {
+   "row_ids": [
+    52
+   ],
+   "school_name": "广西卫生职业技术学院",
+   "name_en": "Guangxi Medical College",
+   "aliases": [],
+   "city": "南宁",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "diploma"
+   ],
+   "programs": {
+    "diploma": {
+     "tuition_text": "18000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文"
+   ],
+   "dormitory": "1550/年",
+   "scholarship_summary": "学业优秀奖：10000、15000、18000；中文优秀奖；特别奖",
+   "has_scholarship": true,
+   "deadline_summary": "8月",
+   "requirements_summary": "18岁以上，学历中授，HSK3级或通过测试",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 99
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [
+     "东南亚"
+    ],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：只招东南亚"
+  },
+  "广东岭南职业技术学院": {
+   "row_ids": [
+    53
+   ],
+   "school_name": "广东岭南职业技术学院",
+   "name_en": "Guangdong Lingnan Institute of Technology",
+   "aliases": [
+    "广东岭南职业技术学院 唐语堂"
+   ],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "suspended",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "diploma"
+   ],
+   "programs": {
+    "diploma": {
+     "tuition_text": "具体学费未录入（仅限高职大专）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：今年不招留学生 | 台账备注：对接联系人：唐语堂"
+  },
+  "中原工学院": {
+   "row_ids": [
+    54
+   ],
+   "school_name": "中原工学院",
+   "name_en": "Zhongyuan University of Technology",
+   "aliases": [],
+   "city": "郑州",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "bachelor": {
+     "tuition_text": "7500/年",
+     "min_yearly_rmb": 7500,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "四人间   2400/年",
+   "scholarship_summary": "校奖学金 对于一带一路国家 学费直接减免50%（每年都减免）",
+   "has_scholarship": true,
+   "deadline_summary": "7月",
+   "requirements_summary": "不招；黑色皮肤，一带一路国家有校奖学金减免",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "黑色皮肤，一带一路国家有校奖学金减免"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "郑州西亚斯学院": {
+   "row_ids": [
+    55
+   ],
+   "school_name": "郑州西亚斯学院",
+   "name_en": "Sias University",
+   "aliases": [
+    "郑州西亚斯",
+    "Sias",
+    "Sias University"
+   ],
+   "city": "郑州市新郑市",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "14900/年",
+     "min_yearly_rmb": 14900,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "19900/年",
+     "min_yearly_rmb": 19900,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "四人间  3750/年；双人间；7500/年",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "7月",
+   "requirements_summary": "17岁以上，监护人没要求；不招印巴，孟加拉及非洲地区，中亚 俄罗斯OK，缅甸看情况问题不大；非洲/深肤色生源从严限控；英语授课：TOEFL 60；IELTS：5.5；Duolingo：90；中文授课：HSK4",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "印度",
+     "孟加拉",
+     "巴基斯坦"
+    ],
+    "excluded_regions": [
+     "非洲"
+    ],
+    "only_regions": [],
+    "preferred_regions": [
+     "中亚",
+     "俄罗斯"
+    ],
+    "caution_countries": [],
+    "policy_notes": [
+     "非洲/深肤色生源从严限控"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉；语言+本科；名额多"
+  },
+  "河南工业大学": {
+   "row_ids": [
+    56
+   ],
+   "school_name": "河南工业大学",
+   "name_en": "Henan University of Technology",
+   "aliases": [],
+   "city": "郑州",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "11000/年",
+     "min_yearly_rmb": 11000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "preparatory": {
+     "tuition_text": "20000/学期",
+     "min_yearly_rmb": 40000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "16000-18000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "20000-22000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "25000/年",
+     "min_yearly_rmb": 25000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "计算机科学与技术",
+    "计算机",
+    "经济学",
+    "应用经济学",
+    "中文",
+    "语言"
+   ],
+   "dormitory": "3600/7200/12000/年",
+   "scholarship_summary": "2026年秋季国际学生入学奖学金，具体如下：；一等入学奖学金：全额资助学费、双人间住宿费；；二等入学奖学金：全额资助学费；；三等入学奖学金：半额资助学费。；2026年秋季本科生及一年制语言生收费标准按照10000元/年/生执行",
+   "has_scholarship": true,
+   "deadline_summary": "",
+   "requirements_summary": "本科年龄不超过25周岁；CSCA；硕士年龄不超过35周岁；博士年龄不超过40周岁；中文授课：HSK四级水平。英语授课：为母语或英语为官方语言的国家，可免试英语、或托福成绩72分（含）以上或雅思成绩5.5分（含）以上或多邻国成绩100分以上的英语成绩证明和英文自我介绍视频。英文自我介绍视频时长2分钟，包括自我介绍、教育背景、能力展示、未来规划四个部分。语言生仅需提供英文自我介绍视频。；硕士项目申请人最后学历的平均学分成绩绩点在3.5及以上。其中，计算机科学与技术专业申请人的本科成绩绩点在专业前5%，应用经济学专业申请人的本科专业为经济类大类。；博士项目申请人最后学历的平均学分成绩绩点在3.5及以上，在本专业领域公开发表高水平论文至少一篇",
+   "age_limits": {
+    "bachelor": {
+     "min": 18,
+     "max": 25
+    },
+    "master": {
+     "min": 18,
+     "max": 35
+    },
+    "phd": {
+     "min": 18,
+     "max": 40
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "郑州轻工业大学": {
+   "row_ids": [
+    57
+   ],
+   "school_name": "郑州轻工业大学",
+   "name_en": "Zhengzhou University of Light Industry",
+   "aliases": [],
+   "city": "郑州",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "14000/年",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "18000-22000/年",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "30000/年",
+     "min_yearly_rmb": 30000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "3500/年",
+   "scholarship_summary": "语言：校奖；学历：省政府奖学金、校奖",
+   "has_scholarship": true,
+   "deadline_summary": "2026-06-30",
+   "requirements_summary": "不招孟加拉。东南亚国家，中亚的希望都是自费生；必须年满18岁，语言不超过35岁。；英语授课雅思5.5，托福80分",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 35
+    },
+    "default": {
+     "min": 18,
+     "max": 99
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "河南大学": {
+   "row_ids": [
+    58
+   ],
+   "school_name": "河南大学",
+   "name_en": "Henan University",
+   "aliases": [],
+   "city": "郑州/开封",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "11000/年",
+     "min_yearly_rmb": 11000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "文16000/年  理17600/年 医27000/年",
+     "min_yearly_rmb": 16000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "文20000/年 理22400/年   医24800/年",
+     "min_yearly_rmb": 20000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "文22400/年 理科23200/年  医25600/年",
+     "min_yearly_rmb": 22400,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "四人间  3000/年  双人间/6000/年  单间12000/年",
+   "scholarship_summary": "河南省奖学金，学费和住宿费都免。生活费补贴硕士研究生1500人民币/月、博士研究生2000人民币/月",
+   "has_scholarship": true,
+   "deadline_summary": "5月30",
+   "requirements_summary": "非洲/深肤色生源从严限控，不要太多相同国家 其他国籍没有限制",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "非洲/深肤色生源从严限控，不要太多相同国家 其他国籍没有限制"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "河南师范大学": {
+   "row_ids": [
+    59
+   ],
+   "school_name": "河南师范大学",
+   "name_en": "Henan Normal University",
+   "aliases": [],
+   "city": "新乡",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "suspended",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：今年不招留学生"
+  },
+  "淄博职业技术大学": {
+   "row_ids": [
+    60
+   ],
+   "school_name": "淄博职业技术大学",
+   "name_en": "Zibo Polytechnic University",
+   "aliases": [],
+   "city": "淄博",
+   "raw_category": "优秀院校",
+   "school_level": "vocational_ug",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma",
+    "bachelor"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "8000/年",
+     "min_yearly_rmb": 8000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "6500-7000/年",
+     "min_yearly_rmb": 6500,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "8000/年",
+     "min_yearly_rmb": 8000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "1800-3500/年",
+   "scholarship_summary": "新生：根据学生提交的学习申请材料和面试结果减免金额从 1000-8000 元不等；入学后奖学金分为全额奖学金和部分奖学金两类，全额奖学金为 2 万元（2年评一次），部分奖学；金为 5000 元，用于支付学费、住宿费、保险费和生活费等。学生来学校学习后，；可在评选年度内参与评选，综合表现优秀的学生有机会获得该奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "6月30",
+   "requirements_summary": "不对战乱和非洲开放；年龄 17-25 周岁；英语能力：雅思 5.0/托福 65 及以上；本科需CSCA",
+   "age_limits": {
+    "default": {
+     "min": 17,
+     "max": 25
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "温州职业技术学院": {
+   "row_ids": [
+    61
+   ],
+   "school_name": "温州职业技术学院",
+   "name_en": "Wenzhou Polytechnic",
+   "aliases": [],
+   "city": "温州",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "14000/年",
+     "min_yearly_rmb": 14000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "2600/年",
+   "scholarship_summary": "语言30%减免（录取后每个都有）；学历ABC类（评优）；A:免学费+住宿；B:免70%学费+住宿；C：免50%学费+住宿",
+   "has_scholarship": true,
+   "deadline_summary": "2026-07-31",
+   "requirements_summary": "18至25周岁，中文或英文正常沟通；塔吉克斯坦和孟加拉已招很多人，推荐其他国家；不招：中东，土库曼，非洲，东欧，巴基斯坦，缅甸，菲律宾，朝鲜，委内瑞拉",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 25
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "土库曼",
+     "委内瑞拉",
+     "孟加拉",
+     "巴基斯坦",
+     "朝鲜",
+     "缅甸",
+     "菲律宾"
+    ],
+    "excluded_regions": [
+     "东欧",
+     "中东",
+     "非洲"
+    ],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [
+     "塔吉克斯坦",
+     "孟加拉"
+    ],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "福州软件职业技术学校": {
+   "row_ids": [
+    62
+   ],
+   "school_name": "福州软件职业技术学校",
+   "name_en": "Fuzhou Software Vocational and Technical College",
+   "aliases": [],
+   "city": "福州",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "15000/年",
+     "min_yearly_rmb": 15000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "1600-3200/年",
+   "scholarship_summary": "学历生第二学年评比一二三等奖；4000/2000/1200；一等奖5人，二等奖10人，三等奖20人",
+   "has_scholarship": true,
+   "deadline_summary": "2026-07-31",
+   "requirements_summary": "语言16-25岁，学历16-30岁，学历1+2，中文或英文正常沟通；国籍不限",
+   "age_limits": {
+    "language": {
+     "min": 16,
+     "max": 25
+    },
+    "diploma": {
+     "min": 16,
+     "max": 30
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "黄河水利职业技术学院": {
+   "row_ids": [
+    63
+   ],
+   "school_name": "黄河水利职业技术学院",
+   "name_en": "Yellow River Conservancy Technical University",
+   "aliases": [],
+   "city": "开封",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "6000/年",
+     "min_yearly_rmb": 6000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "6000/年",
+     "min_yearly_rmb": 6000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "2000-4000/年",
+   "scholarship_summary": "河南省政府10000/年；校级奖学金：一二三等奖，免学费+住宿/免学费/免50%学费",
+   "has_scholarship": true,
+   "deadline_summary": "6月底",
+   "requirements_summary": "18至25周岁，非洲/深肤色生源从严限控；学历1+2，中文或英文正常沟通，语言水平证明",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 25
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "孟加拉"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "18至25周岁，非洲/深肤色生源从严限控"
+    ]
+   },
+   "internal_notes": "推荐/备注项目：不招孟加拉"
+  },
+  "大连枫叶职业技术学院": {
+   "row_ids": [
+    64
+   ],
+   "school_name": "大连枫叶职业技术学院",
+   "name_en": "Dalian Maple Leaf College Of Technology",
+   "aliases": [],
+   "city": "大连",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "5000/学期",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "6000/年",
+     "min_yearly_rmb": 6000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "2500-5000/年",
+   "scholarship_summary": "无",
+   "has_scholarship": false,
+   "deadline_summary": "语言滚动招生，学历招满为止",
+   "requirements_summary": "18至25周岁，不收阿富汗，伊朗，尼日利亚，喀麦隆，摩洛哥，巴勒斯坦，也门。",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 25
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [
+     "也门",
+     "伊朗",
+     "喀麦隆",
+     "尼日利亚",
+     "巴勒斯坦",
+     "摩洛哥",
+     "阿富汗"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：与26年一致"
+  },
+  "南宁市东方外语高级中学": {
+   "row_ids": [
+    65
+   ],
+   "school_name": "南宁市东方外语高级中学",
+   "name_en": "Nanning Dongfang Senior High School of Foreign Language",
+   "aliases": [],
+   "city": "南宁",
+   "raw_category": "国际中学",
+   "school_level": "secondary",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "secondary"
+   ],
+   "programs": {
+    "secondary": {
+     "tuition_text": "高中三年学费+住宿8000美元",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "高中"
+     ]
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：高中"
+  },
+  "上海市工商外国语学校": {
+   "row_ids": [
+    66
+   ],
+   "school_name": "上海市工商外国语学校",
+   "name_en": "Shanghai Industrial & Commercial Foreign Languages School",
+   "aliases": [],
+   "city": "上海",
+   "raw_category": "优秀院校",
+   "school_level": "secondary",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "secondary",
+    "language"
+   ],
+   "programs": {
+    "secondary": {
+     "tuition_text": "中专\n40000/年",
+     "min_yearly_rmb": 40000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中专"
+     ]
+    },
+    "language": {
+     "tuition_text": "40000/年",
+     "min_yearly_rmb": 40000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "学费费用涵盖校内宿舍费用",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "2026-05-15",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：中专"
+  },
+  "哈尔滨市龙江旅游学校": {
+   "row_ids": [
+    67
+   ],
+   "school_name": "哈尔滨市龙江旅游学校",
+   "name_en": "Harbin Longjiang Tourism Secondary Vocational School",
+   "aliases": [],
+   "city": "哈尔滨",
+   "raw_category": "优秀院校",
+   "school_level": "secondary",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "secondary",
+    "language"
+   ],
+   "programs": {
+    "secondary": {
+     "tuition_text": "中专13800/年",
+     "min_yearly_rmb": 13800,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中专"
+     ]
+    },
+    "language": {
+     "tuition_text": "8500/年",
+     "min_yearly_rmb": 8500,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "3400/5800/9800/年；6/4/2人间",
+   "scholarship_summary": "校奖",
+   "has_scholarship": true,
+   "deadline_summary": "随时",
+   "requirements_summary": "初中毕业，无国籍限制",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：中专 | 台账备注：已出27春季简章"
+  },
+  "清华大学深圳国际研究生院": {
+   "row_ids": [
+    68
+   ],
+   "school_name": "清华大学深圳国际研究生院",
+   "name_en": "Tsinghua Shenzhen International Graduate School（Tsinghua SIGS）",
+   "aliases": [],
+   "city": "深圳",
+   "raw_category": "双一流/985/211院校，全国TOP",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Young",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "master"
+   ],
+   "programs": {
+    "master": {
+     "tuition_text": "全日制硕士研究生：公共管理学-医院管理",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "公共管理",
+      "医院管理"
+     ]
+    }
+   },
+   "featured_majors": [
+    "公共管理",
+    "医院管理",
+    "中文",
+    "语言"
+   ],
+   "dormitory": "500-1500元/月/人",
+   "scholarship_summary": "中国政府奖学金（CSC）；清华大学国际生学费奖学金；深圳大学生运动会国际奖学金基金会（SUISF）；清华SIGS国际学生奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "即日起至2027年05月15日17:00；1. 有意申请奖学金者，请于2026年12月前尽快提交申请；2. 建议申请者至少在项目截止日期的2-3周前完成申请",
+   "requirements_summary": "（一）申请资格；1.申请者须为根据《中华人民共和国国籍法》不具有中国国籍的外国人，申请时须持有效的外国护照或国籍证明文件。；2.原为中国公民后加入或取得外国国籍的申请者，须已不具有中国国籍，且加入或取得外国国籍的时间截至入学年度4月30日前已满6年（含）以上。；3.父母双方或一方为中国公民并定居在外国，本人出生在外国、出生时即具有外国国籍，且从未具有中国国籍的申请者，申请者父母的中国公民方须在申请者出生时已取得外国永久居留权。；（二）学历要求；硕士学位项目申请者，应具有与中国学士学位相当的学位，专业不限。；（三）申请人应身体健康、品行端正（符合中国及清华大学规定的体检要求），举止文明，并愿意遵守中国的法律法规以及清华大学的相关规定。；（四）语言要求；1.申请者需提供相关报考项目认可的汉语水平考试成绩，可接受的考试包括但不限于HSK。；2.英语非母语申请者：雅思（IELTS）成绩不低于6.5分，或托福（TOEFL iBT）成绩不低于85分（2026年1月21日前参加的考试）/ 4.5分（2026年1月21日及之后参加的考试）。；3.使用中文/英文完成本科学习的申请者，须提供毕业学校出具的中文/英文授课证明，获得许可后可免交中文/英文水平证明。；（五）申请材料清单；1.个人陈述；2.学位证书及学位认证件（境外高校须提交中国教育部留学服务中心认证报告；境内高校须提供学信网认证报告）；3.本科成绩单（GPA不低于3.0/4，或平均分数不低于B或80/100分；THE/QS/USNews/ARwu排名前20高校，GPA不低于2.7/4）；4.语言能力成绩报告（中文/英文，可接受的考试包括但不限于雅思、托福、多邻国、HSK等）；5.两份推荐信（推荐人须为副教授或相应职称以上学者，或相关行业资深专业人士）；6.护照个人信息页；7.国籍身份材料(不招收印度、巴基斯坦籍。经济条件太差者受限)",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "印度",
+     "巴基斯坦"
+    ],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：硕士 | 台账备注：保险费：800元/学年；；自费生申请费、奖学金申请费，均为800元，在线支付，不予退还；生活津贴：硕士生:600元/月"
+  },
+  "大连工业大学": {
+   "row_ids": [
+    69
+   ],
+   "school_name": "大连工业大学",
+   "name_en": "Dalian Polytechnic University",
+   "aliases": [],
+   "city": "大连",
+   "raw_category": "优秀院校",
+   "school_level": "college",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "preparatory",
+    "bachelor"
+   ],
+   "programs": {
+    "preparatory": {
+     "tuition_text": "8600元/学期",
+     "min_yearly_rmb": 17200,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "英授18000/20000元/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [
+    "语言"
+   ],
+   "dormitory": "3300/学期；6500元/年",
+   "scholarship_summary": "本科奖学金减免后8600元/年",
+   "has_scholarship": true,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出；原表8600元/学期填于预科列，语言/本科实际学费需核官网"
+  },
+  "三峡大学": {
+   "row_ids": [
+    70
+   ],
+   "school_name": "三峡大学",
+   "name_en": "China Three Gorges University（CTGU）",
+   "aliases": [],
+   "city": "宜昌市",
+   "raw_category": "优秀院校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "10000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "10000-24000/年",
+     "min_yearly_rmb": 10000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "master": {
+     "tuition_text": "15000-23000/年",
+     "min_yearly_rmb": 15000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    },
+    "phd": {
+     "tuition_text": "20000/年",
+     "min_yearly_rmb": 20000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "MBBS"
+     ]
+    }
+   },
+   "featured_majors": [
+    "MBBS",
+    "中文",
+    "语言"
+   ],
+   "dormitory": "4800/年双人间",
+   "scholarship_summary": "CSC；省政府奖学金；国际中文教师奖学金；校奖",
+   "has_scholarship": true,
+   "deadline_summary": "2026-06-30",
+   "requirements_summary": "语言18-40岁；本科18-25岁，CSCA；硕士18-30岁；博士18-40岁",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 40
+    },
+    "bachelor": {
+     "min": 18,
+     "max": 25
+    },
+    "master": {
+     "min": 18,
+     "max": 30
+    },
+    "phd": {
+     "min": 18,
+     "max": 40
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：MBBS"
+  },
+  "广州城建职业学院": {
+   "row_ids": [
+    71
+   ],
+   "school_name": "广州城建职业学院",
+   "name_en": "Guangzhou City Construction College（GZCCC）",
+   "aliases": [],
+   "city": "广州",
+   "raw_category": "优秀院校",
+   "school_level": "diploma",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "13000/年\n春秋季招生",
+     "min_yearly_rmb": 13000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "中文18000-19000/年\n英文21000-22000/年\n秋季",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "无",
+   "has_scholarship": false,
+   "deadline_summary": "秋季入学：每年的4月30日前申请（开学时间为当年的9月份）春季入学：每年的11月30日前申请（开学时间为第二年的2月份）",
+   "requirements_summary": "语言：中学毕业或以上学历，年龄16岁以上。单独开班：汉语进修生达10人以上即 单独开班；高中毕业或以上学历，年龄18岁以上。大专生和短期专业技术/职业技能培训班，申请同一学期同一专业的外国学生  达10人以上 ，单独开班，可以全英语授课或配英语翻译",
+   "age_limits": {
+    "default": {
+     "min": 18,
+     "max": 99
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "江苏信息职业大学": {
+   "row_ids": [
+    72
+   ],
+   "school_name": "江苏信息职业大学",
+   "name_en": "Jiangsu Vocational College of Information Technology（JSIT）",
+   "aliases": [],
+   "city": "无锡",
+   "raw_category": "优秀院校",
+   "school_level": "vocational_ug",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "5700元年",
+     "min_yearly_rmb": 5700,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "中文4700/5300元/6800/年",
+     "min_yearly_rmb": 6800,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文"
+   ],
+   "dormitory": "双人间￥4800元起/人/学年；四人间￥2400元/人/学年；六人间￥1200元/人/学年",
+   "scholarship_summary": "申请专科学历教育并达到《国际汉语能力标准》四级水平可申请“苏信校长奖学金”。；2. 为家境特别贫困的留学生提供勤工俭学岗位",
+   "has_scholarship": true,
+   "deadline_summary": "秋季招生",
+   "requirements_summary": "国籍：收老挝、中亚、俄罗斯；专科HSK四级",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [
+     "中亚",
+     "俄罗斯"
+    ],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "青岛科技大学": {
+   "row_ids": [
+    73
+   ],
+   "school_name": "青岛科技大学",
+   "name_en": "",
+   "aliases": [
+    "青岛科技大学（公办本科）"
+   ],
+   "city": "",
+   "raw_category": "",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "UNRATED",
+   "partner_rank": 0.5,
+   "contact_person": "",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "7000元/学期",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "本科1.7万-1.8万/年；报名费400元；住宿押金500元",
+     "min_yearly_rmb": 17000,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "硕士：文科2.05万、理工2.28万、艺术2.46万/年",
+     "min_yearly_rmb": 24600,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "博士：文科2.6万、理工2.86万、艺术3.16万/年",
+     "min_yearly_rmb": 31600,
+     "languages": [],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "单人5000元/学期、双人2600元/学期、三人2000元/学期、四人1600元/学期；均含空调、暖气、卧具、卫生间、淋浴热水器",
+   "scholarship_summary": "CSC、山东省及校级奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "浙江工商大学": {
+   "row_ids": [
+    74
+   ],
+   "school_name": "浙江工商大学",
+   "name_en": "Zhejiang Gongshang University（ZJSU）",
+   "aliases": [],
+   "city": "杭州",
+   "raw_category": "公办大学，省部共建高校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "",
+   "info_completeness": "minimal",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": ""
+  },
+  "上海大学": {
+   "row_ids": [
+    75
+   ],
+   "school_name": "上海大学",
+   "name_en": "Shanghai University（SHU）",
+   "aliases": [],
+   "city": "上海",
+   "raw_category": "211工程\n双一流",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "B",
+   "partner_rank": 3,
+   "contact_person": "Young",
+   "info_completeness": "minimal",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：还未出27简章。26秋季本科已推荐一人就读。"
+  },
+  "中国石油大学（华东）": {
+   "row_ids": [
+    76
+   ],
+   "school_name": "中国石油大学（华东）",
+   "name_en": "China University of Petroleum (East China) （UPC）",
+   "aliases": [],
+   "city": "青岛",
+   "raw_category": "全国重点大学、国家“双一流”、“211工程”重点建设高校",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Young",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "preparatory",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "汉语语言项目7000元/学期，1-4学期，\n春秋季",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "preparatory": {
+     "tuition_text": "预科中英文授课，1万元/学期，1-4学期，\n春秋季",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "中文授课人文1.7万、理工1.8万/年；英文授课本科1.8万-2万/年；",
+     "min_yearly_rmb": 18000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文",
+      "语言"
+     ]
+    },
+    "master": {
+     "tuition_text": "硕士中文授课2万-2.2万/年，英文授课2.4万/年",
+     "min_yearly_rmb": 20000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文",
+      "语言"
+     ]
+    },
+    "phd": {
+     "tuition_text": "博士中文授课2.6万/年，英文授课3万/年",
+     "min_yearly_rmb": 26000,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "中文",
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "秋季学期：3月1日-5月31日；春季学期：前一年9月20日-12月20日",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：语言生春秋都收，学历生秋季入学 | 注：原合作表含截图单元格未导出文字，具体奖学金/要求须直连官网核实"
+  },
+  "中国海洋大学": {
+   "row_ids": [
+    77
+   ],
+   "school_name": "中国海洋大学",
+   "name_en": "",
+   "aliases": [],
+   "city": "青岛",
+   "raw_category": "",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "Young",
+   "info_completeness": "minimal",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "bachelor": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "master": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "phd": {
+     "tuition_text": "具体专业学费未录入（需核官网最新简章）",
+     "min_yearly_rmb": null,
+     "languages": [
+      "chinese",
+      "english"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": [
+     "未出，对机构管理较严格，2026.9发《严正声明》"
+    ]
+   },
+   "internal_notes": "台账备注：未出，对机构管理较严格，2026.9发《严正声明》 | 风控提示：对合作机构管理较严格，2026.9发布《严正声明》，递交前务必核对最新渠道口径"
+  },
+  "青岛大学": {
+   "row_ids": [
+    78
+   ],
+   "school_name": "青岛大学",
+   "name_en": "Qingdao University（QU）",
+   "aliases": [],
+   "city": "青岛",
+   "raw_category": "公办高校。为山东省高水平大学“冲一流”重点建设高校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Young",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "7000元/学期，目前只能一学期",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "2026.12.11之前",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：申请费400，保险费300元/学期 | 注：原合作表含截图单元格未导出文字，具体奖学金/要求须直连官网核实"
+  },
+  "山东师范大学": {
+   "row_ids": [
+    79
+   ],
+   "school_name": "山东师范大学",
+   "name_en": "",
+   "aliases": [],
+   "city": "济南",
+   "raw_category": "公办师范本科",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "D",
+   "partner_rank": 1,
+   "contact_person": "Young",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "汉语7400元/学期（1.4万/年）",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "1万/年",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "春汉语12月15日截止；秋6月30日截止；学历项目4月1日-5月31日；2026年9月开学",
+   "requirements_summary": "",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：未出"
+  },
+  "山东大学（威海）": {
+   "row_ids": [
+    81
+   ],
+   "school_name": "山东大学（威海）",
+   "name_en": "Shandong University, Weihai（SDUW）",
+   "aliases": [],
+   "city": "威海",
+   "raw_category": "211工程\n985工程\n双一流",
+   "school_level": "985",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Young",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "1.报名费：400元/人（未支付报名费者申请无效。报名费一经支付，一律不予退还。）\n2. 学费：7000元/学期，14000元/学年；\n\n3. 医疗保险费：400 （元/人/半年），800 （元/人/年）。自费学习项目，不提供奖学金资助。",
+     "min_yearly_rmb": 14000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "汉语进修春季学期：2027年2月-2027年7月；申请时间：2026年10月1日- 2026年12月31日",
+   "requirements_summary": "综合要求；1. 高中毕业或具有高中以上学历；；2. 身心健康，对华友好，无违法犯罪记录，持外国有效普通护照的非中国籍公民。；符合《教育部关于规范我高等学校接受国际学生有关工作的通知》（教外函（2020）12号）有关规定。；申请材料；申请人应保证所提供的申请信息及申请材料真实、准确，一经查证为不属实，申请者将被取消申请、录取或学习资格。；1.  电子版照片（彩色标准证件照，大小不超200kb，像素大于295*413，支持JPG、JPEG 和 PNG三种照片格式）；；2. 护照个人信息页（个人普通护照，且所持护照有效期须超出入学当日至少六个月）；3. 高中或高中以上学历的毕业证书或预毕业证明（须加盖学校公章）；；4. 高中或高中以上学习阶段全部课程成绩单（须加盖学校公章）；；5. 个人简历（中英韩文均可）（请点击链接下载模板：https://ipo.wh.sdu.edu.cn/cnistudy/info/1008/1501.htm中英；https://ipo.wh.sdu.edu.cn/kristudy/info/1008/1651.htm中韩）。；6. 《外国人体格检查表》；；申请人应严格按照《外国人体格检查表》（请点击链接下载模板：https://ipo.wh.sdu.edu.cn/cnistudy/info/1008/1387.htm）中要求的项目进行检查。缺项、未贴本人照片或照片上未盖骑缝章、无医师和医院签字盖章的《外国人体格检查表》无效。检查结果有效期为6个月（申请时须在有效期内）；；7. 无犯罪记录证明；申请人须提交由所在地公共安全管理部门出具的有效无犯罪记录证明，有效期通常为6个月。；8. 经济担保材料扫描件，包括：；（1）经济担保人（限申请者本人或直系亲属）的护照或身份证明；；（2）经济担保证明（存款不少于3万元人民币或等额外币）。；9. 已在中国其他高校就读的申请者需提供由所属学校国际学生办公室或学院出具的推荐信，推荐信上需要注明推荐单位的联系方式；；10. 未满18周岁的申请人须提交以下材料扫描件：；（1）监护人保证书、申请人父母与监护人签字的委托书公证件（模板下载路径：https://ipo.wh.sdu.edu.cn/cnistudy/info/1008/1681.htm），监护人须为居住在中国山东威海的成年人）；；（2）监护人身份证或护照；；（3）申请人出生证明或家族关系证明及父母双方身份证件（需要翻译为中文且要进行海牙认证）；11. 山东大学（威海）要求提交的其他补充材料；注：申请材料须为中文、英文或者韩文文本。如申请材料为中、英、韩以外的其他语种，须同时上传材料原件及翻译公证件（英文或中文）。请用扫描仪将相关文件彩色扫描后上传，不接受手机或相机拍摄的文件，不接受复印件。除《外国人体格检查表》和个人签字可以出现手写体外，其余所提供的文件一律不接受手写体。",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：语言、专业进修项目（一学期或一年，每学期9000-14500元） | 台账备注：未出"
+  },
+  "山东理工大学": {
+   "row_ids": [
+    82
+   ],
+   "school_name": "山东理工大学",
+   "name_en": "Shandong University of Technology（SDUT）",
+   "aliases": [],
+   "city": "淄博",
+   "raw_category": "公办大学，省部共建高校",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Young",
+   "info_completeness": "full",
+   "spring_2027_status": "not_published",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "春秋季，8000 元/年（优惠后，按此宣传。学校简章为12000元/年）",
+     "min_yearly_rmb": 8000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "春季入学：上一年度 10 月 15 日 — 12 月 15 日；秋季入学：当年 4 月 1 日 — 6 月 15 日；申请材料须以中文或英文提交，否则须翻译成中文。",
+   "requirements_summary": "语言生：18—35 周岁，HSK 4 级及以上。全部项目均须提交的材料：；最高学历学位证书；上一学历阶段成绩单；护照个人信息页复印件；语言能力证书；存款证明（3000 美元以上）；个人简历（从中学至今）；无犯罪记录公安机关出具的治安（无犯罪）证明；体检表及血液检查报告；目前在中国大陆就读的申请人须提供有效签证或居留许可页",
+   "age_limits": {
+    "language": {
+     "min": 18,
+     "max": 35
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：汉语语言生，本硕博中英双语学历生 | 台账备注：未出 | 注：原合作表含截图单元格未导出文字，具体奖学金/要求须直连官网核实 | 渠道政策：语言项目按8000元/年优惠价对外宣传（学校官网简章为12000元/年）"
+  },
+  "烟台大学": {
+   "row_ids": [
+    83
+   ],
+   "school_name": "烟台大学",
+   "name_en": "Yantai University（YTU）",
+   "aliases": [],
+   "city": "烟台",
+   "raw_category": "公办本科",
+   "school_level": "normal",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Young",
+   "info_completeness": "full",
+   "spring_2027_status": "unknown",
+   "levels_offered": [
+    "language",
+    "bachelor",
+    "master",
+    "phd"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "汉语进修6200元/学期\n春秋季",
+     "min_yearly_rmb": 12400,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "汉语言",
+      "中文",
+      "语言"
+     ]
+    },
+    "bachelor": {
+     "tuition_text": "文科1.24万、理科1.34万、建筑/音乐舞蹈1.6万/年",
+     "min_yearly_rmb": 16000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "汉语言",
+      "音乐舞蹈",
+      "中文",
+      "语言"
+     ]
+    },
+    "master": {
+     "tuition_text": "文科2.1万、理科2.5万/年",
+     "min_yearly_rmb": 25000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "汉语言",
+      "中文",
+      "语言"
+     ]
+    },
+    "phd": {
+     "tuition_text": "文科3万、理科3.5万/年",
+     "min_yearly_rmb": 35000,
+     "languages": [],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": [
+      "汉语言",
+      "中文",
+      "语言"
+     ]
+    }
+   },
+   "featured_majors": [
+    "数学",
+    "汉语言",
+    "音乐舞蹈",
+    "中文",
+    "语言"
+   ],
+   "dormitory": "",
+   "scholarship_summary": "CSC、国际中文教师、山东省政府奖学金",
+   "has_scholarship": true,
+   "deadline_summary": "春1月15日截止、3月初报到；秋7月15日截止、9月初报到",
+   "requirements_summary": "非中国籍人士；；※ 非学历语言项目：高中及以上学历或学位；无语言要求；；本科项目：高中及以上学历或学位；有 CSCA 专业中文成绩及 HSK4；级；有 CSCA 数学成绩；；申请攻读汉语言本科专业的申请人如能提供有效期内 HSK 四级成绩；报告，可免考 CSCA 专业中文。",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "推荐/备注项目：汉语言学习（春季及秋季均可招生）；1.汉语语言进修（非学历）（可中文零基础入学）；2.汉语言本科（四年制）；其他本硕博专业，中文授课，仅秋季招生 | 台账备注：申请费：；汉语进修生和本科生：￥300 元；；研究生：￥400 元；与学费一起缴纳；教材费 200-300 元/学期，；教材可在学校购买，也可自；行采购；保险费 400 元/学期，；体检费 600-700 元 体检医院收取，；签证费 400 元 出入境管理部门收取 | 注：原合作表含截图单元格未导出文字，具体奖学金/要求须直连官网核实"
+  },
+  "苏州大学": {
+   "row_ids": [
+    85
+   ],
+   "school_name": "苏州大学",
+   "name_en": "",
+   "aliases": [],
+   "city": "苏州",
+   "raw_category": "公办",
+   "school_level": "211",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "春秋季8500/学期\n17000/年",
+     "min_yearly_rmb": 17000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "语言不提供住宿",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "春季3月30；秋季9月30日",
+   "requirements_summary": "16-60岁；谨慎审核：朝鲜、巴基斯坦、叙利亚、刚果、乌克兰、古巴、北苏丹、非洲各国",
+   "age_limits": {
+    "default": {
+     "min": 16,
+     "max": 60
+    }
+   },
+   "restrictions": {
+    "excluded_countries": [],
+    "excluded_regions": [],
+    "only_regions": [],
+    "preferred_regions": [],
+    "caution_countries": [
+     "乌克兰",
+     "刚果",
+     "北苏丹",
+     "叙利亚",
+     "古巴",
+     "巴基斯坦",
+     "朝鲜",
+     "苏丹",
+     "非洲各国"
+    ],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：已出27春季简章"
+  },
+  "铜仁职业技术大学": {
+   "row_ids": [
+    86
+   ],
+   "school_name": "铜仁职业技术大学",
+   "name_en": "",
+   "aliases": [],
+   "city": "铜仁",
+   "raw_category": "公办",
+   "school_level": "vocational_ug",
+   "coop_status": "active",
+   "partner_tier": "C",
+   "partner_rank": 2,
+   "contact_person": "Julia",
+   "info_completeness": "full",
+   "spring_2027_status": "published_27_spring",
+   "levels_offered": [
+    "language",
+    "diploma"
+   ],
+   "programs": {
+    "language": {
+     "tuition_text": "3500/年\n春秋季",
+     "min_yearly_rmb": 3500,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    },
+    "diploma": {
+     "tuition_text": "4000/年",
+     "min_yearly_rmb": 4000,
+     "languages": [
+      "chinese"
+     ],
+     "intakes": [
+      "spring",
+      "autumn"
+     ],
+     "featured_majors": []
+    }
+   },
+   "featured_majors": [],
+   "dormitory": "1200/年4人间",
+   "scholarship_summary": "",
+   "has_scholarship": false,
+   "deadline_summary": "春季2025.11.01-2025.12.01  ；秋季2026.03.01-2026.07.01",
+   "requirements_summary": "中授，倾向东南亚，高中毕业未成年可招收，可代收学费；只招三四十名，先到先得；受限国家：伊朗、也门、刚果、以色列、阿富汗、巴基斯坦、印度、缅甸、乌克兰、苏丹以及战乱国",
+   "age_limits": {},
+   "restrictions": {
+    "excluded_countries": [
+     "乌克兰",
+     "也门",
+     "以色列",
+     "伊朗",
+     "刚果",
+     "印度",
+     "巴基斯坦",
+     "缅甸",
+     "苏丹",
+     "阿富汗"
+    ],
+    "excluded_regions": [
+     "战乱国"
+    ],
+    "only_regions": [],
+    "preferred_regions": [
+     "东南亚"
+    ],
+    "caution_countries": [],
+    "policy_notes": []
+   },
+   "internal_notes": "台账备注：已出27春季简章"
+  }
+ }
+}

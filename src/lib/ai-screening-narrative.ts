@@ -3,15 +3,29 @@ import { extractJsonObject, getAiProviderConfig, requestAiCompletion } from "@/l
 import type { ChatCriteria, EvidencePoint, ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse } from "@/lib/ai-screening-events";
 import { admissionListLabel, isCandidate, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
-import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
+import { DEFAULT_DISPLAY_SCHOOL_COUNT } from "@/lib/recommendation-profile";
+import { selectBalancedCandidates, type AdmissionTier } from "@/lib/screening-ranking";
 
 const codes = ["MAJOR", "BUDGET", "INTAKE", "DEADLINE", "LANGUAGE", "SCORE", "DEGREE", "EXAM", "SCHOLARSHIP", "ACCOMMODATION", "AGE", "LOCATION"] as const;
 type Code = typeof codes[number];
-const slots = ["A", "B", "C", "D", "E", "F", "G"] as const;
+const slots = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"] as const;
 type Slot = typeof slots[number];
 type Candidate = { slot: Slot; card: ResultCard; group: "partner" | "other"; tier: "confirmed" | "pending" | "other"; matches: { code: Code; point: EvidencePoint }[]; concerns: { code: Code; point: EvidencePoint }[] };
 type Plan = { selections: { slot: Slot; reasons: Code[]; caution: Code | null; text?: string; verified?: boolean }[] };
-export type Narrative = { lead: string; highlights: { name: string; programId?: string; group: "partner" | "other"; body: string; attention: boolean; notCooperating: boolean }[]; next?: string };
+export type NarrativeHighlight = {
+  name: string;
+  programId?: string;
+  group: "partner" | "other";
+  body: string;
+  attention: boolean;
+  notCooperating: boolean;
+  score?: number;
+  admissionTier?: AdmissionTier;
+  tierReason?: string;
+  cityLabel?: string | null;
+  schoolTags?: string | null;
+};
+export type Narrative = { lead: string; highlights: NarrativeHighlight[]; next?: string };
 
 const codeByLabel: Record<string, Code> = {
   "专业": "MAJOR", "首年预算": "BUDGET", "费用冲突": "BUDGET", "入学年份": "INTAKE", "入学季": "INTAKE", "申请截止": "DEADLINE",
@@ -33,54 +47,100 @@ function candidatePoints(card: ResultCard) {
 
 function candidatePool(result: ScreeningResponse): Candidate[] {
   const { confirmed, pending, other } = result.results;
+  const confirmedProjects = confirmed.filter(isCandidate);
+  const pendingProjects = pending.filter(isCandidate);
   const alternatives = other.filter(isCandidate);
-  const seen = new Set<string>();
-  const unique = (cards: ResultCard[], limit: number, group: Candidate["group"], tier: Candidate["tier"]) => {
-    const picked: { card: ResultCard; group: Candidate["group"]; tier: Candidate["tier"] }[] = [];
-    if (limit <= 0) return picked;
-    for (const card of cards) {
-      const key = resultSchoolKey(card);
-      if (seen.has(key)) continue;
-      seen.add(key); picked.push({ card, group, tier });
-      if (picked.length === limit) break;
-    }
-    return picked;
-  };
-  let pool: { card: ResultCard; group: Candidate["group"]; tier: Candidate["tier"] }[];
-  if (result.otherRequested) {
-    const alternativesFirst = unique(alternatives, 5, "other", "other");
-    const remainingConfirmed = unique(confirmed.filter(isCandidate), 2, "partner", "confirmed");
-    const remainingPending = unique(pending.filter(isCandidate), 2 - remainingConfirmed.length, "partner", "pending");
-    pool = [...alternativesFirst, ...remainingConfirmed, ...remainingPending];
+  const hasScores = [...confirmedProjects, ...pendingProjects, ...alternatives].some((card) => typeof card.score === "number");
+
+  const tagged: { card: ResultCard; group: Candidate["group"]; tier: Candidate["tier"] }[] = [];
+  if (hasScores && !result.otherRequested) {
+    // Overall quality & fit priority: merge all valid candidates, dedupe by school keeping best score,
+    // and select up to 12 slots balanced across admission tiers.
+    const merged: { card: ResultCard; group: Candidate["group"]; tier: Candidate["tier"] }[] = [
+      ...confirmedProjects.map((card) => ({ card, group: "partner" as const, tier: "confirmed" as const })),
+      ...pendingProjects.filter((card) => card.cooperation !== "not_cooperating").map((card) => ({ card, group: "partner" as const, tier: "pending" as const })),
+      ...alternatives.filter((card) => card.cooperation !== "not_cooperating").map((card) => ({ card, group: "other" as const, tier: "other" as const })),
+      ...pendingProjects.filter((card) => card.cooperation === "not_cooperating").map((card) => ({ card, group: "partner" as const, tier: "pending" as const })),
+      ...alternatives.filter((card) => card.cooperation === "not_cooperating").map((card) => ({ card, group: "other" as const, tier: "other" as const })),
+    ];
+    const picked = selectBalancedCandidates(
+      merged,
+      {
+        keyOf: (item) => resultSchoolKey(item.card),
+        scoreOf: (item) => item.card.score,
+        tierOf: (item) => item.card.tier,
+        blockedOf: (item) => item.card.cooperation === "not_cooperating",
+      },
+      slots.length,
+      true,
+      true,
+    );
+    tagged.push(...picked);
   } else {
-    const first = unique(confirmed.filter(isCandidate), 4, "partner", "confirmed");
-    const pendingProjects = pending.filter(isCandidate);
-    pool = [...first, ...unique(pendingProjects.filter((card) => card.cooperation !== "not_cooperating"), 4 - first.length, "partner", "pending")];
-    pool.push(...unique(alternatives, RECOMMENDED_SCHOOL_COUNT, "other", "other"));
-    if (pool.length < RECOMMENDED_SCHOOL_COUNT) {
-      pool.push(...unique(pendingProjects.filter((card) => card.cooperation === "not_cooperating"), RECOMMENDED_SCHOOL_COUNT - pool.length, "partner", "pending"));
+    const seen = new Set<string>();
+    const unique = (cards: ResultCard[], limit: number, group: Candidate["group"], tier: Candidate["tier"]) => {
+      const picked: { card: ResultCard; group: Candidate["group"]; tier: Candidate["tier"] }[] = [];
+      if (limit <= 0) return picked;
+      for (const card of cards) {
+        const key = resultSchoolKey(card);
+        if (seen.has(key)) continue;
+        seen.add(key); picked.push({ card, group, tier });
+        if (picked.length === limit) break;
+      }
+      return picked;
+    };
+    if (result.otherRequested) {
+      const alternativesFirst = unique(alternatives, 9, "other", "other");
+      const remainingConfirmed = unique(confirmedProjects, Math.max(0, slots.length - alternativesFirst.length), "partner", "confirmed");
+      const remainingPending = unique(pendingProjects, Math.max(0, slots.length - alternativesFirst.length - remainingConfirmed.length), "partner", "pending");
+      tagged.push(...alternativesFirst, ...remainingConfirmed, ...remainingPending);
+    } else {
+      const first = unique(confirmedProjects, 6, "partner", "confirmed");
+      const activePending = unique(pendingProjects.filter((card) => card.cooperation !== "not_cooperating"), Math.max(0, 6 - first.length), "partner", "pending");
+      const alt = unique(alternatives, Math.max(0, slots.length - first.length - activePending.length), "other", "other");
+      tagged.push(...first, ...activePending, ...alt);
+      if (tagged.length < DEFAULT_DISPLAY_SCHOOL_COUNT) {
+        tagged.push(...unique(pendingProjects.filter((card) => card.cooperation === "not_cooperating"), DEFAULT_DISPLAY_SCHOOL_COUNT - tagged.length, "partner", "pending"));
+      }
     }
   }
-  return pool.map(({ card, group, tier }, index) => ({ slot: slots[index], card, group, tier, ...candidatePoints(card) }));
+  return tagged.slice(0, slots.length).map(({ card, group, tier }, index) => ({ slot: slots[index], card, group, tier, ...candidatePoints(card) }));
 }
 
 function displayCandidates(result: ScreeningResponse, plan: Plan | null): Candidate[] {
   const pool = candidatePool(result);
   const ranking = new Map<Slot, number>();
   plan?.selections.forEach(({ slot }, index) => { if (!ranking.has(slot)) ranking.set(slot, index); });
+
+  const hasScores = pool.some((item) => typeof item.card.score === "number");
+  if (hasScores && !result.otherRequested) {
+    return selectBalancedCandidates(
+      pool,
+      {
+        keyOf: (item) => resultSchoolKey(item.card),
+        scoreOf: (item) => item.card.score,
+        tierOf: (item) => item.card.tier,
+        blockedOf: (item) => item.card.cooperation === "not_cooperating",
+      },
+      DEFAULT_DISPLAY_SCHOOL_COUNT,
+      true,
+      true,
+    );
+  }
+
   const ordered = (tier: Candidate["tier"]) => pool.filter((item) => item.tier === tier).sort((a, b) => (ranking.get(a.slot) ?? 99) - (ranking.get(b.slot) ?? 99));
   const pending = ordered("pending");
   const partners = [...ordered("confirmed"), ...pending.filter(({ card }) => card.cooperation !== "not_cooperating")];
   const blocked = pending.filter(({ card }) => card.cooperation === "not_cooperating");
   const orderedCandidates = result.otherRequested ? [...ordered("other"), ...partners] : [...partners, ...ordered("other")];
-  return [...orderedCandidates, ...blocked].slice(0, RECOMMENDED_SCHOOL_COUNT);
+  return [...orderedCandidates, ...blocked].slice(0, DEFAULT_DISPLAY_SCHOOL_COUNT);
 }
 
 export function shownNarrativeCards(result: ScreeningResponse, previousProgramIds: string[] = []): ResultCard[] {
   if (previousProgramIds.length) {
     const available = [...result.results.confirmed, ...result.results.pending, ...result.results.other].filter(isCandidate);
     const selected = previousProgramIds.flatMap((id) => available.find((card) => card.programId === id) ?? []);
-    if (selected.length === previousProgramIds.length && selected.length <= RECOMMENDED_SCHOOL_COUNT
+    if (selected.length === previousProgramIds.length && selected.length <= DEFAULT_DISPLAY_SCHOOL_COUNT
       && new Set(selected.map(resultSchoolKey)).size === selected.length) return selected;
   }
   return displayCandidates(result, null).map((candidate) => candidate.card);
@@ -88,10 +148,10 @@ export function shownNarrativeCards(result: ScreeningResponse, previousProgramId
 
 function providedCodes(criteria: ChatCriteria): Code[] {
   const values: [boolean, Code][] = [
-    [Boolean(criteria.targetMajor), "MAJOR"], [criteria.budget != null, "BUDGET"], [criteria.intakeYear != null || criteria.intakeSeason != null, "INTAKE"],
+    [Boolean(criteria.targetMajor || criteria.targetMajors?.length), "MAJOR"], [criteria.budget != null, "BUDGET"], [criteria.intakeYear != null || criteria.intakeSeason != null, "INTAKE"],
     [criteria.teachingLanguage != null, "LANGUAGE"], [criteria.ielts != null || criteria.toefl != null || criteria.duolingo != null || criteria.hskLevel != null || criteria.hskScore != null || criteria.gpa != null, "SCORE"],
-    [criteria.programType != null, "DEGREE"], [criteria.hasCsca != null || criteria.cscaRequirement != null, "EXAM"], [criteria.scholarshipType != null, "SCHOLARSHIP"],
-    [Boolean(criteria.accommodationRequired), "ACCOMMODATION"], [criteria.age != null, "AGE"], [Boolean(criteria.city || criteria.province), "LOCATION"],
+    [criteria.programType != null, "DEGREE"], [criteria.hasCsca != null || criteria.cscaRequirement != null, "EXAM"], [criteria.scholarshipType != null || Boolean(criteria.excludeSelfFunded), "SCHOLARSHIP"],
+    [Boolean(criteria.accommodationRequired), "ACCOMMODATION"], [criteria.age != null, "AGE"], [Boolean(criteria.city || criteria.province || criteria.cities?.length), "LOCATION"],
   ];
   return values.filter(([present]) => present).map(([, code]) => code);
 }
@@ -114,7 +174,7 @@ function requiredConcernIndexes(candidate: Candidate, criteria: ChatCriteria): n
   concerns.forEach((item, index) => {
     if (item.code === "DEADLINE" && item.point.level === "NEED" && /已过|过期|不一致|冲突/u.test(item.point.text)) indexes.push(index);
     if (item.code === "BUDGET" && (criteria.budget != null || /冲突|费用口径不明确/u.test(item.point.text))) indexes.push(index);
-    if (item.code === "MAJOR" && criteria.targetMajor) indexes.push(index);
+    if (item.code === "MAJOR" && (criteria.targetMajor || criteria.targetMajors?.length)) indexes.push(index);
     if (item.code === "LANGUAGE" && criteria.teachingLanguage) indexes.push(index);
     if (item.code === "SCORE" && hasScore(criteria)) indexes.push(index);
   });
@@ -134,7 +194,8 @@ function visibleConcernIndexes(candidate: Candidate, criteria: ChatCriteria, sha
 }
 
 function requiredMatchIndexes(candidate: Candidate, criteria: ChatCriteria): number[] {
-  return candidate.matches.flatMap((item, index) => (item.code === "MAJOR" && criteria.targetMajor) || (item.code === "LANGUAGE" && criteria.teachingLanguage) || (item.code === "SCORE" && hasScore(criteria)) || (item.code === "BUDGET" && criteria.budget != null) ? [index] : []);
+  const hasMajor = Boolean(criteria.targetMajor || criteria.targetMajors?.length);
+  return candidate.matches.flatMap((item, index) => (item.code === "MAJOR" && hasMajor) || (item.code === "LANGUAGE" && criteria.teachingLanguage) || (item.code === "SCORE" && hasScore(criteria)) || (item.code === "BUDGET" && criteria.budget != null) ? [index] : []);
 }
 
 function compositeMatch(candidate: Candidate, criteria: ChatCriteria): { covers: string[]; text: string; sharedText: string } | null {
@@ -184,7 +245,8 @@ function sharedMatchSummary(candidate: Candidate, criteria: ChatCriteria, shared
     const item = candidate.matches[Number(id.slice(1)) - 1];
     if (!item) return [];
     const priority = item.code === "MAJOR" ? 0 : item.code === "LANGUAGE" ? 1 : 2;
-    if (item.code === "MAJOR") return [{ priority, text: criteria.targetMajor ? `${criteria.targetMajor}方向` : "目标专业" }];
+    const majorDisplay = criteria.targetMajors?.length ? criteria.targetMajors.slice(0, 3).join("/") : criteria.targetMajor;
+    if (item.code === "MAJOR") return [{ priority, text: majorDisplay ? `${majorDisplay}方向` : "目标专业" }];
     if (item.code === "LANGUAGE") return [{ priority, text: criteria.teachingLanguage === "ENGLISH" ? "英文授课" : criteria.teachingLanguage === "CHINESE" ? "中文授课" : "授课语言" }];
     if (item.point.label === "英语") return [{ priority, text: "英语成绩" }];
     if (item.point.label.startsWith("HSK")) return [{ priority, text: "HSK 成绩" }];
@@ -263,7 +325,7 @@ async function verifyDrafts(config: ReturnType<typeof getAiProviderConfig>, inpu
       const payload = await requestAiCompletion(config, [
           { role: "system", content: `你是选校回答的事实审校员。输入只含匿名候选的证据类别、状态和拟写的解释；{{M编号}}是已核验的单项匹配原句，{{C1}}是 covers 中各项匹配依据的合并说明，{{N编号}}是已核验的待核实或过期原句。占位符内容无需你再次证明，服务端会替换为原句。你的任务是检查占位符之外的自由措辞是否新增事实、把待核实说成已满足、弱化过期风险、承诺录取，或把备选说成优先于合作候选。DEGREE 只表示项目学历，LANGUAGE 只表示授课语言。只要事实均由占位符承载，自由措辞仅作取舍判断、谨慎提醒和行动建议，就应判为 grounded=true；不要因为匿名摘要缺少学校、金额或原文而拒绝。只返回 JSON：{"reviews":[{"slot":"A","grounded":true}]}，每个候选只输出一项。` },
           { role: "user", content: JSON.stringify({ supplied: input.supplied, sharedCore: input.sharedCore, sharedIntake: input.sharedIntake, candidates }) },
-      ], { signal, timeoutMs, maxTokens: 384, retries: 0 });
+      ], { signal, timeoutMs, maxTokens: 512, retries: 0 });
       const content = payload?.choices?.[0]?.message?.content;
       if (typeof content === "string" && payload?.choices?.[0]?.finish_reason !== "length") {
         const parsed = reviewSchema.safeParse(extractJsonObject(content));
@@ -286,7 +348,7 @@ async function rewriteSelected(config: ReturnType<typeof getAiProviderConfig>, i
         { role: "system", content: `你是留学选校顾问，为顾问写简短、自然、有判断的推荐说明。sharedCore 为 true 时，共同匹配的专业、授课语言和成绩已在页面开头统一说明；否则各校必须用占位符说明自己的匹配依据。sharedIntake 为 true 时，目标入学时间的共同不确定性也已在开头说明，各校不要重复。每所只保留最有用的一段判断，先说这所值得还是不值得跟进，再说唯一的下一步；不要使用“费用上”“先核实费用：”这类字段式开头，不要连续几所使用同一个开头，不要把同一项风险换句话再说一次。其他院校只能作为备选。
 你只知道匿名类别，不知道学校、具体金额和原始资料。所有具体事实必须原样引用该候选 required 中的占位符，例如 {{M2}}、{{N1}}，系统会替换为已核实的完整事实；每项 required 都必须出现，不要添加任何数字、校名、排名或未经提供的条件。未知信息不能说成已经符合，不要承诺录取。每所最多两句，最终替换后尽量控制在 80 个汉字以内，语气像在向同事解释。只返回 JSON：{"selections":[{"slot":"A","text":"这所值得先联系：{{M2}}。不过，{{N1}}，建议先核实后再推进。"}]}，每个候选一项。` },
         { role: "user", content: JSON.stringify(input) },
-    ], { signal, timeoutMs, maxTokens: 512, retries: 0 });
+    ], { signal, timeoutMs, maxTokens: 768, retries: 0 });
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || payload?.choices?.[0]?.finish_reason === "length") return plan;
     const parsed = rewriteSchema.safeParse(extractJsonObject(content));
@@ -318,7 +380,7 @@ export async function chooseNarrativeFocus(result: ScreeningResponse, signal: Ab
 你不知道学校名称、具体成绩、金额或原始资料，绝不能猜测具体事实。只返回 JSON：{"selections":[{"slot":"A","reasons":["MAJOR"],"caution":"INTAKE","text":"这所值得先联系：{{M1}}，{{M2}}。不过，{{N1}}，建议先核实清楚再推进。"}]}。
 reasons 最多三个，从 matches 选；caution 从 needs 选，没有时为 null。优先回应 emphasis 本轮提及的条件。text 必须用当前候选 evidence 的占位符引用事实，系统会替换为完整的核验原句，并引用 required 的所有编号；有未共享的 needs 时至少引用一个 N。sharedCore=true 时，系统会在开头统一说明各校共有的专业与语言匹配信息，各校 text 不要重复这部分，允许没有 M；sharedIntake=true 时，目标入学时间的共同风险也已在开头说明，不要重复。sharedCore=false 时，有 matches 至少引用一个 M 或 C1；若有 C1，它会概括多项匹配，不要再重复它 covers 里的 M 编号。预算、专业、语言、成绩或学历是否符合都必须使用对应占位符，不要在占位符以外另写这些事实；DEGREE 指项目的申请学历，不是学生已有学位，LANGUAGE 指授课语言，不是语言成绩达标。占位符外可写自然的判断和建议，但不得增加具体事实，不得将未知说成符合；不得承诺录取、写数字或猜测排名、地区。role=alternative 的候选只能作为备选；state=expired 必须提醒核实新批次。每个候选返回一项。` },
         { role: "user", content: JSON.stringify(input) },
-    ], { signal, timeoutMs: 14_000, maxTokens: 900, retries: 0 });
+    ], { signal, timeoutMs: 14_000, maxTokens: 1200, retries: 0 });
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || payload?.choices?.[0]?.finish_reason === "length") {
       logNarrativeMetric({ stage: "focus_incomplete", latencyMs: Date.now() - startedAt, candidates: input.candidates.length });
@@ -425,7 +487,7 @@ function concernText(point: EvidencePoint, criteria: ChatCriteria) {
   if (point.text.includes("截止日期已过")) return "知识库里的截止时间已过，新批次尚待核实";
   if (point.label === "首年预算" && point.level === "NEED" && /名单列有当期学费/u.test(point.text)) return "名单有当期学费，但完整首年费用仍来自旧年或未注明年份的知识库，需要核实";
   if (point.label === "首年预算" && point.level === "NEED" && /未注明适用年份|资料年份为/u.test(point.text)) return "知识库费用的适用年份尚未确认，预算是否足够需要核实";
-  if (point.label === "申请截止" && point.text.includes("需确认适用批次")) return "现有截止日期需要确认是否适用于春季批次";
+  if (point.label === "申请截止" && point.text.includes("需确认适用批次")) return "现有截止日期需要确认是否适用于目标批次";
   if (point.label === "申请截止" && point.level === "UNKNOWN") return "申请截止时间还没有确认";
   if (point.label === "首年预算" && point.level === "UNKNOWN") return "项目首年费用资料不足，暂时无法判断是否在预算内";
   if (point.label === "英语" && point.level === "UNKNOWN") return "项目的英语成绩要求尚未明确";
@@ -442,8 +504,8 @@ export function formatAdvisorConcern(point: EvidencePoint, criteria: ChatCriteri
 
 function nextStep(criteria: ChatCriteria) {
   if (!criteria.programType) return "学生想申请本科、硕士还是博士？告诉我学历后，我可以把范围缩小。";
-  if (!criteria.targetMajor && !["LONG_TERM", "SHORT_TERM"].includes(criteria.programType)) return "如果方便，告诉我学生想读的专业，我可以继续缩小范围。";
-  if (criteria.budget == null) return "如果有首年预算，也可以告诉我，我会再核对费用。";
+  if (!criteria.targetMajor && !criteria.targetMajors?.length && !["LONG_TERM", "SHORT_TERM"].includes(criteria.programType)) return "如果方便，告诉我学生想读的专业，我可以继续缩小范围。";
+  if (criteria.budget == null && !criteria.excludeSelfFunded && !criteria.scholarshipType) return "如果有首年预算，也可以告诉我，我会再核对费用。";
   return undefined;
 }
 
@@ -453,6 +515,7 @@ export function createNarrative(result: ScreeningResponse, plan: Plan | null): N
   const intake = sharedIntake(result, candidates);
   const partnerCount = candidates.filter((candidate) => candidate.group === "partner").length;
   const otherCount = candidates.filter((candidate) => candidate.group === "other").length;
+  const externalCount = result.external?.programs.length ?? 0;
   const primary = result.results.pending.some(isCandidate);
   const alternatives = result.results.other.some(isCandidate);
   const listName = admissionListLabel(result.source);
@@ -463,6 +526,7 @@ export function createNarrative(result: ScreeningResponse, plan: Plan | null): N
     if (candidates.length) lead = excluded > 0
       ? `这次按你的要求查了学校知识库，并排除了前几轮已展示的院校，有 ${candidates.length} 所可以继续比较。`
       : `这次按你的要求查了学校知识库，有 ${candidates.length} 所可以继续比较。`;
+    else if (externalCount > 0) lead = `本地知识库暂无更多新候选，下面补充了 ${externalCount} 个库外院校参考项目。`;
     else if ((result.results.excludedSchoolCount ?? 0) > 0) lead = "这次按你的要求查了学校知识库，前几轮展示过的院校不再重复，暂时没有更多新候选。";
     else lead = "知识库里暂时没有找到可展示的项目。";
   }
@@ -471,8 +535,15 @@ export function createNarrative(result: ScreeningResponse, plan: Plan | null): N
   else if (primary && alternatives) lead = `${listName}里的合作项目信息还不够完整，下面从知识库补充了 ${otherCount} 所候选。`;
   else if (primary) lead = `${listName}里有学校，但项目资料还不足以判断。`;
   else if (alternatives) lead = `${listName}里暂未找到合适项目，下面从知识库补充了 ${otherCount} 所候选。`;
+  else if (externalCount > 0) lead = `本地合作名单与院校知识库暂未匹配到完全符合的项目，下面已为你拓展了 ${externalCount} 个库外院校参考项目。`;
   else if (result.results.pending.length) lead = `${listName}里有学校，但项目资料还不足以判断。`;
   else lead = "按目前条件，暂时没有找到可展示的项目。可以补充一两个关键条件后重试。";
+
+  if (externalCount > 0 && candidates.length > 0) {
+    const sourceTag = result.external?.mode === "web_search" ? "实时联网检索" : "AI 公开知识拓展";
+    lead = `${lead}同时通过${sourceTag}补充了 ${externalCount} 个库外项目。`;
+  }
+
   if ((shared || intake) && candidates.length) {
     const status = [
       shared ? sharedMatchSummary(candidates[0], result.criteria, shared) : null,
@@ -480,7 +551,7 @@ export function createNarrative(result: ScreeningResponse, plan: Plan | null): N
     ].filter(Boolean).join("；");
     if (status) lead = `${lead}\n${status}。`;
   }
-  const highlights = candidates.map((candidate) => {
+  const highlights: NarrativeHighlight[] = candidates.map((candidate) => {
     const choice = plan?.selections.find((item) => item.slot === candidate.slot);
     const ordered = (choice?.reasons ?? []).flatMap((code) => candidate.matches.find((item) => item.code === code) ?? []);
     const requiredMatches = requiredMatchIndexes(candidate, result.criteria).map((index) => candidate.matches[index]);
@@ -494,7 +565,19 @@ export function createNarrative(result: ScreeningResponse, plan: Plan | null): N
     const reasonText = composite ? [...(shared ? [] : [composite.text]), ...reasons.filter((item) => item.code !== "DEGREE" && !composite.covers.includes(`M${candidate.matches.indexOf(item) + 1}`)).map((item) => matchText(item.point))] : reasons.map((item) => matchText(item.point));
     const why = reasonText.length ? `${candidate.group === "other" ? "可以作为备选" : "这所值得先了解"}：${reasonText.join("，")}。` : shared ? (candidate.group === "other" ? "这所可以作为备选。" : "这所也可以继续了解。") : "目前可核对的匹配依据还不够，建议先补充项目资料。";
     const caveat = cautions.length ? `需要注意的是，${cautions.map((item) => concernText(item.point, result.criteria)).join("；")}。` : intake ? "" : "具体项目及申请批次还需要核实。";
-    return { name: candidate.card.name, programId: candidate.card.programId, group: candidate.group, body: generatedExplanation(candidate, result.criteria, choice?.text, choice?.verified, Boolean(shared), Boolean(intake)) ?? `${why}${caveat}`, attention: candidate.card.warning.length > 0, notCooperating: candidate.card.cooperation === "not_cooperating" };
+    return {
+      name: candidate.card.name,
+      programId: candidate.card.programId,
+      group: candidate.group,
+      body: generatedExplanation(candidate, result.criteria, choice?.text, choice?.verified, Boolean(shared), Boolean(intake)) ?? `${why}${caveat}`,
+      attention: candidate.card.warning.length > 0,
+      notCooperating: candidate.card.cooperation === "not_cooperating",
+      score: candidate.card.score,
+      admissionTier: candidate.card.tier,
+      tierReason: candidate.card.tierReason,
+      cityLabel: candidate.card.cityLabel,
+      schoolTags: candidate.card.schoolTags,
+    };
   });
-  return { lead, highlights, next: nextStep(result.criteria) };
+  return { lead, highlights, next: candidates.length || externalCount ? nextStep(result.criteria) : undefined };
 }

@@ -1,11 +1,11 @@
 import { schoolIdentityKey, type EvidencePoint, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse } from "@/lib/ai-screening-events";
-import { RECOMMENDED_SCHOOL_COUNT } from "@/lib/recommendation-profile";
+import { DEFAULT_DISPLAY_SCHOOL_COUNT } from "@/lib/recommendation-profile";
 
 const pointPriority: Record<string, number> = {
   "CSCA": 0, "学校 CSCA 要求": 0, "专业": 1, "首年预算": 2, "奖学金": 3,
   "英语": 4, "HSK级别": 4, "HSK分数": 4, "住宿": 5, "入学年份": 6, "入学季": 6,
-  "申请截止": 7, "授课语言": 8, "申请学历": 9,
+  "申请截止": 7, "授课语言": 8, "申请学历": 9, "地区": 10, "办学性质": 11,
 };
 
 export function isCandidate(card: ResultCard) {
@@ -57,14 +57,17 @@ export function comparisonCards(result: ScreeningResponse) {
         const schoolKey = schoolIdentityKey(item.name);
         return card ?? available.find((candidate) => schoolIdentityKey(candidate.name) === schoolKey) ?? [];
       })
-    : preferredOrder.filter(isCandidate).sort((a, b) => Number(a.cooperation === "not_cooperating") - Number(b.cooperation === "not_cooperating"));
+    : preferredOrder.filter(isCandidate).sort((a, b) =>
+        Number(a.cooperation === "not_cooperating") - Number(b.cooperation === "not_cooperating")
+        || ((b.score ?? 0) - (a.score ?? 0)),
+      );
   const seen = new Set<string>();
   return ordered.filter((card) => {
     const key = resultSchoolKey(card);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, RECOMMENDED_SCHOOL_COUNT);
+  }).slice(0, DEFAULT_DISPLAY_SCHOOL_COUNT);
 }
 
 export function displayProgramName(school: string, program: string) {

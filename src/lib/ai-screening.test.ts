@@ -183,7 +183,7 @@ describe("AI 选校结果组装", () => {
     const open = { ...program, deadlineDate: new Date("2099-01-01T00:00:00Z"), deadlineStatus: "OPEN" };
     const events: boolean[] = [];
     const progress = { onPartnerSearchComplete: (state: { searchingOthers: boolean }) => events.push(state.searchingOthers) };
-    const rows = [row("甲大学", 3), row("乙大学", 4), row("丙大学", 5)];
+    const rows = Array.from({ length: 9 }, (_, index) => row(`合作第${index + 1}大学`, index + 3));
     const programs = rows.map((item, index) => ({
       ...open,
       id: `open-${index}`,
