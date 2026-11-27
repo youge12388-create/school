@@ -364,6 +364,8 @@ export function buildV31ReportPayload(params: {
       const tuitionStr = hasKnownTuition
         ? `${card.facts!.tuition!.toLocaleString("en-US")} 元/年`
         : "未公布，需向学校确认";
+      const schoolSiteId = registerSource(`${card.name}官网`, card.officialUrl, "官网");
+      const kbSourceId = schoolSiteId ?? getInternalKbSourceId();
 
       const reportCard: V31ReportSchoolCard = {
         name_cn: card.name,
@@ -391,9 +393,9 @@ export function buildV31ReportPayload(params: {
           partner_note: pMeta?.partnerNote || undefined,
         } : {}),
         info_rows: [
-          { label: "校内档案项目", value: card.program, source_id: getInternalKbSourceId(), highlight: true },
-          { label: "语言口径", value: card.facts?.teachingLanguage === "ENGLISH" ? "英文授课" : card.facts?.teachingLanguage === "CHINESE" ? "中文授课" : "未公布，需向学校确认", source_id: card.facts?.teachingLanguage === "UNKNOWN" ? null : getInternalKbSourceId(), is_empty: card.facts?.teachingLanguage === "UNKNOWN" },
-          { label: "学费标准", value: tuitionStr, source_id: hasKnownTuition ? getInternalKbSourceId() : null, is_fee: hasKnownTuition, is_empty: !hasKnownTuition },
+          { label: "校内档案项目", value: card.program, source_id: kbSourceId, highlight: true },
+          { label: "语言口径", value: card.facts?.teachingLanguage === "ENGLISH" ? "英文授课" : card.facts?.teachingLanguage === "CHINESE" ? "中文授课" : "未公布，需向学校确认", source_id: card.facts?.teachingLanguage === "UNKNOWN" ? null : kbSourceId, is_empty: card.facts?.teachingLanguage === "UNKNOWN" },
+          { label: "学费标准", value: tuitionStr, source_id: hasKnownTuition ? kbSourceId : null, is_fee: hasKnownTuition, is_empty: !hasKnownTuition },
           { label: "申请截止", value: "截止时间未公布，需联系学校确认", source_id: null, status: "upcoming", is_empty: true },
         ],
         match_rows: [
@@ -480,7 +482,11 @@ export function buildV31ReportPayload(params: {
       match_mode: criteria.strictMajor ? "严格匹配" : "模糊匹配（默认）",
       run_mode: runModeLabel,
       search_date: new Date().toLocaleDateString("zh-CN"),
-      note: `${diagnostic.stateLabel}${diagnostic.finalTier ? ` · 最终定档 ${diagnostic.finalTier}` : ""}；已执行五阶段确定性资格闸门、双向±1档锁池与零虚构守门。`,
+      note: diagnostic.state === "CIRCUIT_BREAKER"
+        ? "当前条件暂不满足直接申请要求，请先补齐前置条件或资金后再重新评估。"
+        : diagnostic.state === "DOWNGRADE_LOCK"
+          ? `当前条件触发衔接路径调整，已聚焦「${diagnostic.pathwayLockLabels.join(" / ")}」方向的可落地院校。`
+          : `按申请条件综合评估${diagnostic.finalTier ? `（参考档位 ${diagnostic.finalTier}）` : ""}，院校信息与核心数据均基于校内档案或高校官网核查。`,
     },
     progress: {
       steps: [

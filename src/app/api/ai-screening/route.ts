@@ -548,7 +548,7 @@ async function search(
         : Promise.resolve(null),
       runExternal(),
     ]);
-    step("summary", "active", "正在综合评分、分档并执行 25 项零虚构守门校验", {
+    step("summary", "active", "正在整理匹配院校、推荐依据与核验来源", {
       progress: 94,
       metrics: { ...liveMetrics },
     });

@@ -17,16 +17,16 @@ async function loadPartners(): Promise<PartnerEntry[]> {
 export async function loadScreeningData() {
   const [list, partners, rawPrograms] = await Promise.all([loadCurrentWorkbook(), loadPartners(), getProgramsForScreening()]);
   const programs = rawPrograms.filter((program) => !isTestPlaceholderSchool(program.schoolName));
-  const schoolRows = (sqlite.prepare(`SELECT id, name_zh AS name, recruitment_preference_text AS preference, updated_at AS updatedAt,
+  const schoolRows = (sqlite.prepare(`SELECT id, name_zh AS name, website, recruitment_preference_text AS preference, updated_at AS updatedAt,
     cooperation_programs AS cooperationPrograms, cooperation_deadline_text AS cooperationDeadline,
     company_recruitment_quota_text AS companyQuota, school_recruitment_plan_text AS recruitmentPlan,
     language_student_assessment_text AS languageAssessment, degree_student_assessment_text AS degreeAssessment,
     cooperation_note AS cooperationNote, special_case_note AS specialCaseNote FROM schools WHERE archived = 0`).all() as {
-      id: string; name: string; preference: string | null; updatedAt: number | null; cooperationPrograms: string | null;
+      id: string; name: string; website: string | null; preference: string | null; updatedAt: number | null; cooperationPrograms: string | null;
       cooperationDeadline: string | null; companyQuota: string | null; recruitmentPlan: string | null;
       languageAssessment: string | null; degreeAssessment: string | null; cooperationNote: string | null; specialCaseNote: string | null;
     }[]).filter((school) => !isTestPlaceholderSchool(school.name));
-  const schools: SchoolInfo[] = schoolRows.map((school) => ({ id: school.id, name: school.name, preference: school.preference, updatedAt: school.updatedAt, internalNotes: [
+  const schools: SchoolInfo[] = schoolRows.map((school) => ({ id: school.id, name: school.name, website: school.website, preference: school.preference, updatedAt: school.updatedAt, internalNotes: [
     { source: "学校合作项目", text: school.cooperationPrograms }, { source: "学校合作截止信息", text: school.cooperationDeadline },
     { source: "公司招生名额", text: school.companyQuota }, { source: "学校招生计划", text: school.recruitmentPlan },
     { source: "语言生考核信息", text: school.languageAssessment }, { source: "学历生考核信息", text: school.degreeAssessment },

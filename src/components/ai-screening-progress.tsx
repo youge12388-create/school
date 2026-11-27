@@ -7,12 +7,12 @@ import type { SearchStep, SearchStepId, SearchStepMetrics } from "@/lib/ai-scree
 const STEP_ORDER: SearchStepId[] = ["understand", "cooperation", "alternatives", "external", "verify", "summary"];
 
 const STEP_LABELS: Record<SearchStepId, string> = {
-  understand: "解析学生画像与硬性条件",
-  cooperation: "核对内部合作台账与风控",
-  alternatives: "检索校内知识库与历史资料",
-  external: "全网定向检索候选院校",
-  verify: "直连 .edu.cn 官网核验与沉淀",
-  summary: "综合分档与 25 项守门自检",
+  understand: "解析申请条件",
+  cooperation: "检索合作院校名单",
+  alternatives: "检索校内院校库",
+  external: "全网检索匹配院校",
+  verify: "直连高校官网核实信息",
+  summary: "整理匹配依据与来源",
 };
 
 function formatElapsed(ms: number): string {

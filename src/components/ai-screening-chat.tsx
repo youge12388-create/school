@@ -2,20 +2,18 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUp, Check, ChevronDown, ClipboardList, Download, ExternalLink, FileText, Globe, GraduationCap, History, MessageSquare, PencilLine, Plus, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, Square, X } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, ChevronDown, ClipboardList, Download, ExternalLink, FileText, GraduationCap, History, MessageSquare, PencilLine, Plus, Settings2, ShieldAlert, SlidersHorizontal, Square, X } from "lucide-react";
 import { PlanDraftPane, type SavedPlan } from "@/components/ai-screening-plan";
 import { SessionHistorySidebar } from "@/components/ai-screening-history";
 import { LiveResearchProgress } from "@/components/ai-screening-progress";
-import type { AdmissionDiagnostic } from "@/lib/admission-rule-engine";
 import { criteriaSchema, hasCriteriaValue, schoolIdentityKey, type ChatCriteria, type ResultCard } from "@/lib/ai-screening";
 import type { ScreeningResponse, ScreeningRunMode, SearchEvent } from "@/lib/ai-screening-events";
-import type { ExternalProgramItem, ExternalScreeningResult } from "@/lib/ai-screening-external";
-import type { PartnerSearchPayload } from "@/lib/partner-school-engine";
 import type { PersistedTurn, ScreeningSessionRecord, ScreeningSessionSummary } from "@/lib/ai-screening-sessions";
-import { renderV31ReportHtml, type V31GateReport, type V31ReportPayload } from "@/lib/v31-report-render";
+import { renderV31ReportHtml, type V31ReportPayload } from "@/lib/v31-report-render";
 import type { WorkbookInfo, WorkbookPreview } from "@/lib/ai-screening-workbook";
 import { moveDraftSchool, removePlanCandidate, togglePlanCandidate, type DraftPlan } from "@/lib/ai-screening-plan";
-import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgramName, isCandidate, outcomeSummary, presentedProgramIds, presentedSchoolNames, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
+import { admissionGroupLabel, admissionListLabel, comparisonCards, displayProgramName, isCandidate, presentedProgramIds, presentedSchoolNames, resultSchoolKey, summarizePoints } from "@/lib/ai-screening-presentation";
+import { buildAdvisorView, type AdvisorCitation, type AdvisorConditionStatus, type AdvisorSchoolMatch } from "@/lib/ai-screening-advisor-view";
 import type { AdmissionTier } from "@/lib/screening-ranking";
 import "./ai-screening.css";
 import { DEFAULT_DISPLAY_SCHOOL_COUNT } from "@/lib/recommendation-profile";
@@ -51,9 +49,9 @@ const degrees: Record<string, string> = { UG: "本科", MASTER: "硕士", PHD: "
 const seasons: Record<string, string> = { SPRING: "春季", SUMMER: "夏季", AUTUMN: "秋季", WINTER: "冬季" };
 
 const tierMeta: Record<AdmissionTier, { zh: string; en: string; descZh: string; descEn: string; className: string }> = {
-  REACH: { zh: "冲刺 Reach", en: "Reach", descZh: "同档择优冲刺，竞争相对较高（最多 3 所）", descEn: "Competitive options within band (max 3)", className: "is-reach" },
-  TARGET: { zh: "稳妥 Match", en: "Match", descZh: "成绩与门槛契合，核心主申（最多 3 所）", descEn: "Well aligned with student profile (max 3)", className: "is-target" },
-  SAFE: { zh: "保底 Safe", en: "Safe", descZh: "相对低风险备选，非录取保证（最多 3 所）", descEn: "Lower-risk options, not guaranteed (max 3)", className: "is-safe" },
+  REACH: { zh: "冲刺", en: "Reach", descZh: "门槛略高，值得争取", descEn: "Competitive options within band", className: "is-reach" },
+  TARGET: { zh: "稳妥", en: "Match", descZh: "条件契合，适合主申", descEn: "Well aligned with student profile", className: "is-target" },
+  SAFE: { zh: "保底", en: "Safe", descZh: "风险较低，适合托底", descEn: "Lower-risk fallback options", className: "is-safe" },
 };
 
 const academicLevelLabels: Record<string, { zh: string; en: string }> = {
@@ -436,13 +434,309 @@ function IncompleteResults({ title, cards }: { title: string; cards: ResultCard[
   return <details className="agent-incomplete"><summary><span>{title}（{new Set(cards.map((card) => schoolIdentityKey(card.name))).size}）</span><ChevronDown size={16} aria-hidden="true" /></summary><ResultSection title={title} cards={cards} hideHeading /></details>;
 }
 
-function V31ReportToolbar({ report, gates, canExportAdvisor }: {
+const CITATION_KIND_LABEL: Record<AdvisorCitation["kind"], string> = {
+  official: "官网",
+  kb: "校内档案",
+  web: "联网来源",
+  list: "合作名单",
+  partner: "合作台账",
+};
+
+const CONDITION_STATUS_CLASS: Record<AdvisorConditionStatus, string> = {
+  good: "is-good",
+  match: "is-match",
+  tight: "is-tight",
+  limit: "is-limit",
+  info: "is-info",
+};
+
+function CitationLinks({
+  ids,
+  citationMap,
+  turnId,
+  onJumpAnchor,
+}: {
+  ids: number[];
+  citationMap: ReadonlyMap<number, AdvisorCitation>;
+  turnId: number;
+  onJumpAnchor: (id: number) => void;
+}) {
+  if (!ids.length) return null;
+  return (
+    <span className="agent-cite-group" aria-label="依据溯源">
+      {ids.map((id) => {
+        const cite = citationMap.get(id);
+        if (!cite) return null;
+        const tip = [
+          `[${cite.id}] ${cite.title}`,
+          cite.domain ? `(${cite.domain})` : null,
+          cite.detail ? `· ${cite.detail}` : null,
+        ].filter(Boolean).join(" ");
+
+        if (cite.href && cite.isExternal) {
+          return (
+            <a
+              key={id}
+              href={cite.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="agent-cite-link"
+              title={`${tip}（点击打开来源网页）`}
+              aria-label={tip}
+            >
+              [{id}]
+            </a>
+          );
+        }
+        if (cite.href && !cite.isExternal) {
+          return (
+            <Link
+              key={id}
+              href={cite.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="agent-cite-link is-kb"
+              title={`${tip}（点击查看校内档案）`}
+              aria-label={tip}
+            >
+              [{id}]
+            </Link>
+          );
+        }
+        return (
+          <a
+            key={id}
+            href={`#turn-${turnId}-cite-${id}`}
+            className="agent-cite-link is-anchor"
+            title={`${tip}（点击定位到参考来源）`}
+            aria-label={tip}
+            onClick={(event) => {
+              event.preventDefault();
+              onJumpAnchor(id);
+            }}
+          >
+            [{id}]
+          </a>
+        );
+      })}
+    </span>
+  );
+}
+
+function AdvisorSchoolCard({
+  item,
+  citationMap,
+  turnId,
+  onJumpAnchor,
+}: {
+  item: AdvisorSchoolMatch;
+  citationMap: ReadonlyMap<number, AdvisorCitation>;
+  turnId: number;
+  onJumpAnchor: (id: number) => void;
+}) {
+  const t = useT();
+  const locale = useLocale();
+  const feedback = useContext(FeedbackContext);
+  const tier = item.tier ? tierMeta[item.tier] : null;
+  const feedbackValue = item.programId ? feedback?.saved[item.programId] : undefined;
+  const feedbackPending = item.programId ? feedback?.pending.has(item.programId) : false;
+
+  return (
+    <article
+      className={`agent-advisor-card${item.notCooperating ? " is-blocked" : ""}`}
+      data-result-school={item.schoolName}
+      data-result-program={item.programId}
+    >
+      <div className="agent-advisor-card-head">
+        <div className="agent-advisor-card-title">
+          <div className="agent-school-title-row">
+            <h4>
+              {item.schoolHref ? (
+                <Link href={item.schoolHref} target="_blank" rel="noopener noreferrer">
+                  {item.schoolName}
+                </Link>
+              ) : item.officialUrl ? (
+                <a href={item.officialUrl} target="_blank" rel="noopener noreferrer">
+                  {item.schoolName}
+                </a>
+              ) : (
+                item.schoolName
+              )}
+            </h4>
+            <div className="agent-result-badges">
+              {tier && <span className={`agent-tier-badge ${tier.className}`}>{locale === "en" ? tier.en : tier.zh}</span>}
+              <span className={`agent-source-badge is-${item.sourceTone}`}>{item.sourceKindLabel}</span>
+            </div>
+          </div>
+          <p className="agent-advisor-program">
+            {item.programName}
+            {item.cityLabel ? ` · ${item.cityLabel}` : ""}
+            {item.schoolNature ? ` · ${item.schoolNature}` : ""}
+          </p>
+        </div>
+        {item.localCard && <CandidatePlanButton card={item.localCard} />}
+      </div>
+
+      {item.keyFacts.length > 0 && (
+        <div className="agent-advisor-facts" aria-label="关键信息">
+          {item.keyFacts.map((fact) => (
+            <span className="agent-advisor-fact" key={`${fact.label}-${fact.value}`}>
+              <em>{fact.label}</em>
+              <span>{fact.value}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {item.reasons.length > 0 && (
+        <div className="agent-advisor-evidence">
+          <strong className="agent-advisor-evidence-title">为什么适合你</strong>
+          <ul className="agent-advisor-reasons">
+            {item.reasons.map((reason, idx) => (
+              <li key={`${reason.label}-${idx}`}>
+                <span className="agent-reason-tag">{reason.label}</span>
+                <span className="agent-reason-text">
+                  {reason.text}
+                  <CitationLinks ids={reason.citationIds} citationMap={citationMap} turnId={turnId} onJumpAnchor={onJumpAnchor} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {item.cautions.length > 0 && (
+        <ul className="agent-advisor-cautions" aria-label="需注意与核实">
+          {item.cautions.map((caution, idx) => (
+            <li key={`${caution.label}-${idx}`}>
+              <strong>{caution.label}：</strong>
+              <span>
+                {caution.text}
+                <CitationLinks ids={caution.citationIds} citationMap={citationMap} turnId={turnId} onJumpAnchor={onJumpAnchor} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <AdmissionsNotice warnings={item.warnings} />
+
+      {((item.programId && item.localCard && isCandidate(item.localCard) && feedback) || item.officialUrl || item.schoolHref) && (
+        <div className="agent-advisor-card-foot">
+          <div className="agent-advisor-card-links">
+            {item.schoolHref && (
+              <Link href={item.schoolHref} target="_blank" rel="noopener noreferrer" className="agent-card-micro-link">
+                校内档案 <ExternalLink size={11} aria-hidden="true" />
+              </Link>
+            )}
+            {item.officialUrl && (
+              <a href={item.officialUrl} target="_blank" rel="noopener noreferrer" className="agent-card-micro-link">
+                学校官网 <ExternalLink size={11} aria-hidden="true" />
+              </a>
+            )}
+          </div>
+          {item.programId && item.localCard && isCandidate(item.localCard) && feedback && (
+            <div className="agent-advisor-feedback">
+              <button
+                type="button"
+                aria-pressed={feedbackValue === "relevant"}
+                onClick={() => feedback.submit(item.programId!, "relevant")}
+                disabled={feedbackPending || feedbackValue === "relevant"}
+              >
+                {t(feedbackValue === "relevant" ? "已标记有帮助" : "有帮助")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={feedbackValue === "not_relevant"}
+                onClick={() => feedback.submit(item.programId!, "not_relevant")}
+                disabled={feedbackPending || feedbackValue === "not_relevant"}
+              >
+                {t(feedbackValue === "not_relevant" ? "已标记不合适" : "不合适")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function AdvisorCitationsFooter({
+  citations,
+  turnId,
+  expanded,
+  highlightedId,
+  onToggleExpand,
+}: {
+  citations: AdvisorCitation[];
+  turnId: number;
+  expanded: boolean;
+  highlightedId: number | null;
+  onToggleExpand: () => void;
+}) {
+  if (!citations.length) return null;
+  const visible = expanded || citations.length <= 6 ? citations : citations.slice(0, 6);
+  return (
+    <section className="agent-sources-footer" aria-label="依据与参考来源">
+      <div className="agent-sources-head">
+        <strong>参考来源与溯源（{citations.length}）</strong>
+        {citations.length > 6 && (
+          <button type="button" className="agent-sources-toggle" onClick={onToggleExpand}>
+            {expanded ? "收起部分来源" : `展开全部 ${citations.length} 条`}
+          </button>
+        )}
+      </div>
+      <ol className="agent-sources-list">
+        {visible.map((cite) => (
+          <li
+            key={cite.id}
+            id={`turn-${turnId}-cite-${cite.id}`}
+            className={highlightedId === cite.id ? "is-highlighted" : undefined}
+          >
+            <span className="agent-source-num">[{cite.id}]</span>
+            <span className={`agent-source-kind is-${cite.kind}`}>{CITATION_KIND_LABEL[cite.kind]}</span>
+            <span className="agent-source-body">
+              {cite.href && cite.isExternal ? (
+                <a href={cite.href} target="_blank" rel="noopener noreferrer">
+                  {cite.title}
+                  {cite.domain ? <small> ({cite.domain})</small> : null}
+                  <ExternalLink size={11} aria-hidden="true" />
+                </a>
+              ) : cite.href && !cite.isExternal ? (
+                <Link href={cite.href} target="_blank" rel="noopener noreferrer">
+                  {cite.title}
+                  <ExternalLink size={11} aria-hidden="true" />
+                </Link>
+              ) : (
+                <span>
+                  {cite.title}
+                  {cite.schoolHref && (
+                    <>
+                      {" · "}
+                      <Link href={cite.schoolHref} target="_blank" rel="noopener noreferrer">
+                        打开校内档案 <ExternalLink size={10} aria-hidden="true" />
+                      </Link>
+                    </>
+                  )}
+                </span>
+              )}
+              {cite.detail && <em className="agent-source-detail">{cite.detail}</em>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ReportExportBar({
+  report,
+  canExportAdvisor,
+}: {
   report: V31ReportPayload;
-  gates?: V31GateReport | null;
   canExportAdvisor: boolean;
 }) {
   const openDrawerPreview = useContext(ReportPreviewContext);
-  const [showGateDetails, setShowGateDetails] = useState(false);
 
   function openNewTab(variant: "student" | "advisor") {
     const html = renderV31ReportHtml(report, { variant });
@@ -466,599 +760,437 @@ function V31ReportToolbar({ report, gates, canExportAdvisor }: {
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
-  const passCount = gates?.passedCount ?? 25;
-  const totalCount = gates?.totalCount ?? 25;
-  const gateWarnings = [
-    ...(gates?.policyWarnings ?? []),
-    ...(gates?.fabricationWarnings ?? []),
-    ...(gates?.checks.filter((c) => !c.passed).map((c) => `规则未通过：${c.name}`) ?? []),
-  ];
-
   return (
-    <div className="agent-v31-toolbar-wrap">
-      <div className="agent-v31-toolbar" aria-label="v3.1 评估报告与守门摘要">
-        <div className="agent-v31-meta">
-          {report.student.gpa_band && (
-            <span className="agent-v31-pill is-band">成绩定档：{report.student.gpa_band}</span>
-          )}
-          <button
-            type="button"
-            className={`agent-v31-pill agent-v31-pill-btn ${gates?.allPassed ? "is-pass" : "is-warn"}`}
-            aria-expanded={showGateDetails}
-            onClick={() => setShowGateDetails((v) => !v)}
-            title="点击查看 25 项零虚构与规则守门明细"
-          >
-            守门自检 {passCount}/{totalCount} {gates?.allPassed ? "通过" : `· ${gateWarnings.length} 条零虚构提示`}
-            <ChevronDown size={11} aria-hidden="true" />
-          </button>
-          <span className="agent-v31-pill">
-            正式 {report.tiers.reach.schools.length + report.tiers.match.schools.length + report.tiers.safety.schools.length} 所
-            {report.historical_candidates.length > 0 ? ` · 历史预匹配 ${report.historical_candidates.length} 所` : ""}
-          </span>
-        </div>
-        <div className="agent-v31-actions">
-          <button
-            type="button"
-            className="is-primary-action"
-            onClick={() => {
-              const variant = canExportAdvisor ? "advisor" : "student";
-              if (openDrawerPreview) openDrawerPreview(report, variant);
-              else openNewTab(variant);
-            }}
-          >
-            <FileText size={13} aria-hidden="true" /> 预览评估报告
-          </button>
-          <button type="button" onClick={() => downloadHtml("student")}>
-            <Download size={13} aria-hidden="true" /> 学生版 HTML
-          </button>
-          {canExportAdvisor && (
-            <button type="button" onClick={() => downloadHtml("advisor")}>
-              <Download size={13} aria-hidden="true" /> 顾问版 HTML
-            </button>
-          )}
-        </div>
-      </div>
-
-      {showGateDetails && (
-        <div className="agent-v31-gate-drawer" role="region" aria-label="守门自检明细">
-          {gateWarnings.length > 0 ? (
-            <>
-              <strong>零虚构与策略拦截说明（共 {gateWarnings.length} 条）：</strong>
-              <ul>
-                {gateWarnings.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </>
-          ) : (
-            <p>全部 {totalCount} 项结构、批次年份、成绩分档与零虚构检查均已通过，无替换告警。</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PartnerQuickSection({ data, onSwitchMode2 }: {
-  data: PartnerSearchPayload;
-  onSwitchMode2: () => void;
-}) {
-  return (
-    <section className="agent-partner-quick" aria-label="内部合作院校快检结果">
-      {data.nonPartnerWarnings.length > 0 && (
-        <div className="agent-excluded-box">
-          <strong>⛔ 非合作院校预警</strong>
-          <ul>{data.nonPartnerWarnings.map((w) => <li key={w.school}><strong>{w.school}：</strong>{w.warning}</li>)}</ul>
-        </div>
-      )}
-
-      {data.results.length > 0 ? (
-        <div className="agent-ext-list" style={{ marginTop: 12 }}>
-          {data.results.map((item) => (
-            <article className="agent-ext-card" key={`${item.schoolName}-${item.matchedLevel}`}>
-              <div className="agent-ext-head">
-                <div className="agent-ext-title">
-                  <h4>{item.schoolName} {item.nameEn ? <small style={{ fontWeight: 400, color: "#687b91" }}>({item.nameEn})</small> : null}</h4>
-                  <p className="agent-program">{item.schoolLevelLabel} · {item.city || "城市待核"} · {item.matchedLevelLabel}</p>
-                </div>
-                <div className="agent-result-badges">
-                  <span className="agent-tier-badge is-target">{item.partnerBadgeText}</span>
-                  {item.spring2027Status === "published_27_spring" && <span className="agent-source-badge is-web">27春简章已出</span>}
-                </div>
-              </div>
-              <dl className="agent-ext-grid">
-                <div><dt>学费参考</dt><dd>{item.tuitionText || "详见台账"}</dd></div>
-                <div><dt>奖学金</dt><dd>{item.scholarshipSummary || "未录入"}</dd></div>
-                <div><dt>截止时间</dt><dd>{item.deadlineSummary || "未录入"}</dd></div>
-              </dl>
-              {item.majorMatchTag && <p className="agent-ext-note"><strong>专业方向：</strong>{item.majorMatchTag}</p>}
-              {item.nationalityTag && <p className="agent-ext-note"><strong>生源提示：</strong>{item.nationalityTag}</p>}
-              {item.budgetNote && <p className="agent-ext-caution"><strong>预算提示：</strong>{item.budgetNote}</p>}
-              {item.requirementsSummary && <p className="agent-ext-fit"><strong>申请要求：</strong>{item.requirementsSummary.slice(0, 180)}</p>}
-              {item.partnerNote && <p className="agent-ext-caution"><strong>台账备注：</strong>{item.partnerNote}</p>}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="agent-empty-result" style={{ marginTop: 10 }}>
-          <strong>内部合作库暂无完全匹配学校</strong>
-          <p>建议放宽条件或切换模式二通过全网 .edu.cn 官网检索补齐。</p>
-        </div>
-      )}
-
-      {(data.blockedByPolicy.length > 0 || data.blockedByGpaBand.length > 0) && (
-        <details className="agent-incomplete" style={{ marginTop: 12 }}>
-          <summary><span>已按政策或成绩档位拦截（{data.blockedByPolicy.length + data.blockedByGpaBand.length} 所）</span><ChevronDown size={14} aria-hidden="true" /></summary>
-          <div className="agent-excluded-box">
-            <ul>
-              {data.blockedByPolicy.map((b, i) => <li key={`p-${i}`}><strong>{b.school} ({b.partnerTier})：</strong>{b.reason}</li>)}
-              {data.blockedByGpaBand.map((b, i) => <li key={`g-${i}`}><strong>{b.school} ({b.partnerTier})：</strong>{b.reason}</li>)}
-            </ul>
-          </div>
-        </details>
-      )}
-
-      <div style={{ marginTop: 12 }}>
-        <button type="button" className="agent-other-button" onClick={onSwitchMode2}>
-          切换为「模式二：合作优先+全网补齐」继续深度核查
+    <div className="agent-report-bar" aria-label="导出完整评估报告">
+      <span className="agent-report-bar-label">需要发给学生或归档？</span>
+      <div className="agent-v31-actions">
+        <button
+          type="button"
+          className="is-primary-action"
+          onClick={() => {
+            const variant = canExportAdvisor ? "advisor" : "student";
+            if (openDrawerPreview) openDrawerPreview(report, variant);
+            else openNewTab(variant);
+          }}
+        >
+          <FileText size={13} aria-hidden="true" /> 预览报告
         </button>
-      </div>
-    </section>
-  );
-}
-
-function HistoricalAndSourcesSection({ report }: { report: V31ReportPayload }) {
-  if (!report.historical_candidates.length && !report.sources.length) return null;
-  return (
-    <div className="agent-v31-extra">
-      {report.historical_candidates.length > 0 && (
-        <details className="agent-incomplete" open>
-          <summary><span>历史规则预匹配候选（{report.historical_candidates.length} 所 · 目标批次简章待发布）</span><ChevronDown size={14} aria-hidden="true" /></summary>
-          <div className="agent-ext-list" style={{ marginTop: 8 }}>
-            {report.historical_candidates.map((item, idx) => (
-              <div className="agent-ext-card" key={`${item.school}-${idx}`}>
-                <div className="agent-ext-head">
-                  <div className="agent-ext-title">
-                    <h4>{item.school}</h4>
-                    <p className="agent-program">{item.program} · 参考 {item.reference_year} 批次（目标 {item.target_year}）</p>
-                  </div>
-                  <div className="agent-result-badges">
-                    <span className="agent-tier-badge is-target">{item.preliminary_tier}</span>
-                    {item.partner_tag && <span className="agent-source-badge is-partner">{item.partner_tag}</span>}
-                  </div>
-                </div>
-                <p className="agent-ext-fit">{item.historical_summary}</p>
-                {item.source_url && <div className="agent-ext-sources"><a href={item.source_url} target="_blank" rel="noopener noreferrer">查看官网依据 <ExternalLink size={11} aria-hidden="true" /></a></div>}
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-      {report.sources.length > 0 && (
-        <details className="agent-history">
-          <summary><span>官网数据来源汇总（{report.sources.length} 条）</span><ChevronDown size={14} aria-hidden="true" /></summary>
-          <div className="agent-history-content">
-            <ol>
-              {report.sources.map((src) => (
-                <li key={src.id}>[{src.id}] {src.name}（{src.type}）：<a href={src.url} target="_blank" rel="noopener noreferrer">{src.url}</a></li>
-              ))}
-            </ol>
-          </div>
-        </details>
-      )}
-    </div>
-  );
-}
-
-function ExternalProgramCard({ item, locale }: { item: ExternalProgramItem; locale: "zh" | "en" }) {
-  const tier = tierMeta[item.tier];
-  const windowLabel = item.windowStatus === "open" ? "开放中" : item.windowStatus === "wait" ? "往年参考" : item.windowStatus === "upcoming" ? "即将开放" : null;
-  return <article className="agent-ext-card" data-result-school={item.schoolName}>
-    <div className="agent-ext-head">
-      <div className="agent-ext-title">
-        <h4>{item.schoolName}</h4>
-        <p className="agent-program">{item.programName}</p>
-      </div>
-      <div className="agent-result-badges">
-        <span className={`agent-tier-badge ${tier.className}`}>{locale === "en" ? tier.en : tier.zh}</span>
-        {item.partnerBadge && <span className={`agent-source-badge ${item.isPartner ? "is-partner" : "is-kb"}`}>{item.partnerBadge}</span>}
-        <span className="agent-score-badge">{item.score} 分</span>
-        {windowLabel && <span className={`agent-source-badge ${item.windowStatus === "open" ? "is-web" : "is-ai"}`}>{windowLabel}</span>}
-        <span className={`agent-source-badge ${item.groundedBySearch ? "is-web" : "is-ai"}`}>
-          {item.officialVerified ? <><Globe size={11} aria-hidden="true" /> 官网核实</> : item.groundedBySearch ? <><Globe size={11} aria-hidden="true" /> 联网参考</> : <><Sparkles size={11} aria-hidden="true" /> AI 拓展</>}
-        </span>
+        <button type="button" onClick={() => downloadHtml("student")}>
+          <Download size={13} aria-hidden="true" /> 学生版 HTML
+        </button>
+        {canExportAdvisor && (
+          <button type="button" onClick={() => downloadHtml("advisor")}>
+            <Download size={13} aria-hidden="true" /> 顾问版 HTML
+          </button>
+        )}
       </div>
     </div>
-    <dl className="agent-ext-grid">
-      <div><dt>所在城市 / 性质</dt><dd>{[item.city, item.schoolNature].filter(Boolean).join(" · ") || "—"}</dd></div>
-      <div><dt>授课语言 / 学制</dt><dd>{[item.teachingLanguage, item.duration].filter(Boolean).join(" · ") || "—"}</dd></div>
-      <div><dt>学费 / 奖学金</dt><dd>{item.tuitionText ? `${item.tuitionText}；` : ""}{item.scholarshipEligible ? `可申请：${item.scholarshipSummary}` : item.scholarshipSummary}</dd></div>
-      <div><dt>申请截止参考</dt><dd>{item.deadline}</dd></div>
-      <div><dt>硬性语言要求</dt><dd>{item.languageRequirement}</dd></div>
-      <div><dt>官网 / 来源</dt><dd>{item.officialUrl ? <a href={item.officialUrl} target="_blank" rel="noopener noreferrer" className="agent-ext-link">{item.officialUrl.replace(/^https?:\/\//u, "").slice(0, 48)} <ExternalLink size={12} aria-hidden="true" /></a> : "请人工查询学校国际招生官网"}</dd></div>
-    </dl>
-    {item.partnerNote && <p className="agent-ext-caution"><strong>合作台账：</strong>{item.partnerNote}</p>}
-    {item.degreeAndExamNotes && <p className="agent-ext-note"><strong>学位 / 考试说明：</strong>{item.degreeAndExamNotes}</p>}
-    {item.fitReason && <p className="agent-ext-fit">{item.fitReason}</p>}
-    {item.caution && <p className="agent-ext-caution"><strong>需核实：</strong>{item.caution}</p>}
-    {item.sourceUrls.length > 0 && <div className="agent-ext-sources">
-      <span>参考网页：</span>
-      {item.sourceUrls.slice(0, 3).map((url, idx) => <a key={url} href={url} target="_blank" rel="noopener noreferrer">来源 {idx + 1} <ExternalLink size={11} aria-hidden="true" /></a>)}
-    </div>}
-  </article>;
-}
-
-function ExternalScreeningSection({ external }: { external: ExternalScreeningResult }) {
-  const locale = useLocale();
-  const [groupByTier, setGroupByTier] = useState(true);
-  const tiers: AdmissionTier[] = ["REACH", "TARGET", "SAFE"];
-  const tierCounts = useMemo(() => ({
-    REACH: external.programs.filter((item) => item.tier === "REACH").length,
-    TARGET: external.programs.filter((item) => item.tier === "TARGET").length,
-    SAFE: external.programs.filter((item) => item.tier === "SAFE").length,
-  }), [external.programs]);
-  const sortedByScore = useMemo(
-    () => [...external.programs].sort((a, b) => b.score - a.score),
-    [external.programs],
-  );
-  return <section className="agent-external-section" aria-label="库外院校拓展参考">
-    <div className="agent-external-head">
-      <div>
-        <h3>
-          {external.mode === "web_search"
-            ? <><Globe size={15} aria-hidden="true" /> 库外院校公开检索（实时联网）</>
-            : <><Sparkles size={15} aria-hidden="true" /> 库外院校公开拓展（AI 参考 · 需核实官网）</>}
-        </h3>
-        {external.summary && <p className="agent-external-summary">{external.summary}</p>}
-        {external.programs.length > 0 && <p className="agent-tier-quota-summary">本组三档分布：冲 {tierCounts.REACH}/3 · 稳 {tierCounts.TARGET}/3 · 保 {tierCounts.SAFE}/3</p>}
-      </div>
-      {external.programs.length > 1 && <div className="agent-view-toggle" role="group" aria-label="排序方式">
-        <button type="button" aria-pressed={groupByTier} onClick={() => setGroupByTier(true)}>三档分层</button>
-        <button type="button" aria-pressed={!groupByTier} onClick={() => setGroupByTier(false)}>综合分排序</button>
-      </div>}
-    </div>
-
-    {external.programs.length > 0 && (groupByTier ? (
-      <div className="agent-tier-groups">
-        {tiers.map((tierKey) => {
-          const items = external.programs.filter((item) => item.tier === tierKey);
-          if (!items.length) return null;
-          const meta = tierMeta[tierKey];
-          return <div className="agent-tier-block" key={tierKey}>
-            <div className="agent-tier-heading">
-              <span className={`agent-tier-badge ${meta.className}`}>{locale === "en" ? meta.en : meta.zh}</span>
-              <span className="agent-tier-desc">{locale === "en" ? meta.descEn : meta.descZh}（{items.length}）</span>
-            </div>
-            <div className="agent-ext-list">
-              {items.map((item, idx) => <ExternalProgramCard key={`${item.schoolName}-${item.programName}-${idx}`} item={item} locale={locale} />)}
-            </div>
-          </div>;
-        })}
-      </div>
-    ) : (
-      <div className="agent-ext-list">
-        {sortedByScore.map((item, idx) => <ExternalProgramCard key={`${item.schoolName}-${item.programName}-${idx}`} item={item} locale={locale} />)}
-      </div>
-    ))}
-
-    {external.excludedNotes && external.excludedNotes.length > 0 && <div className="agent-excluded-box">
-      <strong>参考池排除说明</strong>
-      <ul>{external.excludedNotes.map((note, idx) => <li key={idx}>{note}</li>)}</ul>
-    </div>}
-
-    {external.policyNotes.length > 0 && <div className="agent-policy-box">
-      <strong>专项政策与核实建议</strong>
-      <div className="agent-policy-list">
-        {external.policyNotes.map((note, idx) => <div className="agent-policy-item" key={idx}>
-          <h4>{note.title}</h4>
-          <p>{note.content}</p>
-          {note.sourceUrls && note.sourceUrls.length > 0 && <div className="agent-ext-sources">
-            {note.sourceUrls.map((url, sIdx) => <a key={url} href={url} target="_blank" rel="noopener noreferrer">参考链接 {sIdx + 1} <ExternalLink size={11} aria-hidden="true" /></a>)}
-          </div>}
-        </div>)}
-      </div>
-    </div>}
-
-    <p className="agent-external-disclaimer">{external.disclaimer}</p>
-  </section>;
-}
-
-function NarrativeSchoolGroups({ result }: { result: ScreeningResponse }) {
-  const locale = useLocale();
-  const highlights = result.narrative?.highlights ?? [];
-  const [groupByTier, setGroupByTier] = useState(true);
-  if (!highlights.length) return null;
-  const cardBySchool = new Map<string, ResultCard>();
-  const cardByProgram = new Map<string, ResultCard>();
-  for (const card of [...result.results.confirmed, ...result.results.pending, ...result.results.other]) {
-    const key = schoolIdentityKey(card.name);
-    if (!cardBySchool.has(key)) cardBySchool.set(key, card);
-    if (card.programId) cardByProgram.set(card.programId, card);
-  }
-  const hasTiers = highlights.some((item) => item.admissionTier);
-  const tierCounts = {
-    REACH: highlights.filter((item) => (item.admissionTier ?? "TARGET") === "REACH").length,
-    TARGET: highlights.filter((item) => (item.admissionTier ?? "TARGET") === "TARGET").length,
-    SAFE: highlights.filter((item) => (item.admissionTier ?? "TARGET") === "SAFE").length,
-  };
-  const hasMissingTierSlot = tierCounts.REACH < 3 || tierCounts.TARGET < 3 || tierCounts.SAFE < 3;
-
-  const renderItem = (item: typeof highlights[number], index: number) => {
-    const program = item.programId ? cardByProgram.get(item.programId) : undefined;
-    const card = program ?? cardBySchool.get(schoolIdentityKey(item.name));
-    const tier = item.admissionTier ? tierMeta[item.admissionTier] : null;
-    const score = item.score ?? card?.score;
-    return <article className="agent-school-item" data-result-school={item.name} data-result-program={program?.programId} key={`${item.name}-${index}`}>
-      <div className="agent-school-heading"><div className="agent-school-title">
-        <div className="agent-school-title-row">
-          <h4>{card?.schoolId ? <Link href={`/schools/${encodeURIComponent(card.schoolId)}`}>{item.name}</Link> : item.name}</h4>
-          <div className="agent-result-badges">
-            {tier && <span className={`agent-tier-badge ${tier.className}`}>{locale === "en" ? tier.en : tier.zh}</span>}
-            {typeof score === "number" && <span className="agent-score-badge">{score} 分</span>}
-            <span className={`agent-source-badge ${item.group === "partner" ? "is-partner" : "is-kb"}`}>
-              {item.notCooperating ? "标注不合作" : item.group === "partner" ? "合作院校" : "校内知识库"}
-            </span>
-          </div>
-        </div>
-        {program && <p className="agent-program">{displayProgramName(program.name, program.program)}{item.cityLabel ? ` · ${item.cityLabel}` : ""}{item.schoolTags ? ` · ${item.schoolTags}` : ""}</p>}
-      </div>
-        {program && <CandidatePlanButton card={program} />}
-      </div>
-      <p>{item.body}</p>
-      {item.tierReason && <p className="agent-tier-reason">{item.tierReason}</p>}
-      {program && <CscaBasis card={program} />}
-      <AdmissionsNotice warnings={card?.warning ?? []} />
-    </article>;
-  };
-
-  if (groupByTier && hasTiers) {
-    const tiers: AdmissionTier[] = ["REACH", "TARGET", "SAFE"];
-    return <div className="agent-school-groups">
-      <div className="agent-local-toolbar">
-        <span className="agent-local-toolbar-label">校内库核验候选（{highlights.length} 所 · 冲 {tierCounts.REACH}/3 · 稳 {tierCounts.TARGET}/3 · 保 {tierCounts.SAFE}/3）</span>
-        <div className="agent-view-toggle" role="group" aria-label="校内结果视图">
-          <button type="button" aria-pressed={true} onClick={() => setGroupByTier(true)}>三档分层</button>
-          <button type="button" aria-pressed={false} onClick={() => setGroupByTier(false)}>按来源分组</button>
-        </div>
-      </div>
-      {tiers.map((tierKey) => {
-        const items = highlights.filter((item) => (item.admissionTier ?? "TARGET") === tierKey);
-        if (!items.length) return null;
-        const meta = tierMeta[tierKey];
-        return <section className="agent-school-group" data-kind={tierKey.toLowerCase()} key={tierKey}>
-          <h3><span className={`agent-tier-badge ${meta.className}`}>{locale === "en" ? meta.en : meta.zh}</span> {locale === "en" ? meta.descEn : meta.descZh}</h3>
-          <div className="agent-school-list">{items.map(renderItem)}</div>
-        </section>;
-      })}
-      {hasMissingTierSlot && <p className="agent-tier-gap-note">注：某档不足 3 所或未显示时，说明当前成绩档位与硬性条件下暂无更多合格院校，系统不跨档强行凑数。</p>}
-    </div>;
-  }
-
-  const groups = [
-    { key: "partner", title: admissionGroupLabel(result.source, "partner"), items: highlights.filter((item) => item.group === "partner" && !item.notCooperating) },
-    { key: "other", title: admissionGroupLabel(result.source, "other"), items: highlights.filter((item) => item.group === "other" && !item.notCooperating) },
-    { key: "blocked", title: `${admissionListLabel(result.source)} · 标注不合作`, items: highlights.filter((item) => item.notCooperating) },
-  ].filter((group) => group.items.length > 0);
-  return <div className="agent-school-groups">
-    {hasTiers && highlights.length > 1 && <div className="agent-local-toolbar">
-      <span className="agent-local-toolbar-label">校内库核验候选（{highlights.length} 所 · 按综合评分排序）</span>
-      <div className="agent-view-toggle" role="group" aria-label="校内结果视图">
-        <button type="button" aria-pressed={false} onClick={() => setGroupByTier(true)}>三档分层</button>
-        <button type="button" aria-pressed={true} onClick={() => setGroupByTier(false)}>按来源分组</button>
-      </div>
-    </div>}
-    {groups.map((group) => <section className="agent-school-group" data-kind={group.key} key={group.key} aria-label={group.title}>
-      <h3>{group.title}</h3>
-      <div className="agent-school-list">{group.items.map(renderItem)}</div>
-    </section>)}
-  </div>;
-}
-
-function DiagnosticBanner({ diagnostic }: { diagnostic: AdmissionDiagnostic }) {
-  const tone =
-    diagnostic.state === "CIRCUIT_BREAKER"
-      ? "is-stop"
-      : diagnostic.state === "DOWNGRADE_LOCK"
-        ? "is-downgrade"
-        : "is-normal";
-  const hasTierShift = Boolean(
-    diagnostic.initialTier && diagnostic.finalTier && diagnostic.initialTier !== diagnostic.finalTier,
-  );
-  const keyBottlenecks = diagnostic.bottlenecks.filter((b) => b.severity !== "WARN" || diagnostic.state === "NORMAL");
-
-  return (
-    <section className={`agent-diagnostic ${tone}`} aria-label="五阶段确定性资格定档与风控诊断">
-      <div className="agent-diagnostic-head">
-        <div className="agent-diagnostic-title">
-          <span className={`agent-diagnostic-badge ${tone}`}>{diagnostic.stateLabel}</span>
-          <strong>{diagnostic.advisory.headline}</strong>
-        </div>
-        <div className="agent-diagnostic-pills">
-          {diagnostic.academic.normPct != null && (
-            <span className="agent-diagnostic-pill">
-              等效均分 {diagnostic.academic.normPct}%（{diagnostic.academic.systemLabel}）
-            </span>
-          )}
-          {diagnostic.finalTier && (
-            <span className="agent-diagnostic-pill is-tier">
-              {hasTierShift ? `档位：${diagnostic.initialTier} → ${diagnostic.finalTier}` : `最终定档：${diagnostic.finalTier}`}
-            </span>
-          )}
-          {diagnostic.state !== "CIRCUIT_BREAKER" && diagnostic.tierWindow.matchTier && (
-            <span className="agent-diagnostic-pill">
-              锁池：冲 {diagnostic.tierWindow.reachTier ?? "—"} / 稳 {diagnostic.tierWindow.matchTier} / 保 {diagnostic.tierWindow.safetyTier ?? "—"}
-            </span>
-          )}
-          {diagnostic.englishExemption !== "NONE" && (
-            <span className="agent-diagnostic-pill">
-              {diagnostic.englishExemption === "NATIVE_EXEMPT" ? "6国英语豁免" : "MOI高风控审查"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <p className="agent-diagnostic-desc">{diagnostic.advisory.diagnosisParagraph}</p>
-
-      {diagnostic.pathwayLockLabels.length > 0 && diagnostic.state !== "CIRCUIT_BREAKER" && (
-        <div className="agent-diagnostic-locks">
-          <span>允许路径：</span>
-          {diagnostic.pathwayLockLabels.map((label) => (
-            <span className="agent-diagnostic-lock-chip" key={label}>{label}</span>
-          ))}
-        </div>
-      )}
-
-      {keyBottlenecks.length > 0 && (
-        <ul className="agent-diagnostic-list">
-          {keyBottlenecks.slice(0, 5).map((hit, idx) => (
-            <li key={`${hit.code}-${idx}`}>
-              <strong>{hit.summary}：</strong>{hit.effect}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {diagnostic.modifiers.length > 0 && (
-        <div className="agent-diagnostic-modifiers">
-          {diagnostic.modifiers.map((m) => (
-            <p key={m.type}><strong>{m.summary}：</strong>{m.action}</p>
-          ))}
-        </div>
-      )}
-
-      {diagnostic.state === "DOWNGRADE_LOCK" && diagnostic.curatedFallbacks.length > 0 && (
-        <div className="agent-diagnostic-fallbacks">
-          <strong>结构化承接院校参考（符合当前路径锁与预算/年龄底线）</strong>
-          <div className="agent-diagnostic-fallback-grid">
-            {diagnostic.curatedFallbacks.map((item) => (
-              <div className="agent-diagnostic-fallback-card" key={`${item.schoolName}-${item.pathway}`}>
-                <div className="agent-diagnostic-fallback-head">
-                  <span>{item.schoolName}</span>
-                  <small>{item.city} · {item.tier} · {item.pathwayLabel}</small>
-                </div>
-                <p>{item.reason}</p>
-                <p className="agent-diagnostic-fallback-cost">首年参考：{item.estimatedFirstYearCost} · {item.caution}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {diagnostic.advisory.actionPlan.length > 0 && (
-        <div className="agent-diagnostic-plan">
-          <strong>{diagnostic.state === "CIRCUIT_BREAKER" ? "1 年期提升与重启行动计划" : "顾问下一步行动清单"}</strong>
-          <ul>
-            {diagnostic.advisory.actionPlan.map((line, i) => <li key={i}>{line}</li>)}
-          </ul>
-        </div>
-      )}
-
-      <details className="agent-diagnostic-details">
-        <summary>
-          <span>查看真实首年账单、续奖年审风险、缺失槽位假设（已收口 {diagnostic.slotAudit.filledCount}/{diagnostic.slotAudit.totalCount} 项）</span>
-          <ChevronDown size={13} aria-hidden="true" />
-        </summary>
-        <div className="agent-diagnostic-details-body">
-          <ul>
-            {diagnostic.advisory.firstYearCostChecklist.map((item, i) => <li key={`cost-${i}`}>{item}</li>)}
-          </ul>
-          {diagnostic.slotAudit.explicitAssumptions.length > 0 && (
-            <>
-              <strong>显式假设与待补槽位：</strong>
-              <ul>
-                {diagnostic.slotAudit.explicitAssumptions.map((item, i) => <li key={`slot-${i}`}>{item}</li>)}
-              </ul>
-            </>
-          )}
-        </div>
-      </details>
-
-      <p className="agent-diagnostic-legal">{diagnostic.advisory.legalComplianceNotice}</p>
-    </section>
   );
 }
 
-function Answer({ result, onOthers, onSwitchMode2, busy }: { result: ScreeningResponse; onOthers: () => void; onSwitchMode2: () => void; busy: boolean }) {
+function Answer({
+  turnId,
+  result,
+  onOthers,
+  onSwitchMode2,
+  busy,
+}: {
+  turnId: number;
+  result: ScreeningResponse;
+  onOthers: () => void;
+  onSwitchMode2: () => void;
+  busy: boolean;
+}) {
   const t = useT();
   const locale = useLocale();
+  const [groupByTier, setGroupByTier] = useState(true);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [highlightedCite, setHighlightedCite] = useState<number | null>(null);
+  const highlightTimer = useRef<number | null>(null);
+
+  const view = useMemo(() => buildAdvisorView(result), [result]);
+  const citationMap = useMemo(
+    () => new Map(view.citations.map((item) => [item.id, item])),
+    [view.citations],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+    };
+  }, []);
+
+  const handleJumpCitation = useCallback((id: number) => {
+    setSourcesExpanded(true);
+    setHighlightedCite(id);
+    if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+    window.requestAnimationFrame(() => {
+      const el = document.getElementById(`turn-${turnId}-cite-${id}`);
+      if (el) el.scrollIntoView({ behavior: "auto", block: "center" });
+    });
+    highlightTimer.current = window.setTimeout(() => setHighlightedCite(null), 2000);
+  }, [turnId]);
+
   const { confirmed, pending, other, otherHidden } = result.results;
-  const isCircuitBreaker = result.diagnostic?.state === "CIRCUIT_BREAKER";
-  const showDiagnostic = Boolean(result.diagnostic && !result.conversation);
-  const conditions = criteriaLabels(result.criteria, locale);
   const pendingProjects = pending.filter(isCandidate);
   const pendingSchools = pending.filter((card) => !isCandidate(card));
   const otherProjects = other.filter(isCandidate);
   const otherSchools = other.filter((card) => !isCandidate(card));
   const listName = admissionListLabel(result.source);
-  const otherResults = <><ResultSection title={admissionGroupLabel(result.source, "other")} cards={otherProjects} /><IncompleteResults title="知识库院校资料不足" cards={otherSchools} /></>;
-  const allResults = <>
-    {result.otherRequested && otherResults}
-    <ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} />
-    <ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" />
-    <IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />
-    {!result.otherRequested && otherResults}
-  </>;
-  const hasResults = !isCircuitBreaker && (confirmed.length > 0 || pending.length > 0 || other.length > 0);
-  const hasExternal = !isCircuitBreaker && Boolean(result.external && (result.external.programs.length > 0 || result.external.policyNotes.length > 0 || result.external.excludedNotes?.length));
-  const localOnlyEliminated = !hasExternal && (result.results.eliminatedNotes?.length ?? 0) > 0
-    ? result.results.eliminatedNotes!
-    : [];
-  if (isCircuitBreaker && result.diagnostic) {
-    return <div className="agent-answer">
-      {result.v31Report && <V31ReportToolbar report={result.v31Report} gates={result.v31Gates} canExportAdvisor={Boolean(result.canExportAdvisorReport)} />}
-      <DiagnosticBanner diagnostic={result.diagnostic} />
-      {conditions.length > 0 && <div className="agent-criteria" aria-label={t("已识别的申请条件")}>{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}
-    </div>;
-  }
-  if (result.partnerQuick) {
-    return <div className="agent-answer">
-      {showDiagnostic && result.diagnostic && <DiagnosticBanner diagnostic={result.diagnostic} />}
-      <div className="agent-answer-intro">
-        <p className="agent-outcome">{result.answer?.lead}</p>
-        {conditions.length > 0 && <div className="agent-criteria" aria-label={t("已识别的申请条件")}>{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}
-        {result.redactedContact && <p className="agent-context-note">{t("输入中的联系方式或证件信息已在发送模型前自动脱敏。")}</p>}
+  const hasRawLocal = confirmed.length > 0 || pending.length > 0 || other.length > 0;
+  const rawLocalResults = (
+    <>
+      {result.otherRequested && (
+        <>
+          <ResultSection title={admissionGroupLabel(result.source, "other")} cards={otherProjects} />
+          <IncompleteResults title="知识库院校资料不足" cards={otherSchools} />
+        </>
+      )}
+      <ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} />
+      <ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" />
+      <IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />
+      {!result.otherRequested && (
+        <>
+          <ResultSection title={admissionGroupLabel(result.source, "other")} cards={otherProjects} />
+          <IncompleteResults title="知识库院校资料不足" cards={otherSchools} />
+        </>
+      )}
+    </>
+  );
+
+  // 1. 纯对话
+  if (view.mode === "conversation" && view.followUp) {
+    return (
+      <div className="agent-answer">
+        <p className="agent-advisor-headline">{view.followUp.lead}</p>
       </div>
-      <PartnerQuickSection data={result.partnerQuick} onSwitchMode2={onSwitchMode2} />
-    </div>;
+    );
   }
-  if (result.answer) return <div className="agent-answer">{showDiagnostic && result.diagnostic && result.diagnostic.state !== "NORMAL" && <DiagnosticBanner diagnostic={result.diagnostic} />}<div className="agent-answer-intro"><p className="agent-outcome">{result.answer.lead}</p>{result.answer.details.length > 0 && <ul className="agent-followup-detail">{result.answer.details.map((detail, index) => <li key={index}>{detail}</li>)}</ul>}{result.answer.note && <p className="agent-followup-note">{result.answer.note}</p>}{result.redactedContact && <p className="agent-context-note">{t("输入中的联系方式或证件信息已在发送模型前自动脱敏。")}</p>}{result.sensitiveContext && <p className="agent-context-note">{t("申请前请核实生源相关招生注意事项及适用批次。")}</p>}</div>{(confirmed.length > 0 || pending.length > 0 || other.length > 0 || otherHidden) && <details className="agent-incomplete"><summary><span>{t("查看本轮依据")}</span><ChevronDown size={16} aria-hidden="true" /></summary>{result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}{otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>{t("查看知识库院校")}</button>}</details>}</div>;
-  if (result.narrative) return <div className="agent-answer">
-    {result.v31Report && <V31ReportToolbar report={result.v31Report} gates={result.v31Gates} canExportAdvisor={Boolean(result.canExportAdvisorReport)} />}
-    {showDiagnostic && result.diagnostic && <DiagnosticBanner diagnostic={result.diagnostic} />}
-    <div className="agent-answer-intro"><p className="agent-outcome">{result.narrative.lead}</p>
-      {conditions.length > 0 && <div className="agent-criteria" aria-label={t("已识别的申请条件")}>{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>}
-      {result.redactedContact && <p className="agent-context-note">{t("输入中的联系方式或证件信息已在发送模型前自动脱敏。")}</p>}
-      {result.sensitiveContext && <p className="agent-context-note">{t("申请前请核实生源相关招生注意事项及适用批次。")}</p>}
+
+  // 2. 追问回答（带尾部 [1][2] 可点击溯源）
+  if (view.mode === "follow_up" && view.followUp) {
+    return (
+      <div className="agent-answer">
+        <div className="agent-advisor-summary">
+          <p className="agent-advisor-headline">
+            {view.followUp.lead}
+            <CitationLinks
+              ids={view.followUp.leadCitationIds}
+              citationMap={citationMap}
+              turnId={turnId}
+              onJumpAnchor={handleJumpCitation}
+            />
+          </p>
+          {view.followUp.details.length > 0 && (
+            <ul className="agent-followup-detail">
+              {view.followUp.details.map((detail, idx) => (
+                <li key={idx}>
+                  {detail.text}
+                  <CitationLinks
+                    ids={detail.citationIds}
+                    citationMap={citationMap}
+                    turnId={turnId}
+                    onJumpAnchor={handleJumpCitation}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {view.followUp.note && <p className="agent-followup-note">{view.followUp.note}</p>}
+          {result.redactedContact && <p className="agent-context-note">{t("输入中的联系方式或证件信息已在发送模型前自动脱敏。")}</p>}
+        </div>
+
+        <AdvisorCitationsFooter
+          citations={view.citations}
+          turnId={turnId}
+          expanded={sourcesExpanded}
+          highlightedId={highlightedCite}
+          onToggleExpand={() => setSourcesExpanded((v) => !v)}
+        />
+
+        {(hasRawLocal || otherHidden) && (
+          <details className="agent-secondary-drawer">
+            <summary>
+              <span>{t("查看本轮原始记录")}</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </summary>
+            {rawLocalResults}
+            {otherHidden && (
+              <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>
+                {t("查看知识库院校")}
+              </button>
+            )}
+          </details>
+        )}
+      </div>
+    );
+  }
+
+  // 3. 硬熔断（直指缺口与可行补齐路径）
+  if (view.mode === "circuit_breaker" && view.circuitBreakerBanner) {
+    return (
+      <div className="agent-answer">
+        <section className="agent-advisor-stop" aria-label="申请条件暂不达标说明">
+          <p className="agent-advisor-headline">{view.headline}</p>
+          <p className="agent-advisor-stop-reason">{view.circuitBreakerBanner.reason}</p>
+
+          {view.conditionChecks.length > 0 && (
+            <ul className="agent-condition-grid" aria-label="输入条件检索表现">
+              {view.conditionChecks.map((check) => (
+                <li key={check.dimension} className={`agent-condition-item ${CONDITION_STATUS_CLASS[check.status]}`}>
+                  <div className="agent-condition-head">
+                    <span className="agent-condition-dot" aria-hidden="true" />
+                    <strong>{check.dimension}</strong>
+                    <span className="agent-condition-input">{check.input}</span>
+                  </div>
+                  <p>{check.verdict}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {view.circuitBreakerBanner.actions.length > 0 && (
+            <div className="agent-advisor-stop-actions">
+              <strong>建议先做这几步：</strong>
+              <ul>
+                {view.circuitBreakerBanner.actions.map((line, idx) => <li key={idx}>{line}</li>)}
+              </ul>
+            </div>
+          )}
+          <p className="agent-advisor-legal">{view.circuitBreakerBanner.legalNotice}</p>
+        </section>
+
+        {result.v31Report && (
+          <ReportExportBar report={result.v31Report} canExportAdvisor={Boolean(result.canExportAdvisorReport)} />
+        )}
+      </div>
+    );
+  }
+
+  // 4. 常规 / 降级 / 模式三：统一的顾问视角三段式回答（条件怎么样 -> 匹配到哪些院校 & 为什么适合 -> 参考来源 [1][2]）
+  const hasTiers = view.schools.some((s) => Boolean(s.tier));
+  const tiers: AdmissionTier[] = ["REACH", "TARGET", "SAFE"];
+
+  return (
+    <div className="agent-answer">
+      {/* 第一段：你的条件在检索中怎么样 */}
+      <section className="agent-advisor-summary" aria-label="条件检索情况">
+        <p className="agent-advisor-headline">{view.headline}</p>
+        {view.subline && <p className="agent-advisor-subline">{view.subline}</p>}
+
+        {view.conditionChecks.length > 0 && (
+          <ul className="agent-condition-grid" aria-label="各条件在检索中的表现">
+            {view.conditionChecks.map((check) => (
+              <li key={check.dimension} className={`agent-condition-item ${CONDITION_STATUS_CLASS[check.status]}`}>
+                <div className="agent-condition-head">
+                  <span className="agent-condition-dot" aria-hidden="true" />
+                  <strong>{check.dimension}</strong>
+                  <span className="agent-condition-input">{check.input}</span>
+                </div>
+                <p>{check.verdict}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {view.downgradeLockBanner && (
+          <div className="agent-advisor-downgrade">
+            <strong>{view.downgradeLockBanner.title}</strong>
+            <p>{view.downgradeLockBanner.reason}</p>
+            {view.downgradeLockBanner.actions.length > 0 && (
+              <ul>
+                {view.downgradeLockBanner.actions.map((action, idx) => <li key={idx}>{action}</li>)}
+              </ul>
+            )}
+            {view.downgradeLockBanner.fallbacks.length > 0 && (
+              <div className="agent-diagnostic-fallback-grid">
+                {view.downgradeLockBanner.fallbacks.map((fb) => (
+                  <div className="agent-diagnostic-fallback-card" key={`${fb.schoolName}-${fb.pathway}`}>
+                    <div className="agent-diagnostic-fallback-head">
+                      <span>{fb.schoolName}</span>
+                      <small>{fb.city} · {fb.pathwayLabel}</small>
+                    </div>
+                    <p>{fb.reason}</p>
+                    <p className="agent-diagnostic-fallback-cost">首年参考：{fb.estimatedFirstYearCost}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {view.downgradeLockBanner.legalNotice && (
+              <p className="agent-advisor-legal">{view.downgradeLockBanner.legalNotice}</p>
+            )}
+          </div>
+        )}
+
+        {view.nonPartnerWarnings.length > 0 && (
+          <div className="agent-excluded-box">
+            <strong>非合作院校提醒</strong>
+            <ul>
+              {view.nonPartnerWarnings.map((w) => <li key={w.school}><strong>{w.school}：</strong>{w.warning}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {(view.eliminatedNotes.length > 0 || view.blockedPartners.length > 0) && (
+          <details className="agent-eliminated-toggle">
+            <summary>
+              <span>已筛除 {view.eliminatedNotes.length + view.blockedPartners.length} 条不符合条件的院校记录（查看原因）</span>
+              <ChevronDown size={13} aria-hidden="true" />
+            </summary>
+            <ul>
+              {view.eliminatedNotes.map((note, idx) => <li key={`el-${idx}`}>{note}</li>)}
+              {view.blockedPartners.map((b, idx) => <li key={`bp-${idx}`}><strong>{b.school}：</strong>{b.reason}</li>)}
+            </ul>
+          </details>
+        )}
+
+        {result.redactedContact && <p className="agent-context-note">{t("输入中的联系方式或证件信息已在发送模型前自动脱敏。")}</p>}
+      </section>
+
+      {/* 第二段：匹配到的院校与具体推荐依据 */}
+      {view.schools.length > 0 ? (
+        <section className="agent-advisor-matches" aria-label="匹配院校与推荐依据">
+          <div className="agent-local-toolbar">
+            <span className="agent-local-toolbar-label">
+              匹配院校（{view.schools.length} 所
+              {hasTiers ? ` · 冲 ${view.counts.reach} · 稳 ${view.counts.target} · 保 ${view.counts.safe}` : ""}
+              ）
+            </span>
+            {hasTiers && view.schools.length > 1 && (
+              <div className="agent-view-toggle" role="group" aria-label="展示方式">
+                <button type="button" aria-pressed={groupByTier} onClick={() => setGroupByTier(true)}>按冲稳保分层</button>
+                <button type="button" aria-pressed={!groupByTier} onClick={() => setGroupByTier(false)}>综合排序</button>
+              </div>
+            )}
+          </div>
+
+          {hasTiers && groupByTier ? (
+            <div className="agent-advisor-tier-groups">
+              {tiers.map((tierKey) => {
+                const items = view.schools.filter((s) => (s.tier ?? "TARGET") === tierKey);
+                if (!items.length) return null;
+                const meta = tierMeta[tierKey];
+                return (
+                  <div className="agent-advisor-tier-section" key={tierKey}>
+                    <div className="agent-tier-heading">
+                      <span className={`agent-tier-badge ${meta.className}`}>{locale === "en" ? meta.en : meta.zh}</span>
+                      <span className="agent-tier-desc">{locale === "en" ? meta.descEn : meta.descZh}（{items.length} 所）</span>
+                    </div>
+                    <div className="agent-advisor-card-list">
+                      {items.map((item) => (
+                        <AdvisorSchoolCard
+                          key={item.key}
+                          item={item}
+                          citationMap={citationMap}
+                          turnId={turnId}
+                          onJumpAnchor={handleJumpCitation}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="agent-advisor-card-list">
+              {view.schools.map((item) => (
+                <AdvisorSchoolCard
+                  key={item.key}
+                  item={item}
+                  citationMap={citationMap}
+                  turnId={turnId}
+                  onJumpAnchor={handleJumpCitation}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <div className="agent-empty-result">
+          <strong>{t("没有找到可直接推荐的院校。")}</strong>
+          <p>{t("可以放宽专业、城市或预算，或点击下方查看更多院校。")}</p>
+        </div>
+      )}
+
+      {/* 仅当用户追问专项政策或触发实质规则时展示 */}
+      {view.policyNotes.length > 0 && (
+        <section className="agent-policy-box" aria-label="专项问题核查">
+          <strong>专项问题核查</strong>
+          <div className="agent-policy-list">
+            {view.policyNotes.map((note, idx) => (
+              <div className="agent-policy-item" key={idx}>
+                <h4>{note.title}</h4>
+                <p>
+                  {note.content}
+                  <CitationLinks ids={note.citationIds} citationMap={citationMap} turnId={turnId} onJumpAnchor={handleJumpCitation} />
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 第三段：可点击溯源的文末参考来源 */}
+      <AdvisorCitationsFooter
+        citations={view.citations}
+        turnId={turnId}
+        expanded={sourcesExpanded}
+        highlightedId={highlightedCite}
+        onToggleExpand={() => setSourcesExpanded((v) => !v)}
+      />
+
+      {view.nextHint && <p className="agent-narrative-next">{view.nextHint}</p>}
+
+      {/* 底部按需展开工具：历史简章 / 并排对比 / 原始库记录 / 导出报告 */}
+      <div className="agent-advisor-tools">
+        {view.historicalItems.length > 0 && (
+          <details className="agent-secondary-drawer">
+            <summary>
+              <span>往年简章参考（{view.historicalItems.length} 所 · 目标批次简章暂未发布）</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </summary>
+            <ul className="agent-historical-list">
+              {view.historicalItems.map((h, idx) => (
+                <li key={`${h.schoolName}-${idx}`}>
+                  <strong>{h.schoolName}</strong> · {h.programName}（参考 {h.referenceYear} 批次）：{h.summary}
+                  <CitationLinks ids={h.citationIds} citationMap={citationMap} turnId={turnId} onJumpAnchor={handleJumpCitation} />
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
+        <CandidateComparison result={result} />
+
+        {hasRawLocal && (
+          <details className="agent-secondary-drawer">
+            <summary>
+              <span>{t("查看校内库原始明细")}</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </summary>
+            {rawLocalResults}
+          </details>
+        )}
+
+        <div className="agent-advisor-action-row">
+          {view.mode === "partner_quick" && (
+            <button type="button" className="agent-other-button" onClick={onSwitchMode2} disabled={busy}>
+              切换「合作优先+全网」继续核查更多院校
+            </button>
+          )}
+          {otherHidden && view.mode !== "partner_quick" && (
+            <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>
+              {t("查看校内知识库其他院校")}
+            </button>
+          )}
+        </div>
+
+        {result.v31Report && (
+          <ReportExportBar report={result.v31Report} canExportAdvisor={Boolean(result.canExportAdvisorReport)} />
+        )}
+      </div>
     </div>
-    <CandidateComparison result={result} />
-    <NarrativeSchoolGroups result={result} />
-    {localOnlyEliminated.length > 0 && <div className="agent-excluded-box">
-      <strong>参考池 / 成绩档位淘汰说明</strong>
-      <ul>{localOnlyEliminated.map((note, idx) => <li key={idx}>{note}</li>)}</ul>
-    </div>}
-    {hasExternal && result.external && <ExternalScreeningSection external={result.external} />}
-    {result.v31Report && <HistoricalAndSourcesSection report={result.v31Report} />}
-    {result.narrative.next && <p className="agent-narrative-next">{result.narrative.next}</p>}
-    {hasResults && <details className="agent-narrative-results"><summary>{t("查看全部校内库候选与完整依据")} <ChevronDown size={15} aria-hidden="true" /></summary>
-      {result.otherRequested && otherResults}<ResultSection title={admissionGroupLabel(result.source, "partner")} cards={confirmed} /><ResultSection title={`${listName} · 条件待核实`} cards={pendingProjects} repeatedStatus="条件待核实" /><IncompleteResults title={`${listName} · 资料不足`} cards={pendingSchools} />{!result.otherRequested && otherResults}
-    </details>}
-    {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>{t("查看知识库院校")}</button>}
-  </div>;
-  return <div className="agent-answer">
-    {result.v31Report && <V31ReportToolbar report={result.v31Report} gates={result.v31Gates} canExportAdvisor={Boolean(result.canExportAdvisorReport)} />}
-    {showDiagnostic && result.diagnostic && <DiagnosticBanner diagnostic={result.diagnostic} />}
-    <div className="agent-answer-intro"><p className="agent-outcome">{outcomeSummary(result)}</p>
-      {conditions.length > 3 ? <details className="agent-conditions"><summary aria-label={`查看全部 ${conditions.length} 项匹配条件`}>{conditions.slice(0, 3).join(" · ")} 等 {conditions.length} 项条件 <ChevronDown size={14} aria-hidden="true" /></summary><div className="agent-criteria" aria-label={t("已识别的申请条件")}>{conditions.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div></details> : conditions.length > 0 && <p className="agent-conditions-line">{conditions.join(" · ")}</p>}
-      {result.redactedContact && <p className="agent-context-note">{t("输入中的联系方式或证件信息已在发送模型前自动脱敏。")}</p>}
-      {result.sensitiveContext && <p className="agent-context-note">{t("申请前请核实生源相关招生注意事项及适用批次。")}</p>}
-    </div>
-    <CandidateComparison result={result} />
-    <ResultSection title="优先查看" cards={comparisonCards(result)} />
-    {hasExternal && result.external && <ExternalScreeningSection external={result.external} />}
-    {result.v31Report && <HistoricalAndSourcesSection report={result.v31Report} />}
-    {hasResults && <details className="agent-narrative-results"><summary>{t("查看更多项目与匹配依据")} <ChevronDown size={15} aria-hidden="true" /></summary>{allResults}</details>}
-    {!confirmed.length && !pending.length && !other.length && !hasExternal && <div className="agent-empty-result"><strong>{t("没有找到可展示的院校。")}</strong><p>{t("试试放宽专业、预算或入学时间。")}</p></div>}
-    {otherHidden && <button type="button" className="agent-other-button" onClick={onOthers} disabled={busy}>{t("查看知识库院校")}</button>}
-    {result.prompt.startsWith("想进一步") && <p className="agent-follow-up">{result.prompt}</p>}
-  </div>;
+  );
 }
 
 function WorkbookManager({ canManage, refreshKey }: { canManage: boolean; refreshKey: number }) {
@@ -1887,7 +2019,7 @@ export function AiScreeningChat({ userId, canManageWorkbook, canSavePlans }: {
                                 </div>
                               </div>}
                               {turn.result && <ActiveResultContext.Provider value={turn.result}>
-                                <Answer result={turn.result} busy={busy || index < turns.length - 1}
+                                <Answer turnId={turn.id} result={turn.result} busy={busy || index < turns.length - 1}
                                   onOthers={() => void run("请查看其他院校", turn.result!.criteria, true, turn.result!.sensitiveContext)}
                                   onSwitchMode2={() => {
                                     setRunMode("partner_priority");

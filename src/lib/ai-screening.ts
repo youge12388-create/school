@@ -89,11 +89,11 @@ export function hasCriteriaValue(value: unknown): boolean {
 
 export type ListRow = { name: string; row: number; sheet?: string; yellow: boolean; fields: string[]; rawFields?: string[]; image: boolean; noCooperation: boolean };
 export type PartnerEntry = { name: string; status: "confirmed" | "not_cooperating" | "unknown"; programIds?: string[]; note?: string };
-export type SchoolInfo = { id: string; name: string; preference: string | null; updatedAt?: number | null; internalNotes?: { source: string; text: string | null }[] };
+export type SchoolInfo = { id: string; name: string; website?: string | null; preference: string | null; updatedAt?: number | null; internalNotes?: { source: string; text: string | null }[] };
 export type EvidencePoint = { label: string; level: "PASS" | "NEED" | "UNKNOWN"; text: string; source?: string };
 export type DataFreshness = "current" | "historical" | "unknown";
-export type ProjectFacts = { tuition: number | null; tuitionStatus: "known" | "unknown" | "conflict"; teachingLanguage: "CHINESE" | "ENGLISH" | "UNKNOWN"; ielts: number | null; toefl: number | null; duolingo: number | null; hskLevel: number | null; hskScore: number | null; scholarship: "full" | "available" | "unknown"; scholarshipText?: string | null; sourceYear?: number | null; feeFreshness?: DataFreshness };
-export type ResultCard = { name: string; schoolKey?: string; schoolId?: string; programId?: string; program: string; fit: string; quality?: "candidate" | "insufficient"; cooperation: "listed" | "project_confirmed" | "not_cooperating" | "unknown"; evidence: string[]; points: EvidencePoint[]; kind: "project" | "school"; sources: string[]; warning: string[]; yellow: boolean; image: boolean; comparableCost?: number | null; facts?: ProjectFacts; verified?: boolean; score?: number; tier?: AdmissionTier; tierReason?: string; scoreBreakdown?: ScoreBreakdown; cityLabel?: string | null; schoolTags?: string | null; qsRanking?: number | null };
+export type ProjectFacts = { tuition: number | null; tuitionStatus: "known" | "unknown" | "conflict"; teachingLanguage: "CHINESE" | "ENGLISH" | "UNKNOWN"; gpaMin?: number | null; gpaScale?: number | null; ielts: number | null; toefl: number | null; duolingo: number | null; hskLevel: number | null; hskScore: number | null; scholarship: "full" | "available" | "unknown"; scholarshipText?: string | null; sourceYear?: number | null; feeFreshness?: DataFreshness };
+export type ResultCard = { name: string; schoolKey?: string; schoolId?: string; programId?: string; program: string; fit: string; quality?: "candidate" | "insufficient"; cooperation: "listed" | "project_confirmed" | "not_cooperating" | "unknown"; evidence: string[]; points: EvidencePoint[]; kind: "project" | "school"; sources: string[]; warning: string[]; yellow: boolean; image: boolean; comparableCost?: number | null; facts?: ProjectFacts; verified?: boolean; score?: number; tier?: AdmissionTier; tierReason?: string; scoreBreakdown?: ScoreBreakdown; cityLabel?: string | null; schoolTags?: string | null; qsRanking?: number | null; officialUrl?: string | null };
 type SearchProgress = { onPartnerSearchComplete?: (state: { confirmed: number; pending: number; searchingOthers: boolean }) => void };
 type SearchProgram = MatchProgram & { attentionText?: string | null };
 export type ResultExclusions = { schoolKeys?: Iterable<string>; programIds?: Iterable<string> };
@@ -251,6 +251,22 @@ function feeTimingConcern(program: MatchProgram, intakeYear: number | null | und
     : `知识库首年费用未注明适用年份，约 ${program.firstYearCostMax?.toLocaleString("zh-CN")} 元，需核实 ${target}收费`;
 }
 
+function safeSchoolWebsite(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : /^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(trimmed) ? `https://${trimmed}` : "";
+  if (!withScheme) return null;
+  try {
+    const parsed = new URL(withScheme);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    if (parsed.username || parsed.password) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function projectFacts(program: MatchProgram, tuition: number | null, tuitionStatus: ProjectFacts["tuitionStatus"], feeFreshness: DataFreshness): ProjectFacts {
   const valid = (value: number | null) => value != null && Number.isFinite(value) && value >= 0 ? value : null;
   const scholarshipText = program.scholarshipCategory?.trim() ?? "";
@@ -261,6 +277,8 @@ function projectFacts(program: MatchProgram, tuition: number | null, tuitionStat
     tuition,
     tuitionStatus,
     teachingLanguage: program.teachingLanguage === "CHINESE" || program.teachingLanguage === "ENGLISH" ? program.teachingLanguage : "UNKNOWN",
+    gpaMin: valid(program.gpaMin),
+    gpaScale: valid(program.gpaScale),
     ielts: valid(program.ieltsMin),
     toefl: valid(program.toeflMin),
     duolingo: valid(program.duolingoMin),
@@ -490,7 +508,8 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
     });
     const warnings = makeWarnings(list, school, partner);
     const sources = list.map((row) => `招生表 ${row.sheet ?? "Sheet1"} 第 ${row.row} 行`);
-    const base = { name: list[0].name, schoolKey: key, schoolId: school?.id, sources, warning: warnings, yellow: list.some((r) => r.yellow), image: list.some((r) => r.image) };
+    const schoolOfficialUrl = safeSchoolWebsite(school?.website);
+    const base = { name: list[0].name, schoolKey: key, schoolId: school?.id, sources, warning: warnings, yellow: list.some((r) => r.yellow), image: list.some((r) => r.image), ...(schoolOfficialUrl ? { officialUrl: schoolOfficialUrl } : {}) };
     const columns = { LONG_TERM: 7, SHORT_TERM: 7, UG: 10, MASTER: 11, PHD: 12 };
     const listEvidence = (type?: keyof typeof columns | null) => list.flatMap((row) => {
       const tuition = type ? row.fields[columns[type]] : "";
@@ -594,7 +613,8 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
         program: p,
       }, criteria);
       const relevance = (quality === "candidate" ? 1000 : 0) + breakdown.total * 10 + candidateRelevance(points, quality) * 0.01;
-      other.push({ name: p.schoolName, schoolKey: key, schoolId: p.schoolId, programId: p.id, kind: "project", quality, points, relevance, score: breakdown.total, tier: breakdown.tier, tierReason: breakdown.tierReason, scoreBreakdown: breakdown, cityLabel: cityLabelFor(p), schoolTags: p.schoolTags, qsRanking: p.qsRanking && p.qsRanking > 0 ? p.qsRanking : null, comparableCost: p.costIncomplete ? null : p.firstYearCostMax, facts, verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), program: p.programName, cooperation: "unknown", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: result.evidence.map((e) => `${e.label}：${privileged ? safeText(e.detail) : ({ PASS: "符合已知条件", NEED: "需要补充或核实", UNKNOWN: "信息未知，需核实", FAIL: "不符合" }[e.level])}`), sources: ["知识库项目"], warning: makeWarnings([], school, partnerByName.get(key), p), yellow: false, image: false });
+      const otherOfficialUrl = safeSchoolWebsite(school?.website);
+      other.push({ name: p.schoolName, schoolKey: key, schoolId: p.schoolId, programId: p.id, kind: "project", quality, points, relevance, score: breakdown.total, tier: breakdown.tier, tierReason: breakdown.tierReason, scoreBreakdown: breakdown, cityLabel: cityLabelFor(p), schoolTags: p.schoolTags, qsRanking: p.qsRanking && p.qsRanking > 0 ? p.qsRanking : null, comparableCost: p.costIncomplete ? null : p.firstYearCostMax, facts, verified: Boolean(p.manuallyVerified && p.reviewStatus === "VERIFIED"), program: p.programName, cooperation: "unknown", fit: result.evidence.some((e) => e.level !== "PASS") ? "条件待核实" : "已知条件符合", evidence: result.evidence.map((e) => `${e.label}：${privileged ? safeText(e.detail) : ({ PASS: "符合已知条件", NEED: "需要补充或核实", UNKNOWN: "信息未知，需核实", FAIL: "不符合" }[e.level])}`), sources: ["知识库项目"], warning: makeWarnings([], school, partnerByName.get(key), p), yellow: false, image: false, ...(otherOfficialUrl ? { officialUrl: otherOfficialUrl } : {}) });
     }
   }
   const sortByRelevance = (a: ScoredCard, b: ScoredCard) =>
@@ -629,7 +649,7 @@ export function buildResults(rows: ListRow[], programs: SearchProgram[], schools
     void rebalanced;
   }
 
-  const clean = (cards: ScoredCard[]): ResultCard[] => cards.map(({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified, score, tier, tierReason, scoreBreakdown, cityLabel, schoolTags, qsRanking }) => ({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified, score, tier, tierReason, scoreBreakdown, cityLabel, schoolTags, qsRanking }));
+  const clean = (cards: ScoredCard[]): ResultCard[] => cards.map(({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified, score, tier, tierReason, scoreBreakdown, cityLabel, schoolTags, qsRanking, officialUrl }) => ({ name, schoolKey: key, schoolId, programId, program, fit, quality, cooperation, evidence, points, kind, sources, warning, yellow, image, comparableCost, facts, verified, score, tier, tierReason, scoreBreakdown, cityLabel, schoolTags, qsRanking, ...(officialUrl ? { officialUrl } : {}) }));
   const uniqueEliminated = [...new Set(eliminatedNotes)];
   return {
     confirmed: clean(confirmed),
