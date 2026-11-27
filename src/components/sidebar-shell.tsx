@@ -1,6 +1,7 @@
 "use client";
 
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState, createContext, useContext } from "react";
 import { useT } from "@/lib/i18n/locale-context";
 
@@ -11,8 +12,20 @@ export function useSidebarCollapsed() {
 }
 
 export function SidebarShell({ brand, children }: { brand: React.ReactNode; children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
+  const isAgentPage = pathname === "/ai-screening" || pathname?.startsWith("/ai-screening/");
+  const [manualOverride, setManualOverride] = useState<{ path: string; collapsed: boolean } | null>(null);
+  const collapsed = manualOverride && manualOverride.path === pathname ? manualOverride.collapsed : isAgentPage;
   const t = useT();
+  const handleToggle = () => {
+    const nextCollapsed = !collapsed;
+    setManualOverride({ path: pathname ?? "", collapsed: nextCollapsed });
+    try {
+      window.dispatchEvent(new CustomEvent("workspace:sidebar-toggle", { detail: { collapsed: nextCollapsed } }));
+    } catch {
+      // Ignore environments without CustomEvent support.
+    }
+  };
   return (
     <SidebarCollapsedContext.Provider value={collapsed}>
       <aside className={"sidebar" + (collapsed ? " sidebar--collapsed" : "")}>
@@ -21,7 +34,7 @@ export function SidebarShell({ brand, children }: { brand: React.ReactNode; chil
           <button
             className="sidebar-collapse-btn"
             type="button"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={handleToggle}
             aria-expanded={!collapsed}
             aria-controls="workspace-nav"
             aria-label={collapsed ? t("展开侧边栏") : t("收起侧边栏")}

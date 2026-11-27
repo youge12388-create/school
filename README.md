@@ -59,7 +59,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1 -Startup
 
 ### 桌面快捷方式
 
-双击 `scripts\open-local.ps1` 或桌面快捷方式，自动检测生产服务 → 已构建则启动 → 回退开发模式。
+本机统一使用 `E:\codex-all\school-syt` 工作区。双击根目录的 `start-dashboard.cmd`，或使用 `start-dashboard-hidden.vbs` 隐藏启动窗口；入口根据自身位置定位项目，不依赖盘符或外部工作目录。
+
+本地入口始终从当前源码启动开发服务，运行信息保存在 `data/local-runtime/`。重复打开会复用同一项目的服务；端口被其他服务占用时会明确报错。仅启动服务可运行 `powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1`；脚本不再额外执行数据库迁移命令。已有业务库升级前应先备份并确认迁移。
 
 ## 首次启动（手动）
 

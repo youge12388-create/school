@@ -25,7 +25,7 @@ body {
 }
 
 .app-shell:has(.sidebar--collapsed) { grid-template-columns: 64px minmax(0, 1fr); }
-.app-shell:has(.sidebar--collapsed) .page-content { width: min(100%, var(--workspace-width)); }
+.app-shell:has(.sidebar--collapsed) .page-content { width: min(100%, 1680px); }
 .app-shell .sidebar {
   display: flex;
   flex-direction: column;
@@ -329,6 +329,9 @@ body {
   gap: 20px 32px;
   align-items: start;
 }
+.settings-main { display: grid; gap: 20px; min-width: 0; }
+.search-governance-status { gap: 6px 12px; }
+.search-governance-metrics { margin-inline-start: auto; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 .settings-panel .settings-panel-header { justify-content: flex-start; gap: 13px; padding: 17px 22px; }
 .settings-panel-header > svg { flex: 0 0 auto; align-self: flex-start; margin-top: 3px; color: var(--primary-hover); }

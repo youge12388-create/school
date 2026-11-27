@@ -711,15 +711,41 @@ label {
   font-weight: 600;
 }
 
+.app-shell:has(.agent-page) > .main {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 20px);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.app-shell:has(.agent-page) .topbar {
+  flex: 0 0 auto;
+  min-height: 54px;
+  padding-inline: 20px;
+}
+
+.app-shell .page-content:has(.agent-page),
+.app-shell:has(.sidebar--collapsed) .page-content:has(.agent-page) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .page-content .agent-workbench {
-  height: max(400px, calc(100dvh - 224px));
+  height: 100%;
 }
 
 .agent-chat-panel,
 .agent-draft-panel {
-  border-color: var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-1);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mobile-school-card {
@@ -773,6 +799,11 @@ label {
     border-radius: 0;
     box-shadow: none;
     min-height: 100vh;
+  }
+
+  .app-shell:has(.agent-page) > .main {
+    height: calc(100dvh - 59px - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
   }
 
   .topbar {

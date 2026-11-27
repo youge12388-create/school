@@ -217,10 +217,41 @@ async function waitBeforeRetry(delayMs: number, signal?: AbortSignal) {
   });
 }
 
+export type AiCompletionPayload = {
+  choices?: {
+    message?: {
+      content?: unknown;
+      annotations?: Array<{ type?: string; url_citation?: { url?: unknown; title?: unknown } }>;
+      server_tool_calls?: Array<{
+        calls?: Array<{
+          type?: string;
+          status?: string;
+          sources?: Array<{ url?: unknown; title?: unknown; snippet?: unknown }>;
+        }>;
+      }>;
+    };
+    finish_reason?: string;
+  }[];
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    server_tool_use?: { tool_search?: number; tool_fetch?: number };
+  };
+};
+
 export async function requestAiCompletion(
   config: Credentials,
   messages: ChatMessage[],
-  options: { timeoutMs: number; signal?: AbortSignal; fetchImpl?: typeof fetch; maxTokens?: number; retries?: number },
+  options: {
+    timeoutMs: number;
+    signal?: AbortSignal;
+    fetchImpl?: typeof fetch;
+    maxTokens?: number;
+    retries?: number;
+    tools?: Array<{ type: string }>;
+    responseFormat?: "json_object" | "text";
+  },
 ) {
   if (!config.apiKey) throw new AiProviderError("missing");
   const baseUrl = normalizedBaseUrl(config.baseUrl);
@@ -228,6 +259,8 @@ export async function requestAiCompletion(
   const deadline = Date.now() + options.timeoutMs;
   const maxAttempts = 1 + Math.max(0, options.retries ?? 1);
   const fetchFn = options.fetchImpl ?? fetch;
+  const hasTools = Boolean(options.tools?.length);
+  const useJsonFormat = !hasTools && options.responseFormat !== "text";
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const remainingMs = deadline - Date.now();
@@ -245,7 +278,8 @@ export async function requestAiCompletion(
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
         body: JSON.stringify({
           model: config.model,
-          response_format: { type: "json_object" },
+          ...(useJsonFormat ? { response_format: { type: "json_object" } } : {}),
+          ...(hasTools ? { tools: options.tools } : {}),
           temperature: 0,
           max_tokens: options.maxTokens,
           messages,
@@ -273,7 +307,7 @@ export async function requestAiCompletion(
       throw new AiProviderError("network");
     }
     try {
-      return await response.json() as { choices?: { message?: { content?: unknown }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };
+      return await response.json() as AiCompletionPayload;
     } catch {
       throw new AiProviderError(timeout.aborted ? "timeout" : "model");
     }

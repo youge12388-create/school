@@ -1,9 +1,7 @@
+﻿param(
+  [ValidateRange(1024, 65535)]
+  [int]$Port = 3000
+)
+
 $ErrorActionPreference = "Stop"
-Set-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
-
-if (-not (Test-Path ".env.local")) {
-  Copy-Item ".env.example" ".env.local"
-}
-
-npm run db:migrate
-npm run dev
+& (Join-Path $PSScriptRoot "open-local.ps1") -Port $Port -NoBrowser

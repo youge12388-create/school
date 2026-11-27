@@ -1,13 +1,64 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, unlinkSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 // 迁移前把数据库备份到 backups/migration-<时间戳>/app.db（WAL 全部落盘后
 // 用 VACUUM INTO 生成一致性快照），失败只告警不阻断迁移，避免磁盘异常导致停摆。
+/**
+ * 迁移前快照只在真实运行时生成：测试每次都会新建一次性数据库，
+ * 若也写快照会在仓库 backups/ 下堆积成千上万个空文件。
+ */
+export function shouldSnapshotBeforeMigration(env: Partial<NodeJS.ProcessEnv> = process.env) {
+  return env.NODE_ENV !== "test" && !env.VITEST;
+}
+
+/** 迁移快照的保留份数（超出后按时间从旧到新清理）。 */
+export const MIGRATION_SNAPSHOT_KEEP = 10;
+
+/**
+ * 清理超出保留份数的历史迁移快照目录，避免 backups/ 无限增长。
+ * 只处理 `migration-<时间戳>` 命名的目录，其他备份（如 before-upgrade-*）不动。
+ * 清理失败不阻断迁移：迁移本身已经完成，磁盘问题只记录告警。
+ */
+export function pruneMigrationSnapshots(backupsRoot: string, keep = MIGRATION_SNAPSHOT_KEEP): number {
+  if (keep <= 0) return 0;
+  let entries: string[];
+  try {
+    entries = readdirSync(backupsRoot);
+  } catch {
+    return 0;
+  }
+  // 目录名是 `migration-` + 时间戳，字典序即时间序，无需解析日期。
+  const snapshots = entries
+    .filter((name) => /^migration-\d{8,}$/u.test(name))
+    .sort();
+  const removable = snapshots.slice(0, Math.max(0, snapshots.length - keep));
+  let removed = 0;
+  for (const name of removable) {
+    const dir = join(backupsRoot, name);
+    try {
+      for (const file of readdirSync(dir)) {
+        try {
+          unlinkSync(join(dir, file));
+        } catch {
+          // 单个文件删不掉时保留，下一轮再试，避免误删同目录其他内容。
+        }
+      }
+      rmdirSync(dir);
+      removed += 1;
+    } catch {
+      // 目录被占用或权限不足时跳过，不影响迁移。
+    }
+  }
+  return removed;
+}
+
 function backupBeforeMigration(database: DatabaseSync, databasePath: string) {
   if (!existsSync(databasePath)) return;
+  if (!shouldSnapshotBeforeMigration()) return;
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "");
-  const backupRoot = resolve(process.cwd(), "backups", `migration-${stamp}`);
+  const backupsRoot = resolve(process.cwd(), "backups");
+  const backupRoot = resolve(backupsRoot, `migration-${stamp}`);
   try {
     mkdirSync(backupRoot, { recursive: true });
     database.exec("PRAGMA wal_checkpoint(FULL)");
@@ -18,6 +69,8 @@ function backupBeforeMigration(database: DatabaseSync, databasePath: string) {
     }
     database.exec(`VACUUM INTO '${target.replaceAll("'", "''")}'`);
     console.log(`[migrate] 已备份数据库到 ${target}`);
+    const pruned = pruneMigrationSnapshots(backupsRoot);
+    if (pruned > 0) console.log(`[migrate] 已清理 ${pruned} 个过期迁移快照（保留最近 ${MIGRATION_SNAPSHOT_KEEP} 份）`);
   } catch (error) {
     // 双实例/测试并发迁移同一库时可能出现 "already exists" 类竞争错误，
     // 迁移本身有 busy_timeout + 幂等保护，此时静默跳过备份即可。

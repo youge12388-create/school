@@ -64,6 +64,18 @@ export function normalizeKeyword(value: string) {
     .replace(/[（）()【】[\]\s·•、，,。./\\_-]/g, "");
 }
 
+/** Shanghai calendar date as `YYYY-MM-DD`, independent of the process timezone. */
+export function dateInShanghai(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 // 仅接受 http/https 链接（供网址类字段入参与渲染兜底，防 javascript: 等注入）。
 export function safeHttpUrl(value: unknown): string | null {
   const text = asText(value);

@@ -17,12 +17,9 @@ import { requirePermission, requireRole } from "@/lib/auth";
 import {
   stripConfidentialSchoolUpdates,
 } from "@/lib/permissions";
-import { db } from "@/lib/db";
+import { db, sqlite } from "@/lib/db";
+import { withTransaction } from "@/lib/db/raw";
 import {
-  applications,
-  applicationEvents,
-  customers,
-  followUps,
   programs,
   programMajors,
   schools,
@@ -39,26 +36,24 @@ export async function addFollowUpAction(formData: FormData) {
   const content = asText(formData.get("content"));
   if (!customerId || !content) throw new Error("客户和沟通内容不能为空");
   const nextFollowUpAt = parseDateInput(formData.get("nextFollowUpAt"));
+  const channel = asText(formData.get("channel")) || "其他";
   const id = newId();
-  await db.insert(followUps).values({
-    id,
-    customerId,
-    authorId: user.id,
-    channel: asText(formData.get("channel")) || "其他",
-    content,
-    nextFollowUpAt,
-  });
-  if (nextFollowUpAt) {
-    await db
-      .update(customers)
-      .set({ nextFollowUpAt, updatedAt: new Date() })
-      .where(eq(customers.id, customerId));
-  }
-  await writeAudit({
-    userId: user.id,
-    action: "FOLLOW_UP_ADDED",
-    entityType: "CUSTOMER",
-    entityId: customerId,
+  // 跟进记录、客户下次跟进时间与审计日志必须同生共死，避免只写入一半。
+  withTransaction(sqlite, (db) => {
+    db.prepare(
+      `INSERT INTO follow_ups (id, customer_id, author_id, channel, content, next_follow_up_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(id, customerId, user.id, channel, content, nextFollowUpAt ? nextFollowUpAt.getTime() : null, Date.now());
+    if (nextFollowUpAt) {
+      db.prepare(`UPDATE customers SET next_follow_up_at = ?, updated_at = ? WHERE id = ?`)
+        .run(nextFollowUpAt.getTime(), Date.now(), customerId);
+    }
+    writeAudit({
+      userId: user.id,
+      action: "FOLLOW_UP_ADDED",
+      entityType: "CUSTOMER",
+      entityId: customerId,
+    }, db);
   });
   revalidatePath(`/customers/${customerId}`);
 }
@@ -79,16 +74,16 @@ export async function updateCustomerManagementAction(formData: FormData) {
     .limit(1);
   if (!owner) throw new Error("负责老师账号不存在");
 
-  await db
-    .update(customers)
-    .set({ ownerId, contractStatus, updatedAt: new Date() })
-    .where(eq(customers.id, customerId));
-  await writeAudit({
-    userId: user.id,
-    action: "CUSTOMER_MANAGEMENT_UPDATED",
-    entityType: "CUSTOMER",
-    entityId: customerId,
-    details: { ownerId, contractStatus },
+  withTransaction(sqlite, (db) => {
+    db.prepare("UPDATE customers SET owner_id = ?, contract_status = ?, updated_at = ? WHERE id = ?")
+      .run(ownerId, contractStatus, Date.now(), customerId);
+    writeAudit({
+      userId: user.id,
+      action: "CUSTOMER_MANAGEMENT_UPDATED",
+      entityType: "CUSTOMER",
+      entityId: customerId,
+      details: { ownerId, contractStatus },
+    }, db);
   });
   revalidatePath(`/customers/${customerId}`);
   revalidatePath("/customers");
@@ -96,15 +91,14 @@ export async function updateCustomerManagementAction(formData: FormData) {
 export async function archiveCustomerAction(formData: FormData) {
   const user = await requirePermission("CUSTOMER_EDIT");
   const customerId = asText(formData.get("customerId"));
-  await db
-    .update(customers)
-    .set({ archived: true, updatedAt: new Date() })
-    .where(eq(customers.id, customerId));
-  await writeAudit({
-    userId: user.id,
-    action: "CUSTOMER_ARCHIVED",
-    entityType: "CUSTOMER",
-    entityId: customerId,
+  withTransaction(sqlite, (db) => {
+    db.prepare("UPDATE customers SET archived = 1, updated_at = ? WHERE id = ?").run(Date.now(), customerId);
+    writeAudit({
+      userId: user.id,
+      action: "CUSTOMER_ARCHIVED",
+      entityType: "CUSTOMER",
+      entityId: customerId,
+    }, db);
   });
   redirect("/customers");
 }
@@ -115,27 +109,24 @@ export async function createApplicationAction(formData: FormData) {
   const programId = asText(formData.get("programId"));
   if (!customerId || !programId) throw new Error("客户和项目不能为空");
   const id = newId();
-  await db.insert(applications).values({
-    id,
-    customerId,
-    programId,
-    ownerId: user.id,
-    status: "MATERIAL_PREPARATION",
-    notes: asText(formData.get("notes")) || null,
-  });
-  await db.insert(applicationEvents).values({
-    id: newId(),
-    applicationId: id,
-    fromStatus: null,
-    toStatus: "MATERIAL_PREPARATION",
-    reason: "创建申请",
-    actorId: user.id,
-  });
-  await writeAudit({
-    userId: user.id,
-    action: "APPLICATION_CREATED",
-    entityType: "APPLICATION",
-    entityId: id,
+  const notes = asText(formData.get("notes")) || null;
+  // 申请、初始状态事件与审计日志在同一事务内写入。
+  withTransaction(sqlite, (db) => {
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO applications (id, customer_id, program_id, owner_id, status, notes, archived, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+    ).run(id, customerId, programId, user.id, "MATERIAL_PREPARATION", notes, now, now);
+    db.prepare(
+      `INSERT INTO application_events (id, application_id, from_status, to_status, reason, actor_id, created_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?)`,
+    ).run(newId(), id, "MATERIAL_PREPARATION", "创建申请", user.id, now);
+    writeAudit({
+      userId: user.id,
+      action: "APPLICATION_CREATED",
+      entityType: "APPLICATION",
+      entityId: id,
+    }, db);
   });
   redirect(`/applications/${id}`);
 }
@@ -148,43 +139,35 @@ export async function updateApplicationStatusAction(formData: FormData) {
   if (!APPLICATION_STATUSES.includes(toStatus) || !reason) {
     throw new Error("状态和调整原因不能为空");
   }
-  const [current] = await db
-    .select({ status: applications.status, customerId: applications.customerId })
-    .from(applications)
-    .where(eq(applications.id, applicationId))
-    .limit(1);
-  if (!current) throw new Error("申请不存在");
-  await db
-    .update(applications)
-    .set({
-      status: toStatus,
-      updatedAt: new Date(),
-      submittedAt: toStatus === "SUBMITTED" ? new Date() : undefined,
-      resultAt:
-        toStatus === "ADMITTED" || toStatus === "REJECTED"
-          ? new Date()
-          : undefined,
-    })
-    .where(eq(applications.id, applicationId));
-  await db.insert(applicationEvents).values({
-    id: newId(),
-    applicationId,
-    fromStatus: current.status,
-    toStatus,
-    reason,
-    actorId: user.id,
-  });
-  await writeAudit({
-    userId: user.id,
-    action: "APPLICATION_STATUS_CHANGED",
-    entityType: "APPLICATION",
-    entityId: applicationId,
-    details: { from: current.status, to: toStatus, reason },
+  // 读取旧状态、更新申请、写状态事件和审计必须原子完成，否则并发调整会丢事件。
+  const customerId = withTransaction(sqlite, (db) => {
+    const current = db.prepare("SELECT status, customer_id AS customerId FROM applications WHERE id = ?")
+      .get(applicationId) as { status: string; customerId: string } | undefined;
+    if (!current) throw new Error("申请不存在");
+    const now = Date.now();
+    db.prepare(
+      `UPDATE applications SET status = ?, updated_at = ?,
+        submitted_at = CASE WHEN ? = 'SUBMITTED' THEN ? ELSE submitted_at END,
+        result_at = CASE WHEN ? IN ('ADMITTED', 'REJECTED') THEN ? ELSE result_at END
+       WHERE id = ?`,
+    ).run(toStatus, now, toStatus, now, toStatus, now, applicationId);
+    db.prepare(
+      `INSERT INTO application_events (id, application_id, from_status, to_status, reason, actor_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(newId(), applicationId, current.status, toStatus, reason, user.id, now);
+    writeAudit({
+      userId: user.id,
+      action: "APPLICATION_STATUS_CHANGED",
+      entityType: "APPLICATION",
+      entityId: applicationId,
+      details: { from: current.status, to: toStatus, reason },
+    }, db);
+    return current.customerId;
   });
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath("/applications");
   revalidatePath("/customers");
-  revalidatePath(`/customers/${current.customerId}`);
+  revalidatePath(`/customers/${customerId}`);
 }
 
 export async function toggleUserAction(formData: FormData) {
@@ -200,15 +183,14 @@ export async function toggleUserAction(formData: FormData) {
   if (target?.authProvider === "WECOM") {
     throw new Error("企业微信账号请通过企业微信成员状态或部门权限管理");
   }
-  await db
-    .update(users)
-    .set({ active, updatedAt: new Date() })
-    .where(eq(users.id, userId));
-  await writeAudit({
-    userId: admin.id,
-    action: active ? "USER_ENABLED" : "USER_DISABLED",
-    entityType: "USER",
-    entityId: userId,
+  withTransaction(sqlite, (db) => {
+    db.prepare("UPDATE users SET active = ?, updated_at = ? WHERE id = ?").run(active ? 1 : 0, Date.now(), userId);
+    writeAudit({
+      userId: admin.id,
+      action: active ? "USER_ENABLED" : "USER_DISABLED",
+      entityType: "USER",
+      entityId: userId,
+    }, db);
   });
   revalidatePath("/admin/users");
 }
